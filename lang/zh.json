@@ -77,8 +77,8 @@
   "greeting": "开始使用 PureCore",
   "version": {
     "label": "版本",
-    "alpha": "Alpha 测试版",
-    "beta": "Beta 测试版",
+    "alpha": "Alpha",
+    "beta": "Beta",
     "rc": "候选发布版",
     "stable": "正式版",
     "loading": "加载中...",

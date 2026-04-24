@@ -85,7 +85,7 @@ curl http://localhost:9002/api/v1/ping
 GET /api/v1/system/info
 ```
 
-从 `purecore.json` 返回项目元数据，包括版本号、发布类型、作者、许可证和依赖项信息。
+从 `web/package.json`（`purecore` 键下）返回项目元数据，包括版本号、发布类型、作者、许可证和依赖项信息。
 
 **请求示例**
 

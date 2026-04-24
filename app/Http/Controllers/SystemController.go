@@ -28,15 +28,19 @@ func loadProjectInfo() (*ProjectInfo, error) {
 		return cachedInfo, nil
 	}
 
-	data, err := os.ReadFile("purecore.json")
+	data, err := os.ReadFile("web/package.json")
 	if err != nil {
 		return nil, err
 	}
 
-	var info ProjectInfo
-	if err := json.Unmarshal(data, &info); err != nil {
+	// web/package.json contains project metadata under the "purecore" key
+	var pkg struct {
+		PureCore ProjectInfo `json:"purecore"`
+	}
+	if err := json.Unmarshal(data, &pkg); err != nil {
 		return nil, err
 	}
+	info := pkg.PureCore
 
 	cachedInfo = &info
 	return cachedInfo, nil

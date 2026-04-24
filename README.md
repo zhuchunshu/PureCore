@@ -4,7 +4,6 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/go-1.21+-00ADD8.svg)](https://go.dev/)
-[![Version](https://img.shields.io/badge/version-1.0.0_alpha-orange.svg)](purecore.json)
 
 > ⚠️ This project is currently in **Alpha** stage. APIs and features may change without notice.
 
@@ -67,7 +66,7 @@ bun run dev            # → http://localhost:9001
 ├── lang/                  # Shared translation files (zh.json, en.json)
 ├── web/                   # Vue 3 frontend
 ├── docs/                  # Documentation (EN & ZH)
-├── purecore.json          # Project metadata
+├── LICENSE                # MIT License
 ├── .env.example           # Environment template
 ├── main.go                # Entry point
 └── go.mod

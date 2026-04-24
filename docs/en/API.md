@@ -85,7 +85,7 @@ curl http://localhost:9002/api/v1/ping
 GET /api/v1/system/info
 ```
 
-Returns project metadata from `purecore.json`, including version, release type, author, license, and dependencies.
+Returns project metadata from `web/package.json` (under the `purecore` key), including version, release type, author, license, and dependencies.
 
 **Example Request**
 

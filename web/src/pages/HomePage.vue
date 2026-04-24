@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, inject } from 'vue'
 import { useI18n } from '../i18n'
 
 const { t, locale } = useI18n()
@@ -18,8 +18,10 @@ const stats = [
   { name: 'DaisyUI', value: '5.x', descKey: 'home.stats_4_desc' },
 ]
 
-const projectInfo = ref(null)
-const loading = ref(true)
+// Use SSR-provided project info if available (eliminates hydration flash)
+const ssrProjectInfo = inject('projectInfo', null)
+const projectInfo = ref(ssrProjectInfo)
+const loading = ref(!ssrProjectInfo)
 
 const releaseTypeLabel = computed(() => {
   if (!projectInfo.value) return t('version.loading')
@@ -47,6 +49,11 @@ const description = computed(() => {
 })
 
 onMounted(async () => {
+  // Only fetch if SSR didn't provide it (e.g., direct client-side navigation)
+  if (projectInfo.value) {
+    loading.value = false
+    return
+  }
   try {
     const resp = await fetch('/api/v1/system/info')
     const json = await resp.json()

@@ -4,7 +4,6 @@
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/go-1.21+-00ADD8.svg)](https://go.dev/)
-[![Version](https://img.shields.io/badge/version-1.0.0_alpha-orange.svg)](purecore.json)
 
 > ⚠️ 此项目目前处于 **Alpha** 阶段。API 和功能可能随时变动，恕不另行通知。
 
@@ -67,7 +66,7 @@ bun run dev            # → http://localhost:9001
 ├── lang/                  # 共享翻译文件（zh.json、en.json）
 ├── web/                   # Vue 3 前端
 ├── docs/                  # 文档（英文和中文）
-├── purecore.json          # 项目元数据
+├── LICENSE                # MIT 许可证
 ├── .env.example           # 环境配置模板
 ├── main.go                # 入口文件
 └── go.mod
