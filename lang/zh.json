@@ -1,0 +1,87 @@
+{
+  "common": {
+    "success": "操作成功",
+    "error": "操作失败",
+    "not_found": "资源不存在",
+    "unauthorized": "未授权",
+    "forbidden": "禁止访问",
+    "server_error": "服务器内部错误",
+    "invalid_request": "请求参数错误",
+    "validation_error": "数据验证失败"
+  },
+  "auth": {
+    "login_success": "登录成功",
+    "login_failed": "登录失败",
+    "logout_success": "登出成功",
+    "token_invalid": "令牌无效",
+    "token_expired": "令牌已过期",
+    "token_required": "需要提供认证令牌"
+  },
+  "user": {
+    "created": "用户创建成功",
+    "updated": "用户更新成功",
+    "deleted": "用户删除成功",
+    "not_found": "用户不存在",
+    "email_exists": "邮箱已被注册",
+    "name_required": "用户名不能为空",
+    "email_invalid": "邮箱格式不正确"
+  },
+  "db": {
+    "connection_error": "数据库连接失败",
+    "query_error": "数据库查询失败",
+    "record_not_found": "记录不存在"
+  },
+  "pagination": {
+    "page": "页码",
+    "per_page": "每页条数",
+    "total": "总条数",
+    "next": "下一页",
+    "prev": "上一页"
+  },
+  "nav": {
+    "home": "首页",
+    "docs": "文档"
+  },
+  "home": {
+    "title": "PureCore 框架",
+    "subtitle": "为速度而生的企业级全栈开发框架",
+    "description": "PureCore 是一个高性能、模块化的全栈框架，提供优雅的路由管理、自动请求验证、标准化响应格式和开箱即用的国际化支持。它以开发者体验为核心，让构建稳健、可扩展的 API 服务变得前所未有的简单。",
+    "get_started": "快速开始",
+    "view_github": "GitHub",
+    "features_title": "核心优势",
+    "feature_1_title": "声明式路由",
+    "feature_1_desc": "通过链式调用定义分组、前缀和中间件，让路由结构清晰直观，代码即文档",
+    "feature_2_title": "智能验证",
+    "feature_2_desc": "内置自动验证引擎，覆盖常用规则，一行代码完成输入校验，安全可靠",
+    "feature_3_title": "原生国际化",
+    "feature_3_desc": "前后端共享统一的语言资源，自动检测用户语言，零配置实现多语言支持",
+    "feature_4_title": "标准化输出",
+    "feature_4_desc": "统一的 JSON 响应结构，内建分页、错误码和状态码，确保前后端协作高效一致",
+    "features_subtitle": "从路由到响应，从验证到国际化 —— 重新定义全栈开发体验",
+    "badge_stable": "稳定版 v1.0",
+    "badge_license": "MIT 开源",
+    "star_github": "Star on GitHub",
+    "stats_1_desc": "高性能 HTTP 引擎",
+    "stats_2_desc": "现代前端框架",
+    "stats_3_desc": "原子化 CSS",
+    "stats_4_desc": "组件库"
+  },
+  "notfound": {
+    "title": "页面未找到",
+    "description": "您访问的页面不存在或已被移除",
+    "back_home": "返回首页"
+  },
+  "cta": {
+    "text": "从后端接口到前端界面，PureCore 提供一站式的高效开发体验。立即开始构建您的下一个项目。"
+  },
+  "greeting": "开始使用 PureCore",
+  "version": {
+    "label": "版本",
+    "alpha": "Alpha 测试版",
+    "beta": "Beta 测试版",
+    "rc": "候选发布版",
+    "stable": "正式版",
+    "loading": "加载中...",
+    "unknown": "未知版本"
+  }
+}

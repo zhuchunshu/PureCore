@@ -1,0 +1,87 @@
+{
+  "common": {
+    "success": "Operation successful",
+    "error": "Operation failed",
+    "not_found": "Resource not found",
+    "unauthorized": "Unauthorized",
+    "forbidden": "Forbidden",
+    "server_error": "Internal server error",
+    "invalid_request": "Invalid request parameters",
+    "validation_error": "Validation failed"
+  },
+  "auth": {
+    "login_success": "Login successful",
+    "login_failed": "Login failed",
+    "logout_success": "Logout successful",
+    "token_invalid": "Invalid token",
+    "token_expired": "Token expired",
+    "token_required": "Authentication token required"
+  },
+  "user": {
+    "created": "User created successfully",
+    "updated": "User updated successfully",
+    "deleted": "User deleted successfully",
+    "not_found": "User not found",
+    "email_exists": "Email already registered",
+    "name_required": "Username is required",
+    "email_invalid": "Invalid email format"
+  },
+  "db": {
+    "connection_error": "Database connection failed",
+    "query_error": "Database query failed",
+    "record_not_found": "Record not found"
+  },
+  "pagination": {
+    "page": "Page",
+    "per_page": "Per page",
+    "total": "Total",
+    "next": "Next",
+    "prev": "Previous"
+  },
+  "nav": {
+    "home": "Home",
+    "docs": "Docs"
+  },
+  "home": {
+    "title": "PureCore Framework",
+    "subtitle": "Enterprise-Grade Full-Stack Framework Built for Speed",
+    "description": "PureCore is a high-performance, modular full-stack framework with elegant routing, automatic request validation, standardized response formatting, and built-in internationalization. Designed with developer experience at its core, it makes building robust, scalable API services simpler than ever.",
+    "get_started": "Get Started",
+    "view_github": "GitHub",
+    "features_title": "Why PureCore",
+    "feature_1_title": "Declarative Routing",
+    "feature_1_desc": "Define groups, prefixes, and middleware through chainable calls — your route definitions are clear, concise, and self-documenting",
+    "feature_2_title": "Intelligent Validation",
+    "feature_2_desc": "A built-in automatic validation engine covers common rules out of the box, securing inputs with a single line of code",
+    "feature_3_title": "Native i18n",
+    "feature_3_desc": "Frontend and backend share one set of language resources with automatic locale detection — zero configuration required",
+    "feature_4_title": "Standardized Output",
+    "feature_4_desc": "A unified JSON response structure with built-in pagination, error codes, and status codes ensures seamless frontend-backend collaboration",
+    "features_subtitle": "From routing to responses, from validation to i18n — redefining the full-stack experience",
+    "badge_stable": "Stable v1.0",
+    "badge_license": "MIT Open Source",
+    "star_github": "Star on GitHub",
+    "stats_1_desc": "High-performance HTTP engine",
+    "stats_2_desc": "Modern frontend framework",
+    "stats_3_desc": "Utility-first CSS",
+    "stats_4_desc": "Component library"
+  },
+  "notfound": {
+    "title": "Page Not Found",
+    "description": "The page you are looking for does not exist or has been removed",
+    "back_home": "Back to Home"
+  },
+  "cta": {
+    "text": "From backend APIs to frontend interfaces, PureCore delivers an efficient, all-in-one development experience. Start building your next project now."
+  },
+  "greeting": "Get Started with PureCore",
+  "version": {
+    "label": "Version",
+    "alpha": "Alpha",
+    "beta": "Beta",
+    "rc": "Release Candidate",
+    "stable": "Stable",
+    "loading": "Loading...",
+    "unknown": "Unknown Version"
+  }
+}
