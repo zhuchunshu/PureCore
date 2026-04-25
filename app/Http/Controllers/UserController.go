@@ -1,6 +1,9 @@
 package controllers
 
-import "purecore/core"
+import (
+	models "purecore/app/Models"
+	"purecore/core"
+)
 
 type UserController struct{}
 
@@ -10,9 +13,9 @@ type CreateUserRequest struct {
 }
 
 func (uc *UserController) Index(req *core.Request, res *core.Response) error {
-	users := []map[string]string{
-		{"id": "1", "name": "Alice"},
-		{"id": "2", "name": "Bob"},
+	var users []models.User
+	if err := core.DB().Find(&users).Error; err != nil {
+		return res.Error(err.Error(), 500)
 	}
 	return res.Success(users)
 }
@@ -22,10 +25,12 @@ func (uc *UserController) Store(req *core.Request, res *core.Response) error {
 	if err := req.Validate(&body); err != nil {
 		return res.Error(err.Error())
 	}
-	return res.Success(map[string]string{
-		"name":  body.Name,
-		"email": body.Email,
-	})
+
+	user := models.User{Name: body.Name, Email: body.Email}
+	if err := core.DB().Create(&user).Error; err != nil {
+		return res.Error(err.Error(), 500)
+	}
+	return res.Success(user)
 }
 
 func (uc *UserController) Show(req *core.Request, res *core.Response) error {
@@ -33,5 +38,10 @@ func (uc *UserController) Show(req *core.Request, res *core.Response) error {
 	if id == "" {
 		return res.NotFound("用户不存在")
 	}
-	return res.Success(map[string]string{"id": id})
+
+	var user models.User
+	if err := core.DB().First(&user, id).Error; err != nil {
+		return res.NotFound("用户不存在")
+	}
+	return res.Success(user)
 }

@@ -15,6 +15,7 @@ PureCore is a full-stack Go web development framework that wraps GoFiber v3 into
 | Database | PostgreSQL |
 | ORM | GORM |
 | Validation | go-playground/validator |
+| CLI | Cobra (Artisan-style) |
 | Frontend Framework | Vue 3 |
 | Build Tool | Vite |
 | CSS Framework | Tailwind CSS + DaisyUI |
@@ -24,29 +25,42 @@ PureCore is a full-stack Go web development framework that wraps GoFiber v3 into
 
 ```
 /purecore
+├── cmd/                   # CLI commands
+│   ├── root.go            # Root command
+│   ├── serve.go           # HTTP server command
+│   └── migrate.go         # Database migration command
 ├── core/                  # Core framework
 │   ├── router.go          # Laravel-style routing (group/prefix/middleware)
 │   ├── request.go         # Request handling (Input/Validate/User)
 │   ├── response.go        # Unified responses (Success/Error/Paginate)
 │   ├── middleware.go       # HandlerFunc type and H() bridge function
-│   └── lang.go            # Multi-language manager
-├── app/Http/              # Application layer
-│   ├── Controllers/       # Controllers
-│   │   └── UserController.go
-│   └── Middleware/         # Middleware
-│       ├── Auth.go        # Token authentication
-│       ├── Cors.go        # CORS handling
-│       └── Lang.go        # Language detection
+│   ├── lang.go            # Multi-language manager
+│   ├── database.go        # Database connection (GORM)
+│   └── model.go           # Base model struct
+├── app/
+│   ├── Http/
+│   │   ├── Controllers/   # Application controllers
+│   │   │   ├── UserController.go
+│   │   │   └── SystemController.go
+│   │   └── Middleware/     # Middleware
+│   │       ├── Auth.go    # Token authentication
+│   │       ├── Cors.go    # CORS handling
+│   │       └── Lang.go    # Language detection
+│   └── Models/            # Database models (GORM)
+│       └── User.go
 ├── routes/                # Route registration
 │   └── api.go
 ├── lang/                  # Translation files (shared frontend & backend)
 │   ├── zh.json            # Chinese translations
 │   └── en.json            # English translations
-├── web/                   # Frontend project
+├── web/                   # Frontend project (Vue 3 + SSR with Bun)
 │   ├── src/
 │   │   ├── i18n.js        # Frontend i18n module
+│   │   ├── entry-client.js # Client-side entry (hydration)
+│   │   ├── entry-server.js # Server-side entry (SSR)
 │   │   ├── App.vue
 │   │   └── main.js
+│   ├── server.js          # SSR server
 │   ├── public/
 │   │   └── lang/          # -> ../../lang (symlink)
 │   ├── vite.config.js
@@ -80,7 +94,7 @@ cp .env.example .env
 # Edit .env file to set database connection and ports
 ```
 
-### 3. Start Backend
+### 3. Build and Start Backend
 
 ```bash
 # Install dependencies
@@ -89,8 +103,14 @@ go mod tidy
 # Create symlink for shared language files
 ln -s ../../lang web/public/lang
 
+# Build the binary
+go build -o purecore .
+
+# Run database migrations
+./purecore migrate
+
 # Start server (default port 9002)
-go run main.go
+./purecore serve
 ```
 
 ### 4. Start Frontend
@@ -103,7 +123,34 @@ bun run dev
 # API requests are proxied to http://localhost:9002
 ```
 
+## CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `./purecore serve` | Start the HTTP server |
+| `./purecore migrate` | Run database migrations (auto-creates tables from models) |
+| `./purecore --help` | Show available commands |
+
 ## Core Features
+
+### Database & Models
+
+PureCore uses **GORM** as its ORM, providing an Eloquent-like experience. The base `core.Model` struct provides ID, timestamps, and soft delete support:
+
+```go
+// app/Models/User.go
+type User struct {
+    core.Model
+    Name  string `gorm:"type:varchar(100);not null" json:"name" validate:"required,min=2"`
+    Email string `gorm:"type:varchar(100);uniqueIndex;not null" json:"email" validate:"required,email"`
+}
+```
+
+**Model conventions:**
+- Models go in `app/Models/`
+- Embed `core.Model` for ID, CreatedAt, UpdatedAt, DeletedAt
+- Run `./purecore migrate` after adding or modifying models
+- Access the database via `core.DB()` (singleton connection)
 
 ### Laravel-Style Routing
 

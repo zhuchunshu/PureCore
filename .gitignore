@@ -10,3 +10,5 @@ web/*.log
 web/.vscode
 web/.gitignore
 purecore-server
+purecore
+tmp/

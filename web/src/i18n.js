@@ -50,9 +50,18 @@ function detectBrowserLanguage() {
 
 const STORAGE_KEY = 'purecore-locale'
 
+// 从 cookie 读取指定键的值（仅客户端有效）
+function getCookie(name) {
+  if (isServer) return null
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 // 初始化（支持 SSR：传入 translations 参数则直接使用，否则 fetch）
 export function initI18n(locale, translations) {
-  const targetLocale = locale || (!isServer ? localStorage.getItem(STORAGE_KEY) : null) || detectBrowserLanguage()
+  // Priority: 1. SSR locale arg  2. Cookie (set by setLocale)  3. localStorage  4. browser language
+  const cookieLocale = !isServer ? getCookie(STORAGE_KEY) : null
+  const targetLocale = locale || cookieLocale || (!isServer ? localStorage.getItem(STORAGE_KEY) : null) || detectBrowserLanguage()
   currentLocale.value = targetLocale
 
   if (isServer || translations) {
@@ -72,6 +81,8 @@ export async function setLocale(locale) {
   currentLocale.value = locale
   if (!isServer) {
     localStorage.setItem(STORAGE_KEY, locale)
+    // Also set a cookie so SSR can read the user's preference on next request
+    document.cookie = `${STORAGE_KEY}=${locale};path=/;max-age=31536000;SameSite=Lax`
     await loadLocaleClient(locale)
   } else {
     // Server-side: locale is set but translations are preloaded

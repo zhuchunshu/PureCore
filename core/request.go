@@ -66,6 +66,11 @@ func (r *Request) BearerToken() string {
 	return ""
 }
 
+// Ctx returns the underlying fiber.Ctx for middleware access
+func (r *Request) Ctx() fiber.Ctx {
+	return r.ctx
+}
+
 // IP
 func (r *Request) IP() string {
 	return r.ctx.IP()

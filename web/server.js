@@ -7,7 +7,7 @@ const __dirname = new URL('.', import.meta.url).pathname
 const isProduction = process.env.NODE_ENV === 'production'
 const PORT = process.env.SSR_PORT || 9001
 
-// Load translations for SSR from project-root/lang/
+// Load translations for SSR from web/public/lang/
 const langDir = join(__dirname, '..', 'lang')
 const translations = {}
 for (const file of readdirSync(langDir)) {
@@ -38,6 +38,18 @@ function getMimeType(filepath) {
 }
 
 function detectLocale(req) {
+  // Read cookie method
+  const getCookie = (name) => {
+    const cookieHeader = req.headers['cookie'] || ''
+    const match = cookieHeader.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+    return match ? decodeURIComponent(match[1]) : null
+  }
+
+  // 1. Check explicit cookie (set by client when user switches language)
+  const cookieLocale = getCookie('purecore-locale')
+  if (cookieLocale === 'zh' || cookieLocale === 'en') return cookieLocale
+
+  // 2. Fallback to Accept-Language header
   const lang = req.headers['accept-language'] || ''
   return lang.startsWith('zh') ? 'zh' : 'en'
 }
