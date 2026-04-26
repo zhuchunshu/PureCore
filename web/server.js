@@ -26,6 +26,26 @@ try {
   console.warn('Could not load project info from package.json:', err.message)
 }
 
+// Load theme configuration (default from config file)
+let configThemeName = 'sunset'
+try {
+  const themeConfig = JSON.parse(readFileSync(join(__dirname, 'theme.config.json'), 'utf-8'))
+  configThemeName = themeConfig.theme || 'sunset'
+} catch (err) {
+  console.warn('Could not load theme config, using default "sunset":', err.message)
+}
+
+// Read theme cookie from request, fallback to config default
+function detectTheme(req) {
+  const getCookie = (name) => {
+    const cookieHeader = req.headers['cookie'] || ''
+    const match = cookieHeader.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+    return match ? decodeURIComponent(match[1]) : null
+  }
+  const cookieTheme = getCookie('purecore-theme')
+  return cookieTheme || configThemeName
+}
+
 const mimeMap = {
   '.html': 'text/html', '.js': 'application/javascript', '.css': 'text/css',
   '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
@@ -88,11 +108,13 @@ if (isProduction) {
       // SSR render for all page routes
       try {
         const locale = detectLocale({ headers: Object.fromEntries(req.headers.entries()) })
-        const { html } = await render(pathname, { locale, translations, projectInfo })
+        const ssrTheme = detectTheme({ headers: Object.fromEntries(req.headers.entries()) })
+        const { html, statusCode = 200 } = await render(pathname, { locale, translations, projectInfo })
         const finalHtml = template
+          .replace('<html', `<html data-theme="${ssrTheme}"`)
           .replace('<!--ssr-outlet-->', html)
           .replace('<!--preload-links-->', cssHref ? `<link rel="stylesheet" href="${cssHref}" />` : '')
-        return new Response(finalHtml, { headers: { 'Content-Type': 'text/html' } })
+        return new Response(finalHtml, { headers: { 'Content-Type': 'text/html' }, status: statusCode })
       } catch (err) {
         console.error('✗ SSR error:', err)
         return new Response('Internal Server Error', { status: 500 })
@@ -130,10 +152,13 @@ if (isProduction) {
 
         const { render } = await vite.ssrLoadModule('/src/entry-server.js')
         const locale = detectLocale(req)
-        const { html } = await render(url, { locale, translations, projectInfo })
+        const ssrTheme = detectTheme(req)
+        const { html, statusCode = 200 } = await render(url, { locale, translations, projectInfo })
 
-        const finalHtml = template.replace('<!--ssr-outlet-->', html)
-        res.writeHead(200, { 'Content-Type': 'text/html' })
+        const finalHtml = template
+          .replace('<html', `<html data-theme="${ssrTheme}"`)
+          .replace('<!--ssr-outlet-->', html)
+        res.writeHead(statusCode, { 'Content-Type': 'text/html' })
         res.end(finalHtml)
       } catch (err) {
         vite.ssrFixStacktrace(err)

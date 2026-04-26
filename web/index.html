@@ -5,6 +5,14 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PureCore</title>
+    <!-- Apply theme before CSS loads to prevent flash -->
+    <script>
+      (function() {
+        var m = document.cookie.match(/(?:^|; )purecore-theme=([^;]*)/);
+        var theme = m ? decodeURIComponent(m[1]) : 'sunset';
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
     <link rel="stylesheet" href="/src/style.css" />
     <!--preload-links-->
   </head>

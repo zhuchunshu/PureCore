@@ -53,7 +53,7 @@ type SystemController struct{}
 func (sc *SystemController) Info(req *core.Request, res *core.Response) error {
 	info, err := loadProjectInfo()
 	if err != nil {
-		return res.Error("Failed to load project info: "+err.Error(), 500)
+		return res.Error(core.GetLang().Trans("system.load_project_error")+": "+err.Error(), 500)
 	}
 	return res.Success(info)
 }

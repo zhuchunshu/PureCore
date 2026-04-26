@@ -2,10 +2,13 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../../i18n'
+import TechCard from '../../components/TechCard.vue'
+import GradientButton from '../../components/GradientButton.vue'
 
 const { t } = useI18n()
 const router = useRouter()
 const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
+
 const profile = ref(null)
 const loading = ref(true)
 const error = ref('')
@@ -34,103 +37,75 @@ onMounted(async () => {
   }
 })
 
-function logout() {
-  localStorage.removeItem('admin_token')
-  localStorage.removeItem('admin_user')
-  router.push(`/${adminPrefix}/login`)
-}
+const statCards = [
+  { label: 'admin.users', value: '—', icon: '👥', gradient: 'from-blue-500/20 to-blue-600/20', iconBg: 'from-blue-500 to-blue-600' },
+  { label: 'admin.active_sessions', value: '1', icon: '🔑', gradient: 'from-emerald-500/20 to-emerald-600/20', iconBg: 'from-emerald-500 to-emerald-600' },
+  { label: 'admin.database', value: 'PostgreSQL', icon: '🗄️', gradient: 'from-purple-500/20 to-purple-600/20', iconBg: 'from-purple-500 to-purple-600' },
+  { label: 'admin.framework', value: 'PureCore', icon: '⚡', gradient: 'from-amber-500/20 to-amber-600/20', iconBg: 'from-amber-500 to-amber-600' },
+]
 
-const stats = [
-  { labelKey: 'admin.users', value: '—', icon: '👥', color: 'text-primary' },
-  { labelKey: 'admin.active_sessions', value: '1', icon: '🔑', color: 'text-secondary' },
-  { labelKey: 'admin.database', value: 'PostgreSQL', icon: '🗄️', color: 'text-accent' },
-  { labelKey: 'admin.framework', value: 'PureCore', icon: '⚡', color: 'text-info' },
+const actions = [
+  { label: 'admin.add_user', icon: '👤', variant: 'blue' },
+  { label: 'admin.view_logs', icon: '📋', variant: 'emerald' },
+  { label: 'admin.backup_db', icon: '💾', variant: 'purple' },
+  { label: 'admin.clear_cache', icon: '🧹', variant: 'blue' },
 ]
 </script>
 
 <template>
-  <!-- Full-page loading spinner until auth check completes -->
-  <div v-if="loading" class="min-h-screen flex items-center justify-center bg-base-200">
+  <!-- Full-page loading spinner -->
+  <div v-if="loading" class="flex items-center justify-center py-20">
     <span class="loading loading-spinner loading-lg text-primary"></span>
   </div>
 
   <!-- Error state -->
-  <div v-else-if="error" class="min-h-screen flex items-center justify-center bg-base-200">
-    <div class="alert alert-error max-w-md">
+  <div v-else-if="error" class="flex items-center justify-center py-20">
+    <div class="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 max-w-md flex items-center gap-3">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
       <span>{{ error }}</span>
     </div>
   </div>
 
-  <!-- Dashboard content (only shown after auth is verified) -->
-  <div v-else class="min-h-screen bg-base-200">
-    <!-- Header -->
-    <div class="navbar bg-base-100 shadow-sm border-b border-base-300/20">
-      <div class="navbar-start">
-        <span class="text-xl font-black">Pure<span class="text-primary">Core</span> Admin</span>
-      </div>
-      <div class="navbar-end gap-2">
-        <div v-if="profile" class="dropdown dropdown-end">
-          <label tabindex="0" class="btn btn-ghost btn-sm">
-            <span class="text-sm">{{ profile.name }}</span>
-            <span class="badge badge-sm badge-ghost">{{ profile.role }}</span>
-          </label>
-          <ul tabindex="0" class="menu menu-sm dropdown-content mt-2 z-50 p-2 shadow bg-base-100 rounded-box w-40">
-            <li><button @click="logout">{{ t('admin.logout') }}</button></li>
-          </ul>
-        </div>
+  <!-- Dashboard content -->
+  <div v-else class="space-y-6">
+    <!-- Welcome header -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-black tracking-tight">
+          <span class="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">{{ t('admin.dashboard') }}</span>
+        </h1>
+        <p v-if="profile" class="text-base-content/50 mt-1">👋 {{ t('admin.welcome') }}, <span class="font-semibold text-base-content/80">{{ profile.name }}</span></p>
       </div>
     </div>
 
-    <div class="flex">
-      <!-- Sidebar -->
-      <aside class="w-64 bg-base-100 min-h-[calc(100vh-64px)] border-r border-base-300/20 hidden lg:block">
-        <ul class="menu p-4 gap-1">
-          <li><a class="active"><span>📊</span> {{ t('admin.dashboard') }}</a></li>
-          <li><a><span>👥</span> {{ t('admin.users') }}</a></li>
-          <li><a><span>⚙️</span> {{ t('admin.settings') }}</a></li>
-          <li class="mt-auto pt-4 border-t border-base-300/20">
-            <a href="/" target="_blank"><span>🏠</span> {{ t('admin.view_site') }}</a>
-          </li>
-          <li><button @click="logout"><span>🚪</span> {{ t('admin.logout') }}</button></li>
-        </ul>
-      </aside>
-
-      <!-- Main Content -->
-      <main class="flex-1 p-6">
-        <div class="mb-6">
-          <h1 class="text-2xl font-bold">{{ t('admin.dashboard') }}</h1>
-          <p v-if="profile" class="text-base-content/50 mt-1">
-            {{ t('admin.welcome') }}, {{ profile.name }}
-          </p>
-        </div>
-
-        <!-- Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <div v-for="s in stats" :key="s.labelKey" class="card bg-base-100 shadow-sm border border-base-300/20">
-            <div class="card-body p-4">
-              <div class="flex items-center justify-between">
-                <span class="text-2xl">{{ s.icon }}</span>
-                <span :class="['text-lg font-bold', s.color]">{{ s.value }}</span>
-              </div>
-              <p class="text-sm text-base-content/50 mt-2">{{ t(s.labelKey) }}</p>
-            </div>
+    <!-- Stats grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <TechCard v-for="s in statCards" :key="s.label" variant="blue" :hover="true" :padded="false">
+        <div :class="['p-5 rounded-2xl bg-gradient-to-br', s.gradient]">
+          <div class="flex items-center justify-between">
+            <span class="text-3xl">{{ s.icon }}</span>
+            <span :class="['w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white text-xs font-bold shadow-lg', s.iconBg]">
+              {{ s.value }}
+            </span>
           </div>
+          <p class="text-sm font-medium text-base-content/60 mt-3">{{ t(s.label) }}</p>
         </div>
-
-        <!-- Quick Actions -->
-        <div class="card bg-base-100 shadow-sm border border-base-300/20">
-          <div class="card-body">
-            <h2 class="card-title text-lg mb-4">{{ t('admin.quick_actions') }}</h2>
-            <div class="flex flex-wrap gap-2">
-              <button class="btn btn-outline btn-sm">{{ t('admin.add_user') }}</button>
-              <button class="btn btn-outline btn-sm">{{ t('admin.view_logs') }}</button>
-              <button class="btn btn-outline btn-sm">{{ t('admin.backup_db') }}</button>
-              <button class="btn btn-outline btn-sm">{{ t('admin.clear_cache') }}</button>
-            </div>
-          </div>
-        </div>
-      </main>
+      </TechCard>
     </div>
+
+    <!-- Quick actions -->
+    <TechCard variant="emerald" padded>
+      <h2 class="text-lg font-bold text-base-content/80 mb-4">⚡ {{ t('admin.quick_actions') }}</h2>
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="action in actions"
+          :key="action.label"
+          class="btn btn-sm gap-2 bg-base-200/80 border border-base-300/30 hover:bg-base-300/50 hover:border-base-300/50 transition-colors rounded-xl"
+        >
+          <span>{{ action.icon }}</span>
+          <span>{{ t(action.label) }}</span>
+        </button>
+      </div>
+    </TechCard>
   </div>
 </template>

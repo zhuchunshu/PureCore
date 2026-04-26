@@ -40,7 +40,8 @@
   },
   "nav": {
     "home": "Home",
-    "docs": "Docs"
+    "docs": "Docs",
+    "api": "API"
   },
   "home": {
     "title": "PureCore Framework",
@@ -78,6 +79,7 @@
     "title": "Administrator Login",
     "username": "Username",
     "username_placeholder": "Enter username",
+    "name_placeholder": "Admin name",
     "password": "Password",
     "password_placeholder": "Enter password",
     "sign_in": "Sign In",
@@ -114,9 +116,26 @@
     "registration_disabled": "Admin already exists, registration disabled",
     "password_hash_failed": "Failed to hash password",
     "create_failed": "Failed to create admin",
-    "no_admin_redirect": "No admin account detected. Please register first."
+    "no_admin_redirect": "No admin account detected. Please register first.",
+    "brand": "PureCore Admin"
+  },
+  "backend": {
+    "title": "Backend Service Unavailable",
+    "message": "Unable to connect to the backend API server. Please ensure the backend service is running.",
+    "retry": "Retry",
+    "back_home": "Back to Home"
   },
   "greeting": "Get Started with PureCore",
+  "language": {
+    "zh": "中文",
+    "en": "English"
+  },
+  "system": {
+    "load_project_error": "Failed to load project info"
+  },
+  "hello": {
+    "world": "Hello World"
+  },
   "version": {
     "label": "Version",
     "alpha": "Alpha",

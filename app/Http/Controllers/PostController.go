@@ -35,12 +35,12 @@ func (c *PostController) Store(req *core.Request, res *core.Response) error {
 func (c *PostController) Show(req *core.Request, res *core.Response) error {
 	id := req.Input("id")
 	if id == "" {
-		return res.NotFound("Not found")
+		return res.NotFound(core.GetLang().Trans("db.record_not_found"))
 	}
 
 	var record models.Post
 	if err := core.DB().First(&record, id).Error; err != nil {
-		return res.NotFound("Not found")
+		return res.NotFound(core.GetLang().Trans("db.record_not_found"))
 	}
 	return res.Success(record)
 }

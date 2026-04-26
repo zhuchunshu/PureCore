@@ -40,7 +40,8 @@
   },
   "nav": {
     "home": "首页",
-    "docs": "文档"
+    "docs": "文档",
+    "api": "API"
   },
   "home": {
     "title": "PureCore 框架",
@@ -78,6 +79,7 @@
     "title": "管理员登录",
     "username": "用户名",
     "username_placeholder": "请输入用户名",
+    "name_placeholder": "管理员姓名",
     "password": "密码",
     "password_placeholder": "请输入密码",
     "sign_in": "登录",
@@ -114,9 +116,26 @@
     "registration_disabled": "管理员已存在，注册功能已禁用",
     "password_hash_failed": "密码加密失败",
     "create_failed": "创建管理员失败",
-    "no_admin_redirect": "检测到系统中没有管理员账户，请先注册"
+    "no_admin_redirect": "检测到系统中没有管理员账户，请先注册",
+    "brand": "PureCore 管理后台"
+  },
+  "backend": {
+    "title": "后端服务不可用",
+    "message": "无法连接到后端 API 服务器，请确保后端服务正在运行。",
+    "retry": "重试",
+    "back_home": "返回首页"
   },
   "greeting": "开始使用 PureCore",
+  "language": {
+    "zh": "中文",
+    "en": "English"
+  },
+  "system": {
+    "load_project_error": "加载项目信息失败"
+  },
+  "hello": {
+    "world": "你好世界"
+  },
   "version": {
     "label": "版本",
     "alpha": "Alpha 测试版",

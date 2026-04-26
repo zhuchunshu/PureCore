@@ -27,7 +27,11 @@ export async function render(url, { locale = 'zh', translations = {}, projectInf
   await router.push(url)
   await router.isReady()
 
+  // Determine if this is a 404 page by checking the matched route name
+  const currentRoute = router.currentRoute.value
+  const statusCode = currentRoute.name === 'NotFound' ? 404 : 200
+
   const html = await renderToString(app)
 
-  return { html }
+  return { html, statusCode }
 }

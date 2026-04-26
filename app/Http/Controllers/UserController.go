@@ -36,12 +36,12 @@ func (uc *UserController) Store(req *core.Request, res *core.Response) error {
 func (uc *UserController) Show(req *core.Request, res *core.Response) error {
 	id := req.Input("id")
 	if id == "" {
-		return res.NotFound("用户不存在")
+		return res.NotFound(core.GetLang().Trans("user.not_found"))
 	}
 
 	var user models.User
 	if err := core.DB().First(&user, id).Error; err != nil {
-		return res.NotFound("用户不存在")
+		return res.NotFound(core.GetLang().Trans("user.not_found"))
 	}
 	return res.Success(user)
 }
