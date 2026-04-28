@@ -1,4 +1,6 @@
 import { createServer } from 'node:http'
+import { request as httpRequest } from 'node:http'
+import { request as httpsRequest } from 'node:https'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, extname, dirname } from 'node:path'
 import { createServer as createViteServer } from 'vite'
@@ -30,6 +32,41 @@ try {
 }
 
 const PORT = process.env.FRONTEND_PORT || process.env.SSR_PORT || 9001
+
+// Build API proxy target from environment variables
+const apiProtocol = process.env.VITE_API_PROTOCOL || 'http'
+const apiHost = process.env.VITE_API_HOST || 'localhost'
+const apiPort = process.env.VITE_API_PORT || process.env.BACKEND_PORT || '9002'
+const apiTarget = `${apiProtocol}://${apiHost}:${apiPort}`
+
+// Helper: proxy an API request to the backend
+function proxyApiRequest(req, res) {
+  return new Promise((resolve, reject) => {
+    const targetUrl = new URL(req.url, apiTarget)
+    const requester = apiProtocol === 'https' ? httpsRequest : httpRequest
+    const proxyReq = requester(
+      targetUrl,
+      {
+        method: req.method,
+        headers: { ...req.headers, host: `${apiHost}:${apiPort}` },
+      },
+      (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers)
+        proxyRes.pipe(res)
+        resolve()
+      }
+    )
+    proxyReq.on('error', (err) => {
+      console.error(`[proxy] API request failed: ${err.message}`)
+      reject(err)
+    })
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      req.pipe(proxyReq)
+    } else {
+      proxyReq.end()
+    }
+  })
+}
 
 // Load translations for SSR from web/public/lang/
 const langDir = join(__dirname, '..', 'lang')
@@ -127,6 +164,27 @@ if (isProduction) {
       const url = new URL(req.url)
       const pathname = url.pathname
 
+      // Proxy API requests to backend
+      if (pathname.startsWith('/api/')) {
+        try {
+          const targetUrl = new URL(req.url, apiTarget)
+          const response = await fetch(targetUrl, {
+            method: req.method,
+            headers: req.headers,
+            body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.arrayBuffer() : undefined,
+          })
+          const headers = {}
+          response.headers.forEach((value, key) => { headers[key] = value })
+          return new Response(response.body, {
+            status: response.status,
+            headers,
+          })
+        } catch (err) {
+          console.error('[proxy] API proxy error:', err.message)
+          return new Response('Backend unreachable', { status: 502 })
+        }
+      }
+
       // Serve static assets (anything with a file extension)
       if (pathname !== '/' && pathname.includes('.')) {
         const filePath = join(clientDist, pathname)
@@ -173,11 +231,16 @@ if (isProduction) {
     vite.middlewares(req, res, async () => {
       const url = req.url || '/'
 
-      // Only handle page requests (HTML routes), not asset requests
-      // Vite middleware already handled assets; anything reaching here is a page route
+      // Proxy API requests to backend
       if (url.startsWith('/api/')) {
-        res.writeHead(404, { 'Content-Type': 'text/plain' })
-        res.end('API not found')
+        try {
+          await proxyApiRequest(req, res)
+        } catch {
+          if (!res.headersSent) {
+            res.writeHead(502, { 'Content-Type': 'text/plain' })
+            res.end('Backend unreachable')
+          }
+        }
         return
       }
 

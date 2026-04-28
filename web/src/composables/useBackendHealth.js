@@ -1,4 +1,5 @@
 import { ref, onMounted, onUnmounted } from 'vue'
+import { config } from '@/services/config'
 
 const isBackendReachable = ref(false)  // Start as false - assume unreachable until proven
 const hasChecked = ref(false)          // Has the first check completed?
@@ -7,7 +8,7 @@ let interval = null
 export function useBackendHealth() {
   const checkHealth = async () => {
     try {
-      const response = await fetch('/api/v1/ping', { method: 'GET', cache: 'no-store' })
+      const response = await fetch(`${config.apiBaseUrl}/ping`, { method: 'GET', cache: 'no-store' })
       isBackendReachable.value = response.ok
     } catch {
       isBackendReachable.value = false

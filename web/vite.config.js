@@ -6,6 +6,12 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
+  // Build API proxy target from environment variables
+  const apiProtocol = env.VITE_API_PROTOCOL || 'http'
+  const apiHost = env.VITE_API_HOST || 'localhost'
+  const apiPort = env.VITE_API_PORT || env.BACKEND_PORT || '9002'
+  const apiTarget = `${apiProtocol}://${apiHost}:${apiPort}`
+
   return {
     plugins: [
       vue(),
@@ -20,7 +26,7 @@ export default defineConfig(({ mode }) => {
       port: parseInt(env.FRONTEND_PORT) || 9001,
       proxy: {
         '/api': {
-          target: `http://localhost:${env.BACKEND_PORT || 9002}`,
+          target: apiTarget,
           changeOrigin: true,
         },
       },

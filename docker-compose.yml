@@ -67,6 +67,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_PROTOCOL: ${VITE_API_PROTOCOL:-http}
+        VITE_API_HOST: ${VITE_API_HOST:-backend}
+        VITE_API_PORT: ${VITE_API_PORT:-9002}
+        VITE_ADMIN_ROUTE_PREFIX: ${VITE_ADMIN_ROUTE_PREFIX:-control-panel}
     container_name: purecore-frontend
     restart: unless-stopped
     depends_on:
@@ -74,6 +79,9 @@ services:
     environment:
       NODE_ENV: production
       SSR_PORT: "9001"
+      VITE_API_PROTOCOL: ${VITE_API_PROTOCOL:-http}
+      VITE_API_HOST: ${VITE_API_HOST:-backend}
+      VITE_API_PORT: ${VITE_API_PORT:-9002}
       BACKEND_PORT: "9002"
       VITE_ADMIN_ROUTE_PREFIX: ${VITE_ADMIN_ROUTE_PREFIX:-control-panel}
       TZ: ${TZ:-Asia/Shanghai}

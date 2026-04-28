@@ -16,9 +16,28 @@
 // In development, they come from the .env file in the web/ directory.
 
 export const config = {
-  /** Backend API base URL (proxied via Vite/SSR server in development) */
+  /**
+   * Backend API base URL.
+   *
+   * Constructed from VITE_API_PROTOCOL, VITE_API_HOST, and VITE_API_PORT.
+   * Falls back to relative `/api/v1` if any part is missing (SSR proxy mode).
+   *
+   * Examples:
+   *   VITE_API_PROTOCOL=http  VITE_API_HOST=localhost  VITE_API_PORT=9002  → http://localhost:9002/api/v1
+   *   VITE_API_PROTOCOL=https VITE_API_HOST=api.example.com              → https://api.example.com/api/v1
+   *   (missing)                                                           → /api/v1 (proxy mode)
+   */
   get apiBaseUrl() {
-    return import.meta.env.VITE_API_BASE_URL || '/api/v1'
+    if (import.meta.env.VITE_API_BASE_URL) {
+      return import.meta.env.VITE_API_BASE_URL + '/api/v1'
+    }
+    const protocol = import.meta.env.VITE_API_PROTOCOL
+    const host = import.meta.env.VITE_API_HOST
+    const port = import.meta.env.VITE_API_PORT
+    if (protocol && host) {
+      return `${protocol}://${host}${port ? ':' + port : ''}/api/v1`
+    }
+    return '/api/v1'
   },
 
   /** Admin route prefix from environment, defaults to 'control-panel' */

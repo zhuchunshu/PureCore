@@ -41,8 +41,8 @@ export function createApiService({ type = 'admin' } = {}) {
 
   // Determine refresh endpoint
   const refreshUrl = type === 'admin'
-    ? `/api/v1/${config.adminRoutePrefix}/auth/refresh`
-    : '/api/v1/auth/refresh'
+    ? `${config.apiBaseUrl}/${config.adminRoutePrefix}/auth/refresh`
+    : `${config.apiBaseUrl}/auth/refresh`
 
   // Determine login redirect path
   const loginPath = type === 'admin'
@@ -218,7 +218,7 @@ export function createApiService({ type = 'admin' } = {}) {
     if (!accessToken.value) return null
     await refreshIfNeeded()
     try {
-      const resp = await fetch('/api/v1/auth/profile', {
+      const resp = await fetch(`${config.apiBaseUrl}/auth/profile`, {
         headers: { Authorization: `Bearer ${accessToken.value}` },
       })
       const json = await resp.json()
