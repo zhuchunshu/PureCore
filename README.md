@@ -1,9 +1,10 @@
 # PureCore
 
-**A full-stack Go web development framework — Laravel-like style, powered by GoFiber v3.**
+**A full-stack Go web application framework — Laravel-like style, powered by GoFiber v3.**
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Go Version](https://img.shields.io/badge/go-1.21+-00ADD8.svg)](https://go.dev/)
+[[License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[[Go Version](https://img.shields.io/badge/go-1.21+-00ADD8.svg)](https://go.dev/)
+[[Template](https://img.shields.io/badge/github-template-blue.svg)](https://github.com/zhuchunshu/PureCore)
 
 > ⚠️ This project is currently in **Alpha** stage. APIs and features may change without notice.
 
@@ -14,18 +15,45 @@ PureCore wraps GoFiber v3 into a Laravel-like development style, providing routi
 - **Backend**: Go · GoFiber v3 · PostgreSQL · GORM · go-playground/validator
 - **Frontend**: Vue 3 · Vite · Tailwind CSS · DaisyUI · Bun (SSR)
 
-## 📦 Quick Start
+## 📦 Use This Template
+
+This is a **GitHub template repository** — click the green "Use this template" button at the top of the repo to create your own project from it.
+
+### 1️⃣ Create Your Project
 
 ```bash
-git clone https://github.com/zhuchunshu/PureCore.git
-cd PureCore
-cp .env.example .env          # Configure your database and ports
+# Option A: Via GitHub's "Use this template" button (recommended)
+# Clone your new repo, then run the setup wizard:
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+The wizard will ask for:
+- Your project name (Go module name)
+- Custom ports (frontend, backend, database)
+- Database credentials (generates secure random passwords)
+- Admin route prefix and default theme
+- Then automatically renames the Go module, updates all imports,
+  initializes a fresh Git repo, and builds the project
+
+### 2️⃣ Start Developing
+
+```bash
+# Backend
 go build -o purecore .
-./purecore migrate             # Run database migrations
 ./purecore serve               # → http://localhost:9002
 
 # Frontend (new terminal)
 cd web && bun install && bun run dev   # → http://localhost:9001
+```
+
+### 3️⃣ Deploy to Production
+
+```bash
+# Interactive deployment (asks for ports)
+./purecore deploy
+# Or directly:
+chmod +x scripts/deploy.sh && ./scripts/deploy.sh
 ```
 
 ## 📚 Documentation
