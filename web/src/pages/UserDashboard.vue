@@ -1,10 +1,14 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import { accessToken, fetchProfile, clearTokens } from '../composables/useUserAuth'
-import TechCard from '../components/TechCard.vue'
+import UserOverview from '../components/dashboard/UserOverview.vue'
+import UserProfile from '../components/dashboard/UserProfile.vue'
+import UserSecurity from '../components/dashboard/UserSecurity.vue'
+import UserApiKeys from '../components/dashboard/UserApiKeys.vue'
+import UserSessions from '../components/dashboard/UserSessions.vue'
 
 const { t } = useI18n()
 useSEO({
@@ -16,6 +20,43 @@ const router = useRouter()
 const profile = ref(null)
 const loading = ref(true)
 const error = ref('')
+
+const sidebarItems = [
+  { key: 'overview',   icon: '📊', label: 'user.overview' },
+  { key: 'account',    icon: '👤', label: 'user.profile',   children: ['profile', 'security'] },
+  { key: 'developer',  icon: '🔑', label: 'user.api_keys',  children: ['api_keys', 'sessions'] },
+]
+const activeSidebar = ref('overview')
+
+const tabs = [
+  { key: 'profile',    icon: '👤', label: 'user.profile' },
+  { key: 'security',   icon: '🔒', label: 'user.security' },
+  { key: 'api_keys',   icon: '🔑', label: 'user.api_keys' },
+  { key: 'sessions',   icon: '📱', label: 'user.sessions' },
+]
+const activeTab = ref('overview')
+
+const subTabs = computed(() => {
+  const item = sidebarItems.find(s => s.key === activeSidebar.value)
+  if (!item || !item.children) return []
+  return tabs.filter(t => item.children.includes(t.key))
+})
+
+const profileRef = ref(null)
+
+function selectSidebar(key) {
+  activeSidebar.value = key
+  const item = sidebarItems.find(s => s.key === key)
+  if (item && item.children) {
+    activeTab.value = item.children[0]
+    if (item.children[0] === 'profile') {
+      // Wait for next tick so the component is mounted
+      setTimeout(() => profileRef.value?.initProfileForm(), 0)
+    }
+  } else {
+    activeTab.value = 'overview'
+  }
+}
 
 onMounted(async () => {
   if (!accessToken.value) {
@@ -37,28 +78,18 @@ onMounted(async () => {
   }
 })
 
-const statCards = [
-  { label: 'user.posts', value: '0', icon: '📝', gradient: 'from-blue-500/20 to-blue-600/20', iconBg: 'from-blue-500 to-blue-600' },
-  { label: 'user.comments', value: '0', icon: '💬', gradient: 'from-emerald-500/20 to-emerald-600/20', iconBg: 'from-emerald-500 to-emerald-600' },
-  { label: 'user.likes', value: '0', icon: '❤️', gradient: 'from-purple-500/20 to-purple-600/20', iconBg: 'from-purple-500 to-purple-600' },
-  { label: 'user.followers', value: '0', icon: '👥', gradient: 'from-amber-500/20 to-amber-600/20', iconBg: 'from-amber-500 to-amber-600' },
-]
-
-const actions = [
-  { label: 'user.edit_profile', icon: '✏️', variant: 'blue' },
-  { label: 'user.my_posts', icon: '📄', variant: 'emerald' },
-  { label: 'user.settings', icon: '⚙️', variant: 'purple' },
-  { label: 'user.help', icon: '❓', variant: 'amber' },
-]
+function onProfileUpdated(updated) {
+  profile.value = { ...profile.value, ...updated }
+}
 </script>
 
 <template>
-  <!-- Full-page loading spinner -->
+  <!-- ── Loading ──────────────────────────────────────── -->
   <div v-if="loading" class="flex items-center justify-center py-20">
     <span class="loading loading-spinner loading-lg text-primary"></span>
   </div>
 
-  <!-- Error state -->
+  <!-- ── Error ────────────────────────────────────────── -->
   <div v-else-if="error" class="flex items-center justify-center py-20">
     <div class="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400 max-w-md flex items-center gap-3">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
@@ -66,70 +97,62 @@ const actions = [
     </div>
   </div>
 
-  <!-- Dashboard content -->
-  <div v-else class="space-y-6">
-    <!-- Welcome header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-      <div>
-        <h1 class="text-2xl md:text-3xl font-black tracking-tight">
-          <span class="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">{{ t('user.dashboard') }}</span>
-        </h1>
-        <p v-if="profile" class="text-base-content/50 mt-1">
-          👋 {{ t('user.welcome_back') }}<span v-if="profile.name" class="font-semibold text-base-content/80">, {{ profile.name }}</span>
-        </p>
-      </div>
+  <!-- ── Dashboard ────────────────────────────────────── -->
+  <div v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
+    <!-- Header -->
+    <div class="mb-6">
+      <h1 class="text-2xl md:text-3xl font-black tracking-tight">
+        <span class="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">{{ t('user.dashboard') }}</span>
+      </h1>
+      <p v-if="profile" class="text-base-content/50 mt-1 text-sm">
+        {{ t('user.welcome_back') }}<span v-if="profile.name" class="font-semibold text-base-content/80">, {{ profile.name }}</span>
+      </p>
     </div>
 
-    <!-- User profile card -->
-    <TechCard variant="blue" :hover="true" padded>
-      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-emerald-400 flex items-center justify-center text-2xl font-bold text-white shrink-0">
-          {{ profile?.name?.charAt(0)?.toUpperCase() || '?' }}
-        </div>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-lg font-bold text-base-content/80">{{ profile?.name || '—' }}</h2>
-          <p class="text-sm text-base-content/50">{{ profile?.email || '—' }}</p>
-          <div v-if="profile?.bio" class="mt-2 text-sm text-base-content/60">{{ profile.bio }}</div>
-        </div>
-        <div class="flex items-center gap-2">
-          <span v-if="profile?.status === 'active'" class="badge badge-success badge-sm">● {{ t('user.active') }}</span>
-          <span v-else-if="profile?.status === 'banned'" class="badge badge-error badge-sm">● {{ t('user.banned') }}</span>
-          <span v-else class="badge badge-ghost badge-sm">● {{ t('user.inactive') }}</span>
-        </div>
-      </div>
-      <div v-if="profile?.last_login_at" class="mt-3 text-xs text-base-content/40">
-        {{ t('user.last_login') }}: {{ new Date(profile.last_login_at).toLocaleString() }}
-      </div>
-    </TechCard>
-
-    <!-- Stats grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      <TechCard v-for="s in statCards" :key="s.label" variant="blue" :hover="true" :padded="false">
-        <div :class="['p-5 rounded-2xl bg-gradient-to-br', s.gradient]">
-          <div class="flex items-center justify-between">
-            <span class="text-3xl">{{ s.icon }}</span>
-            <span :class="['w-10 h-10 rounded-xl bg-gradient-to-br flex items-center justify-center text-white text-xs font-bold shadow-lg', s.iconBg]">
-              {{ s.value }}
-            </span>
-          </div>
-          <p class="text-sm font-medium text-base-content/60 mt-3">{{ t(s.label) }}</p>
-        </div>
-      </TechCard>
-    </div>
-
-    <!-- Quick actions -->
-    <TechCard variant="emerald" padded>
-      <h2 class="text-lg font-bold text-base-content/80 mb-4">⚡ {{ t('user.quick_actions') }}</h2>
-      <div class="flex flex-wrap gap-2">
+    <!-- Layout: Sidebar + Main -->
+    <div class="flex gap-6">
+      <!-- Left sidebar -->
+      <aside class="hidden md:flex flex-col w-56 shrink-0 space-y-1">
         <button
-          v-for="action in actions"
-          :key="action.label"
-          class="btn btn-sm gap-2 bg-base-200/80 border border-base-300/30 hover:bg-base-300/50 hover:border-base-300/50 transition-colors rounded-xl"
+          v-for="item in sidebarItems"
+          :key="item.key"
+          @click="selectSidebar(item.key)"
+          :class="[
+            'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors',
+            activeSidebar === item.key
+              ? 'bg-primary/10 text-primary border border-primary/20'
+              : 'hover:bg-base-200/50 text-base-content/70 hover:text-base-content'
+          ]"
         >
-          <span>{{ action.icon }}</span>
-          <span>{{ t(action.label) }}</span>
+          <span class="text-lg">{{ item.icon }}</span>
+          <span>{{ t(item.label) }}</span>
         </button>
+      </aside>
+
+      <!-- Main content area -->
+      <div class="flex-1 min-w-0">
+        <!-- Sub-tab bar (only if category has children) -->
+        <div v-if="subTabs.length > 0" class="tabs tabs-boxed bg-base-200/50 border border-base-300/30 p-1 rounded-xl mb-6 overflow-x-auto">
+          <button
+            v-for="tab in subTabs"
+            :key="tab.key"
+            @click="activeTab = tab.key; if (tab.key === 'profile') setTimeout(() => profileRef?.initProfileForm(), 0)"
+            :class="[
+              'tab gap-2 whitespace-nowrap transition-colors',
+              activeTab === tab.key ? 'tab-active bg-base-100 shadow-sm' : 'hover:text-base-content/70'
+            ]"
+          >
+            <span class="text-lg">{{ tab.icon }}</span>
+            <span class="text-sm font-medium hidden sm:inline">{{ t(tab.label) }}</span>
+          </button>
+        </div>
+
+        <UserOverview v-if="activeTab === 'overview'" :profile="profile" />
+        <UserProfile v-if="activeTab === 'profile'" ref="profileRef" :profile="profile" @profile-updated="onProfileUpdated" />
+        <UserSecurity v-if="activeTab === 'security'" />
+        <UserApiKeys v-if="activeTab === 'api_keys'" />
+        <UserSessions v-if="activeTab === 'sessions'" />
       </div>
-    </TechCard>
+    </div>
   </div>
 </template>

@@ -35,22 +35,14 @@ const showBackendError = computed(() => !isHomePage.value && hasChecked.value &&
     <!-- Admin pages (dashboard, settings, and future admin routes) use AdminLayout -->
     <template v-else-if="isAdminPage">
       <AdminLayout>
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <router-view :key="$route.fullPath" />
       </AdminLayout>
     </template>
     <!-- Public pages use plain Navbar + Footer -->
     <template v-else>
       <Navbar />
       <main class="flex-1">
-        <router-view v-slot="{ Component }">
-          <transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </transition>
-        </router-view>
+        <router-view :key="$route.fullPath" />
       </main>
       <Footer />
     </template>
