@@ -1,0 +1,91 @@
+# ============================================================
+# PureCore Docker Compose — Production Deployment
+# 
+# Usage:
+#   1. Copy .env.example to .env and fill in your secrets
+#   2. Run: docker compose up -d
+#   3. Access: http://localhost:9001 (frontend), http://localhost:9002 (backend)
+#
+# Quick start with automatic setup:
+#   chmod +x scripts/deploy.sh && ./scripts/deploy.sh
+# ============================================================
+
+version: "3.9"
+
+services:
+  # PostgreSQL database
+  postgres:
+    image: postgres:17-alpine
+    container_name: purecore-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_password_here}
+      POSTGRES_DB: ${DB_NAME:-purecore}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-purecore}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - purecore-net
+
+  # Go backend API server
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: purecore-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      BACKEND_PORT: "9002"
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-your_password_here}
+      DB_NAME: ${DB_NAME:-purecore}
+      DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-here}
+      ADMIN_ROUTE_PREFIX: ${ADMIN_ROUTE_PREFIX:-control-panel}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${BACKEND_PORT:-9002}:9002"
+    networks:
+      - purecore-net
+
+  # Bun SSR frontend server
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: purecore-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      SSR_PORT: "9001"
+      BACKEND_PORT: "9002"
+      VITE_ADMIN_ROUTE_PREFIX: ${VITE_ADMIN_ROUTE_PREFIX:-control-panel}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${FRONTEND_PORT:-9001}:9001"
+    networks:
+      - purecore-net
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  purecore-net:
+    driver: bridge

@@ -3,7 +3,6 @@ package core
 import (
 	"fmt"
 	"log"
-	"os"
 	"sync"
 
 	"gorm.io/driver/postgres"
@@ -16,7 +15,8 @@ var (
 	once sync.Once
 )
 
-// DB returns the singleton database connection
+// DB returns the singleton database connection.
+// Uses the centralized Config system for all connection parameters.
 func DB() *gorm.DB {
 	once.Do(func() {
 		db = connectDB()
@@ -24,14 +24,10 @@ func DB() *gorm.DB {
 	return db
 }
 
-// connectDB establishes a PostgreSQL connection using environment variables
+// connectDB establishes a PostgreSQL connection using the Config system.
 func connectDB() *gorm.DB {
-	host := envOrDefault("DB_HOST", "localhost")
-	port := envOrDefault("DB_PORT", "5432")
-	user := envOrDefault("DB_USER", "postgres")
-	password := envOrDefault("DB_PASSWORD", "postgres")
-	dbname := envOrDefault("DB_NAME", "purecore")
-	sslmode := envOrDefault("DB_SSLMODE", "disable")
+	cfg := GetConfig()
+	host, port, user, password, dbname, sslmode := cfg.DatabaseConfig()
 
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
@@ -39,7 +35,7 @@ func connectDB() *gorm.DB {
 	)
 
 	logLevel := logger.Warn
-	if os.Getenv("APP_DEBUG") == "true" {
+	if cfg.AppDebug() {
 		logLevel = logger.Info
 	}
 
@@ -54,10 +50,15 @@ func connectDB() *gorm.DB {
 	return conn
 }
 
-// envOrDefault returns the value of the environment variable or a default
-func envOrDefault(key, defaultVal string) string {
-	if val := os.Getenv(key); val != "" {
-		return val
+// ResetDB closes the existing database connection and resets the singleton.
+// Useful for testing or when configuration changes at runtime.
+func ResetDB() {
+	if db != nil {
+		sqlDB, _ := db.DB()
+		if sqlDB != nil {
+			sqlDB.Close()
+		}
 	}
-	return defaultVal
+	once = sync.Once{}
+	db = nil
 }

@@ -2,14 +2,12 @@ package cmd
 
 import (
 	"log"
-	"os"
 
 	middleware "purecore/app/Http/Middleware"
+	providers "purecore/app/Providers"
 	"purecore/core"
 	_ "purecore/database/migrations"
-	"purecore/routes"
 
-	"github.com/gofiber/fiber/v3"
 	"github.com/spf13/cobra"
 )
 
@@ -25,33 +23,15 @@ func init() {
 }
 
 func serveRun(cmd *cobra.Command, args []string) {
-	core.InitLang("lang")
+	// Create and bootstrap the application using the new Application container.
+	// This centralizes config, database, language, routing, and service providers.
+	app := core.NewApplication().
+		AddProviders(&providers.RouteServiceProvider{})
 
-	// Initialize database connection and run auto-migration
-	_ = core.DB()
-	core.RunMigrations()
-
-	app := fiber.New(fiber.Config{
-		ErrorHandler: func(c fiber.Ctx, err error) error {
-			res := core.NewResponse(c)
-			return res.Error(err.Error(), 500)
-		},
-	})
-
-	// 全局中间件
-	app.Use(middleware.Cors())
-	app.Use(middleware.Lang())
-
-	// 注册路由
-	router := core.NewRouter(app)
-	routes.RegisterAPI(router)
-
-	// 从环境变量读取端口，默认 9002
-	port := os.Getenv("BACKEND_PORT")
-	if port == "" {
-		port = "9002"
+	if err := app.RunWithMiddleware(
+		middleware.Cors(),
+		middleware.Lang(),
+	); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
 	}
-
-	log.Printf("PureCore server starting on port %s", port)
-	log.Fatal(app.Listen(":" + port))
 }

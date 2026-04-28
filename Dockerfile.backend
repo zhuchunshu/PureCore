@@ -1,0 +1,49 @@
+# ============================================================
+# PureCore Backend Dockerfile
+# Multi-stage build for a lean production Go binary
+# ============================================================
+
+# Stage 1: Build the Go binary
+FROM golang:1.24-alpine AS builder
+
+RUN apk add --no-cache git ca-certificates
+
+WORKDIR /app
+
+# Copy dependency files first for layer caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the entire backend source
+COPY main.go ./
+COPY cmd/ ./cmd/
+COPY core/ ./core/
+COPY app/ ./app/
+COPY routes/ ./routes/
+COPY database/ ./database/
+COPY lang/ ./lang/
+
+# Build with optimizations: stripped binary, static linking
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/purecore .
+
+# Stage 2: Minimal runtime image
+FROM alpine:3.21
+
+RUN apk add --no-cache ca-certificates tzdata
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/purecore .
+# Copy language files needed at runtime
+COPY --from=builder /app/lang/ ./lang/
+
+EXPOSE 9002
+
+ENV APP_ENV=production
+ENV BACKEND_PORT=9002
+
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:9002/api/v1/ping || exit 1
+
+CMD ["./purecore", "serve"]

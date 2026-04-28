@@ -3,7 +3,6 @@ package middleware
 import (
 	"crypto/rand"
 	"encoding/hex"
-	"os"
 	"strings"
 	"time"
 
@@ -14,9 +13,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWT secret for signing admin tokens
+// jwtSecret returns the JWT secret from the centralized Config system.
+// Falls back to a default value for development if not configured.
 func jwtSecret() string {
-	secret := os.Getenv("JWT_SECRET")
+	secret := core.GetConfig().String("JWT_SECRET")
 	if secret == "" {
 		secret = "purecore-admin-secret-change-in-production"
 	}

@@ -72,3 +72,32 @@ func (r *Response) Paginate(data interface{}, total int64, page int, perPage int
 		PerPage: perPage,
 	})
 }
+
+// ValidationError sends a 422 response with field-level validation errors.
+// Accepts a map[string]string where keys are field names and values are error messages.
+func (r *Response) ValidationError(errors map[string]string) error {
+	return r.ctx.Status(422).JSON(JsonResponse{
+		Code:    422,
+		Message: "Validation failed",
+		Data:    errors,
+	})
+}
+
+// ValidationErrorMessage sends a 422 response with a simple error message.
+// Use this for single-field or general validation failures.
+func (r *Response) ValidationErrorMessage(msg string) error {
+	return r.ctx.Status(422).JSON(JsonResponse{
+		Code:    422,
+		Message: msg,
+	})
+}
+
+// Created sends a 201 response for successful resource creation.
+func (r *Response) Created(data interface{}) error {
+	return r.JSON(201, 0, "created", data)
+}
+
+// NoContent sends a 204 response with no body.
+func (r *Response) NoContent() error {
+	return r.ctx.Status(204).Send(nil)
+}

@@ -1,8 +1,6 @@
 package controllers
 
 import (
-	"os"
-
 	middleware "purecore/app/Http/Middleware"
 	models "purecore/app/Models"
 	"purecore/core"
@@ -230,9 +228,10 @@ func (ac *AdminAuthController) Refresh(req *core.Request, res *core.Response) er
 	})
 }
 
-// GetAdminRoutePrefix returns the admin route prefix from env
+// GetAdminRoutePrefix returns the admin route prefix from the config system.
+// This function is kept for backward compatibility.
 func GetAdminRoutePrefix() string {
-	prefix := os.Getenv("ADMIN_ROUTE_PREFIX")
+	prefix := core.GetConfig().AdminRoutePrefix()
 	if prefix == "" {
 		prefix = "admin"
 	}
