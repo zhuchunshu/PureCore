@@ -1,6 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useI18n } from '../i18n'
+import { clearTokens } from '../composables/useAuth'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 import ThemeSwitcher from './ThemeSwitcher.vue'
 
@@ -11,7 +12,7 @@ const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
 const emit = defineEmits(['toggle-sidebar'])
 
 function logout() {
-  localStorage.removeItem('admin_token')
+  clearTokens()
   localStorage.removeItem('admin_user')
   router.push(`/${adminPrefix}/login`)
 }

@@ -11,8 +11,9 @@ import (
 type AdminAuthController struct{}
 
 type LoginRequest struct {
-	Username string `json:"username" validate:"required,min=3"`
-	Password string `json:"password" validate:"required,min=6"`
+	Username       string `json:"username" validate:"required,min=3"`
+	Password       string `json:"password" validate:"required,min=6"`
+	TurnstileToken string `json:"turnstile_token"`
 }
 
 // Login authenticates an admin user and returns a JWT token
@@ -20,6 +21,13 @@ func (ac *AdminAuthController) Login(req *core.Request, res *core.Response) erro
 	var body LoginRequest
 	if err := req.Validate(&body); err != nil {
 		return res.Error("Invalid credentials", 422)
+	}
+
+	// Verify Turnstile if enabled for admin login
+	if core.IsTurnstileEnabled("turnstile_admin_login") {
+		if err := core.VerifyTurnstile(body.TurnstileToken); err != nil {
+			return res.Error("Captcha verification failed: "+err.Error(), 422)
+		}
 	}
 
 	var admin models.AdminUser
@@ -31,16 +39,25 @@ func (ac *AdminAuthController) Login(req *core.Request, res *core.Response) erro
 		return res.Error(core.GetLang().Trans("admin.invalid_credentials"), 401)
 	}
 
-	token, err := middleware.GenerateAdminToken(admin.ID, admin.Username)
+	accessToken, err := middleware.GenerateAdminToken(admin.ID, admin.Username, admin.TokenVersion)
 	if err != nil {
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
 	}
 
+	refreshToken, err := middleware.GenerateRefreshToken()
+	if err != nil {
+		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
+	}
+
+	// Save the refresh token in the database
+	core.DB().Model(&admin).Update("refresh_token", refreshToken)
+
 	return res.Success(map[string]interface{}{
-		"token":    token,
-		"username": admin.Username,
-		"name":     admin.Name,
-		"role":     admin.Role,
+		"token":         accessToken,
+		"refresh_token": refreshToken,
+		"username":      admin.Username,
+		"name":          admin.Name,
+		"role":          admin.Role,
 	})
 }
 
@@ -74,12 +91,20 @@ func (ac *AdminAuthController) CheckAdminExists(req *core.Request, res *core.Res
 // and assign the "admin" role.
 func (ac *AdminAuthController) CreateAdmin(req *core.Request, res *core.Response) error {
 	var body struct {
-		Username string `json:"username" validate:"required,min=3"`
-		Password string `json:"password" validate:"required,min=6"`
-		Name     string `json:"name" validate:"required"`
+		Username       string `json:"username" validate:"required,min=3"`
+		Password       string `json:"password" validate:"required,min=6"`
+		Name           string `json:"name" validate:"required"`
+		TurnstileToken string `json:"turnstile_token"`
 	}
 	if err := req.Validate(&body); err != nil {
 		return res.Error(err.Error(), 422)
+	}
+
+	// Verify Turnstile if enabled for admin register
+	if core.IsTurnstileEnabled("turnstile_admin_register") {
+		if err := core.VerifyTurnstile(body.TurnstileToken); err != nil {
+			return res.Error("Captcha verification failed: "+err.Error(), 422)
+		}
 	}
 
 	// Check how many admins exist
@@ -111,14 +136,95 @@ func (ac *AdminAuthController) CreateAdmin(req *core.Request, res *core.Response
 		return res.Error(core.GetLang().Trans("admin.create_failed")+": "+err.Error(), 500)
 	}
 
-	token, _ := middleware.GenerateAdminToken(admin.ID, admin.Username)
+	accessToken, _ := middleware.GenerateAdminToken(admin.ID, admin.Username, admin.TokenVersion)
+	refreshToken, _ := middleware.GenerateRefreshToken()
+
+	// Save the refresh token in the database
+	core.DB().Model(&admin).Update("refresh_token", refreshToken)
 
 	return res.Success(map[string]interface{}{
-		"message":  core.GetLang().Trans("admin.register_success"),
-		"token":    token,
-		"username": admin.Username,
-		"name":     admin.Name,
-		"role":     admin.Role,
+		"message":       core.GetLang().Trans("admin.register_success"),
+		"token":         accessToken,
+		"refresh_token": refreshToken,
+		"username":      admin.Username,
+		"name":          admin.Name,
+		"role":          admin.Role,
+	})
+}
+
+// ChangePassword allows authenticated admins to change their password
+// Increments token_version to invalidate all existing tokens across all devices
+func (ac *AdminAuthController) ChangePassword(req *core.Request, res *core.Response) error {
+	var body struct {
+		CurrentPassword string `json:"current_password" validate:"required,min=6"`
+		NewPassword     string `json:"new_password" validate:"required,min=6"`
+	}
+	if err := req.Validate(&body); err != nil {
+		return res.Error(err.Error(), 422)
+	}
+
+	userID := middleware.GetAdminUserID(req.Ctx())
+	if userID == 0 {
+		return res.Unauthorized()
+	}
+
+	var admin models.AdminUser
+	if err := core.DB().First(&admin, userID).Error; err != nil {
+		return res.NotFound(core.GetLang().Trans("admin.user_not_found"))
+	}
+
+	if !admin.CheckPassword(body.CurrentPassword) {
+		return res.Error(core.GetLang().Trans("admin.invalid_credentials"), 401)
+	}
+
+	if err := admin.SetPassword(body.NewPassword); err != nil {
+		return res.Error(core.GetLang().Trans("admin.password_hash_failed"), 500)
+	}
+
+	// Increment token_version to invalidate all existing tokens
+	admin.TokenVersion++
+	core.DB().Model(&admin).Updates(map[string]interface{}{
+		"password":      admin.Password,
+		"token_version": admin.TokenVersion,
+		"refresh_token": "", // Also clear refresh token
+	})
+
+	return res.Success(map[string]interface{}{
+		"message": core.GetLang().Trans("admin.password_changed"),
+	})
+}
+
+// Refresh generates a new access token using a valid refresh token
+func (ac *AdminAuthController) Refresh(req *core.Request, res *core.Response) error {
+	var body struct {
+		RefreshToken string `json:"refresh_token" validate:"required"`
+	}
+	if err := req.Validate(&body); err != nil {
+		return res.Error("Invalid request", 422)
+	}
+
+	// Find the admin user with this refresh token
+	var admin models.AdminUser
+	if err := core.DB().Where("refresh_token = ?", body.RefreshToken).First(&admin).Error; err != nil {
+		return res.Error(core.GetLang().Trans("admin.invalid_credentials"), 401)
+	}
+
+	// Generate new access token
+	accessToken, err := middleware.GenerateAdminToken(admin.ID, admin.Username, admin.TokenVersion)
+	if err != nil {
+		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
+	}
+
+	// Rotate the refresh token for security
+	newRefreshToken, err := middleware.GenerateRefreshToken()
+	if err != nil {
+		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
+	}
+	core.DB().Model(&admin).Update("refresh_token", newRefreshToken)
+
+	return res.Success(map[string]interface{}{
+		"token":         accessToken,
+		"refresh_token": newRefreshToken,
 	})
 }
 

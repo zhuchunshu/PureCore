@@ -5,6 +5,7 @@ import Navbar from './components/Navbar.vue'
 import AdminLayout from './components/AdminLayout.vue'
 import Footer from './components/Footer.vue'
 import BackendError from './components/BackendError.vue'
+import ToastContainer from './components/ToastContainer.vue'
 import { useBackendHealth } from './composables/useBackendHealth'
 
 const route = useRoute()
@@ -14,7 +15,7 @@ const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
 
 const isHomePage = computed(() => route.path === '/')
 const isAdminDashboard = computed(() => route.path === `/${adminPrefix}`)
-const isAdminPage = computed(() => route.path.startsWith(`/${adminPrefix}`))
+const isAdminPage = computed(() => route.path.startsWith(`/${adminPrefix}`) && !route.path.endsWith('/login') && !route.path.endsWith('/register'))
 const showSpinner = computed(() => !isHomePage.value && !hasChecked.value)
 const showBackendError = computed(() => !isHomePage.value && hasChecked.value && !isBackendReachable.value)
 </script>
@@ -31,19 +32,30 @@ const showBackendError = computed(() => !isHomePage.value && hasChecked.value &&
     <template v-else-if="showBackendError">
       <BackendError />
     </template>
-    <!-- Admin dashboard uses AdminLayout (own navbar + sidebar) -->
-    <template v-else-if="isAdminDashboard">
+    <!-- Admin pages (dashboard, settings, and future admin routes) use AdminLayout -->
+    <template v-else-if="isAdminPage">
       <AdminLayout>
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </AdminLayout>
     </template>
     <!-- Public pages use plain Navbar + Footer -->
     <template v-else>
       <Navbar />
       <main class="flex-1">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <transition name="fade" mode="out-in">
+            <component :is="Component" />
+          </transition>
+        </router-view>
       </main>
       <Footer />
     </template>
+
+    <!-- Global toast notifications -->
+    <ToastContainer />
   </div>
 </template>

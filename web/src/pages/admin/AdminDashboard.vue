@@ -2,10 +2,16 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../../i18n'
+import { useSEO } from '../../composables/useSEO'
+import { clearTokens, accessToken } from '../../composables/useAuth'
 import TechCard from '../../components/TechCard.vue'
 import GradientButton from '../../components/GradientButton.vue'
 
 const { t } = useI18n()
+useSEO({
+  title: t('admin.dashboard'),
+  description: t('admin.dashboard'),
+})
 const router = useRouter()
 const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
 
@@ -14,20 +20,19 @@ const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
-  const token = localStorage.getItem('admin_token')
-  if (!token) {
+  if (!accessToken.value) {
     router.push(`/${adminPrefix}/login`)
     return
   }
   try {
     const resp = await fetch(`/api/v1/${adminPrefix}/auth/profile`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${accessToken.value}` },
     })
     const json = await resp.json()
     if (json.code === 0) {
       profile.value = json.data
     } else {
-      localStorage.removeItem('admin_token')
+      clearTokens()
       router.push(`/${adminPrefix}/login`)
     }
   } catch (err) {

@@ -2,55 +2,85 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 
 const props = defineProps({
-  particleCount: { type: Number, default: 60 },
+  particleCount: { type: Number, default: 120 },
   particleColor: { type: String, default: '99, 102, 241' },
-  speed: { type: Number, default: 1.2 },
+  connectDistance: { type: Number, default: 150 },
+  speed: { type: Number, default: 0.8 },
 })
 
 const canvas = ref(null)
 let animationId = null
+let particles = []
 let ctx = null
 let resizeObserver = null
-let stars = []
+let mouse = { x: -1000, y: -1000 }
+const mouseInfluence = 120
 
-class Star {
+class Particle {
   constructor(w, h) {
     this.reset(w, h, true)
   }
 
   reset(w, h, initial = false) {
-    this.x = Math.random() * w
-    this.y = Math.random() * h * (initial ? 1 : 0.3)
-    this.len = Math.random() * 80 + 40
-    this.vx = (Math.random() - 0.5) * 0.3
-    this.vy = Math.random() * props.speed + 0.5
-    this.opacity = Math.random() * 0.6 + 0.2
-    this.thickness = Math.random() * 1.5 + 0.3
+    this.x = initial ? Math.random() * w : Math.random() * w
+    this.y = initial ? Math.random() * h : Math.random() * h
+    const angle = Math.random() * Math.PI * 2
+    const spd = props.speed * (0.3 + Math.random() * 0.7)
+    this.vx = Math.cos(angle) * spd
+    this.vy = Math.sin(angle) * spd
+    this.radius = Math.random() * 1.5 + 0.5
+    this.opacity = Math.random() * 0.4 + 0.2
+    this.pulse = Math.random() * Math.PI * 2
+    this.pulseSpeed = 0.02 + Math.random() * 0.03
   }
 
   update(w, h) {
+    // Gentle mouse repulsion
+    const dx = mouse.x - this.x
+    const dy = mouse.y - this.y
+    const distToMouse = Math.sqrt(dx * dx + dy * dy)
+
+    if (distToMouse < mouseInfluence) {
+      const force = (1 - distToMouse / mouseInfluence) * 0.3
+      this.vx -= (dx / distToMouse) * force * 0.02
+      this.vy -= (dy / distToMouse) * force * 0.02
+    }
+
+    // Damping
+    this.vx *= 0.998
+    this.vy *= 0.998
+
     this.x += this.vx
     this.y += this.vy
 
-    if (this.y > h + this.len || this.x < -this.len || this.x > w + this.len) {
-      this.reset(w, h)
-    }
+    // Wrap around edges
+    if (this.x < -20) this.x = w + 20
+    if (this.x > w + 20) this.x = -20
+    if (this.y < -20) this.y = h + 20
+    if (this.y > h + 20) this.y = -20
+
+    this.pulse += this.pulseSpeed
   }
 
   draw(ctx, color) {
-    const gradient = ctx.createLinearGradient(
-      this.x, this.y,
-      this.x - this.vx * 10, this.y - this.vy * 10
-    )
-    gradient.addColorStop(0, `rgba(${color}, ${this.opacity})`)
+    const pulseAlpha = Math.sin(this.pulse) * 0.15 + 0.35
+    const alpha = this.opacity * (0.6 + pulseAlpha)
+
+    // Outer glow
+    const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 4)
+    gradient.addColorStop(0, `rgba(${color}, ${alpha * 0.6})`)
+    gradient.addColorStop(0.5, `rgba(${color}, ${alpha * 0.2})`)
     gradient.addColorStop(1, `rgba(${color}, 0)`)
+    ctx.fillStyle = gradient
     ctx.beginPath()
-    ctx.moveTo(this.x, this.y)
-    ctx.lineTo(this.x - this.vx * 20, this.y - this.vy * 20)
-    ctx.strokeStyle = gradient
-    ctx.lineWidth = this.thickness
-    ctx.lineCap = 'round'
-    ctx.stroke()
+    ctx.arc(this.x, this.y, this.radius * 4, 0, Math.PI * 2)
+    ctx.fill()
+
+    // Core dot
+    ctx.beginPath()
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
+    ctx.fillStyle = `rgba(${color}, ${alpha})`
+    ctx.fill()
   }
 }
 
@@ -63,7 +93,7 @@ function initCanvas() {
   canvas.value.height = h
   ctx = canvas.value.getContext('2d')
 
-  stars = Array.from({ length: props.particleCount }, () => new Star(w, h))
+  particles = Array.from({ length: props.particleCount }, () => new Particle(w, h))
 }
 
 function animate() {
@@ -71,17 +101,49 @@ function animate() {
   const w = canvas.value.width
   const h = canvas.value.height
 
-  ctx.fillStyle = 'transparent'
   ctx.clearRect(0, 0, w, h)
 
   const color = props.particleColor
 
-  for (const star of stars) {
-    star.update(w, h)
-    star.draw(ctx, color)
+  // Draw connections
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x
+      const dy = particles[i].y - particles[j].y
+      const dist = Math.sqrt(dx * dx + dy * dy)
+
+      if (dist < props.connectDistance) {
+        const opacity = (1 - dist / props.connectDistance) * 1
+        ctx.beginPath()
+        ctx.moveTo(particles[i].x, particles[i].y)
+        ctx.lineTo(particles[j].x, particles[j].y)
+        ctx.strokeStyle = `rgba(${color}, ${opacity})`
+        ctx.lineWidth = 0.3
+        ctx.stroke()
+      }
+    }
+  }
+
+  // Draw particles on top
+  for (const particle of particles) {
+    particle.update(w, h)
+    particle.draw(ctx, color)
   }
 
   animationId = requestAnimationFrame(animate)
+}
+
+function handleMouseMove(e) {
+  const rect = canvas.value?.getBoundingClientRect()
+  if (rect) {
+    mouse.x = e.clientX - rect.left
+    mouse.y = e.clientY - rect.top
+  }
+}
+
+function handleMouseLeave() {
+  mouse.x = -1000
+  mouse.y = -1000
 }
 
 onMounted(() => {
@@ -93,12 +155,18 @@ onMounted(() => {
   })
   if (canvas.value?.parentElement) {
     resizeObserver.observe(canvas.value.parentElement)
+    canvas.value.parentElement.addEventListener('mousemove', handleMouseMove)
+    canvas.value.parentElement.addEventListener('mouseleave', handleMouseLeave)
   }
 })
 
 onUnmounted(() => {
   if (animationId) cancelAnimationFrame(animationId)
   if (resizeObserver) resizeObserver.disconnect()
+  if (canvas.value?.parentElement) {
+    canvas.value.parentElement.removeEventListener('mousemove', handleMouseMove)
+    canvas.value.parentElement.removeEventListener('mouseleave', handleMouseLeave)
+  }
 })
 </script>
 

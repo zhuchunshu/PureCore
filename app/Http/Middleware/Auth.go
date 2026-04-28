@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"purecore/core"
 
@@ -43,11 +44,12 @@ func Auth() fiber.Handler {
 	}
 }
 
-// GenerateUserToken creates a JWT token for a regular user
+// GenerateUserToken creates a JWT access token for a regular user (short-lived)
 func GenerateUserToken(userID uint, username string) (string, error) {
 	claims := jwt.MapClaims{
 		"user_id":  userID,
 		"username": username,
+		"exp":      time.Now().Add(accessTokenExpiry()).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(jwtSecret()))

@@ -5,6 +5,18 @@ import App from './App.vue'
 import { initI18n, setLocale } from './i18n'
 import { routes } from './router/routes'
 
+// Map route names to i18n translation keys for page title and description
+const routeSEO = {
+  Home: { title: 'home.title', description: 'home.description' },
+  Login: { title: 'user.login_title', description: 'user.login_description' },
+  Register: { title: 'user.register_title', description: 'user.register_description' },
+  AdminLogin: { title: 'admin.title', description: 'admin.title' },
+  AdminRegister: { title: 'admin.register_title', description: 'admin.register_title' },
+  AdminDashboard: { title: 'admin.dashboard', description: 'admin.dashboard' },
+  AdminSettings: { title: 'admin.settings', description: 'admin.settings_description' },
+  NotFound: { title: 'notfound.title', description: 'notfound.description' },
+}
+
 export async function render(url, { locale = 'zh', translations = {}, projectInfo = null } = {}) {
   // Initialize i18n with preloaded translations (no fetch needed on server)
   initI18n(locale, translations)
@@ -29,9 +41,24 @@ export async function render(url, { locale = 'zh', translations = {}, projectInf
 
   // Determine if this is a 404 page by checking the matched route name
   const currentRoute = router.currentRoute.value
-  const statusCode = currentRoute.name === 'NotFound' ? 404 : 200
+  const routeName = currentRoute.name || 'Home'
+  const statusCode = routeName === 'NotFound' ? 404 : 200
+
+  // Compute page-specific SEO title and description from i18n translations
+  const seo = routeSEO[routeName] || { title: '', description: '' }
+  const t = (key, fallback) => {
+    // translations is a flat map of key -> value
+    const val = translations[locale]
+    if (val && val[key]) return val[key]
+    return fallback
+  }
+  const siteName = projectInfo?.name || 'PureCore'
+  const pageTitleKey = t(seo.title, '')
+  const pageDescKey = t(seo.description, '')
+  const pageTitle = pageTitleKey ? `${pageTitleKey} - ${siteName}` : siteName
+  const pageDescription = pageDescKey || ''
 
   const html = await renderToString(app)
 
-  return { html, statusCode }
+  return { html, statusCode, pageTitle, pageDescription }
 }

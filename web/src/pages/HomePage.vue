@@ -1,11 +1,17 @@
 <script setup>
 import { ref, onMounted, computed, inject } from 'vue'
 import { useI18n } from '../i18n'
+import { useSEO } from '../composables/useSEO'
 import ParticleBackground from '../components/ParticleBackground.vue'
 import GridOverlay from '../components/GridOverlay.vue'
 import GradientButton from '../components/GradientButton.vue'
 
 const { t, locale } = useI18n()
+useSEO({
+  title: t('home.title'),
+  description: t('home.description'),
+  keywords: 'purecore, go, gofiber, vue, full-stack, framework',
+})
 
 const features = [
   { svg: 'routing', titleKey: 'home.feature_1_title', descKey: 'home.feature_1_desc' },

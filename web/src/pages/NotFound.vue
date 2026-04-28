@@ -1,10 +1,15 @@
 <script setup>
 import { RouterLink } from 'vue-router'
 import { useI18n } from '../i18n'
+import { useSEO } from '../composables/useSEO'
 import GradientButton from '../components/GradientButton.vue'
 import TechBackground from '../components/TechBackground.vue'
 
 const { t } = useI18n()
+useSEO({
+  title: t('notfound.title'),
+  description: t('notfound.description'),
+})
 </script>
 
 <template>

@@ -2,11 +2,18 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../../i18n'
+import { useSEO } from '../../composables/useSEO'
+import { setTokens, accessToken } from '../../composables/useAuth'
 import TechCard from '../../components/TechCard.vue'
 import GradientButton from '../../components/GradientButton.vue'
 import TechBackground from '../../components/TechBackground.vue'
+import TurnstileWidget from '../../components/TurnstileWidget.vue'
 
 const { t } = useI18n()
+useSEO({
+  title: t('admin.title'),
+  description: t('admin.title'),
+})
 const router = useRouter()
 const username = ref('')
 const password = ref('')
@@ -14,10 +21,11 @@ const errMsg = ref('')
 const loading = ref(false)
 const checkingAdmins = ref(true)
 const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
+const turnstileToken = ref('')
+const turnstileRef = ref(null)
 
 onMounted(async () => {
-  const token = localStorage.getItem('admin_token')
-  if (token) {
+  if (accessToken.value) {
     router.push(`/${adminPrefix}`)
     return
   }
@@ -40,17 +48,22 @@ async function login() {
     errMsg.value = t('admin.enter_credentials')
     return
   }
+  // Check if Turnstile is enabled but not yet verified
+  if (turnstileRef.value && turnstileRef.value.isEnabled && !turnstileRef.value.verified) {
+    errMsg.value = 'Please complete the CAPTCHA verification before submitting'
+    return
+  }
   loading.value = true
   errMsg.value = ''
   try {
     const resp = await fetch(`/api/v1/${adminPrefix}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username.value, password: password.value }),
+      body: JSON.stringify({ username: username.value, password: password.value, turnstile_token: turnstileToken.value }),
     })
     const json = await resp.json()
     if (json.code === 0) {
-      localStorage.setItem('admin_token', json.data.token)
+      setTokens(json.data.token, json.data.refresh_token)
       localStorage.setItem('admin_user', JSON.stringify(json.data))
       router.push(`/${adminPrefix}`)
     } else {
@@ -65,11 +78,11 @@ async function login() {
 </script>
 
 <template>
-  <div class="relative min-h-screen flex items-center justify-center bg-base-200 overflow-hidden">
-    <TechBackground variant="blue" opacity="0.05" />
+  <div class="relative flex items-center justify-center min-h-screen bg-base-200 overflow-hidden">
+    <TechBackground variant="blue" :opacity="0.05" />
 
     <!-- Login card -->
-    <div class="relative z-10 w-full max-w-lg mx-4">
+    <div class="relative z-10 w-full max-w-lg mx-4 py-8">
       <TechCard variant="blue">
         <!-- Header -->
         <div class="text-center mb-8">
@@ -127,7 +140,8 @@ async function login() {
             <span>{{ errMsg }}</span>
           </div>
 
-          <GradientButton type="submit" :loading="loading" variant="blue" size="md" class="w-full">
+          <TurnstileWidget ref="turnstileRef" context="turnstile_admin_login" @verified="turnstileToken = $event" />
+          <GradientButton type="submit" :loading="loading" variant="primary" size="md" class="w-full">
             <template #icon>
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
@@ -146,6 +160,6 @@ async function login() {
           </a>
         </div>
       </TechCard>
-    </div>
+      </div>
   </div>
 </template>

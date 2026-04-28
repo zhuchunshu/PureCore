@@ -9,6 +9,7 @@ defineProps({
 })
 
 const variantClasses = {
+  primary: 'from-primary to-secondary shadow-primary/25 hover:shadow-primary/50 hover:shadow-primary/30 hover:from-primary hover:to-secondary ring-1 ring-primary/30 hover:ring-primary/50',
   blue: 'from-blue-500 to-purple-600 shadow-purple-500/25 hover:shadow-purple-500/50 hover:shadow-purple-500/30 hover:from-blue-400 hover:to-purple-500 ring-1 ring-purple-500/30 hover:ring-purple-400/50',
   emerald: 'from-emerald-500 to-teal-600 shadow-teal-500/25 hover:shadow-teal-500/50 hover:shadow-teal-500/30 hover:from-emerald-400 hover:to-teal-500 ring-1 ring-teal-500/30 hover:ring-teal-400/50',
   purple: 'from-purple-500 to-pink-600 shadow-pink-500/25 hover:shadow-pink-500/50 hover:shadow-pink-500/30 hover:from-purple-400 hover:to-pink-500 ring-1 ring-pink-500/30 hover:ring-pink-400/50',

@@ -9,10 +9,12 @@ import (
 // AdminUser represents an administrator in the database
 type AdminUser struct {
 	core.Model
-	Username string `gorm:"type:varchar(100);uniqueIndex;not null" json:"username" validate:"required,min=3"`
-	Password string `gorm:"type:varchar(255);not null" json:"-"`
-	Name     string `gorm:"type:varchar(100);not null" json:"name"`
-	Role     string `gorm:"type:varchar(50);default:'admin'" json:"role"`
+	Username     string `gorm:"type:varchar(100);uniqueIndex;not null" json:"username" validate:"required,min=3"`
+	Password     string `gorm:"type:varchar(255);not null" json:"-"`
+	Name         string `gorm:"type:varchar(100);not null" json:"name"`
+	Role         string `gorm:"type:varchar(50);default:'admin'" json:"role"`
+	RefreshToken string `gorm:"type:varchar(255);default:''" json:"-"`
+	TokenVersion int    `gorm:"default:0" json:"-"`
 }
 
 // SetPassword hashes the password using bcrypt and stores it

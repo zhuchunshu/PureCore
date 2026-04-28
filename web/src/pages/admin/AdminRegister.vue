@@ -2,11 +2,18 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../../i18n'
+import { useSEO } from '../../composables/useSEO'
+import { setTokens, accessToken } from '../../composables/useAuth'
 import TechCard from '../../components/TechCard.vue'
 import GradientButton from '../../components/GradientButton.vue'
 import TechBackground from '../../components/TechBackground.vue'
+import TurnstileWidget from '../../components/TurnstileWidget.vue'
 
 const { t } = useI18n()
+useSEO({
+  title: t('admin.register_title'),
+  description: t('admin.register_title'),
+})
 const router = useRouter()
 const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
 const username = ref('')
@@ -16,10 +23,11 @@ const name = ref('')
 const errMsg = ref('')
 const loading = ref(false)
 const hasAdmins = ref(true)
+const turnstileToken = ref('')
+const turnstileRef = ref(null)
 
 onMounted(async () => {
-  const token = localStorage.getItem('admin_token')
-  if (token) {
+  if (accessToken.value) {
     router.push(`/${adminPrefix}`)
     return
   }
@@ -46,17 +54,22 @@ async function register() {
     errMsg.value = t('admin.passwords_not_match')
     return
   }
+  // Check if Turnstile is enabled but not yet verified
+  if (turnstileRef.value && turnstileRef.value.isEnabled && !turnstileRef.value.verified) {
+    errMsg.value = 'Please complete the CAPTCHA verification before submitting'
+    return
+  }
   loading.value = true
   errMsg.value = ''
   try {
     const resp = await fetch(`/api/v1/${adminPrefix}/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username.value, password: password.value, name: name.value }),
+      body: JSON.stringify({ username: username.value, password: password.value, name: name.value, turnstile_token: turnstileToken.value }),
     })
     const json = await resp.json()
     if (json.code === 0) {
-      localStorage.setItem('admin_token', json.data.token)
+      setTokens(json.data.token, json.data.refresh_token)
       localStorage.setItem('admin_user', JSON.stringify(json.data))
       router.push(`/${adminPrefix}`)
     } else {
@@ -71,11 +84,11 @@ async function register() {
 </script>
 
 <template>
-  <div class="relative min-h-screen flex items-center justify-center bg-base-200 overflow-hidden">
-    <TechBackground variant="emerald" opacity="0.05" />
+  <div class="relative flex items-center justify-center min-h-screen bg-base-200 overflow-hidden">
+    <TechBackground variant="emerald" :opacity="0.05" />
 
     <!-- Register card -->
-    <div class="relative z-10 w-full max-w-lg mx-4">
+    <div class="relative z-10 w-full max-w-lg mx-4 py-8">
       <TechCard variant="emerald">
         <!-- Header -->
         <div class="text-center mb-8">
@@ -88,7 +101,7 @@ async function register() {
             Pure<span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-teal-400">Core</span>
           </h1>
           <p class="text-base-content/60 mt-3 text-lg">{{ t('admin.register_title') }}</p>
-          <p v-if="!hasAdmins" class="text-warning/80 text-sm mt-2 bg-warning/10 py-1.5 px-3 rounded-lg inline-block">{{ t('admin.no_admin_redirect') }}</p>
+          <p v-if="!hasAdmins" class="text-sm mt-2 bg-error/10 text-error border-l-4 border-error/60 py-1.5 px-3 rounded-r-lg inline-block">{{ t('admin.no_admin_redirect') }}</p>
         </div>
 
         <!-- Form -->
@@ -169,7 +182,8 @@ async function register() {
             <span>{{ errMsg }}</span>
           </div>
 
-          <GradientButton type="submit" :loading="loading" variant="emerald" size="md" class="w-full">
+          <TurnstileWidget ref="turnstileRef" context="turnstile_admin_register" @verified="turnstileToken = $event" />
+          <GradientButton type="submit" :loading="loading" variant="primary" size="md" class="w-full">
             <template #icon>
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -188,6 +202,6 @@ async function register() {
           </a>
         </div>
       </TechCard>
-    </div>
+      </div>
   </div>
 </template>

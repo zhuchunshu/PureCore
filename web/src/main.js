@@ -4,6 +4,9 @@ import App from './App.vue'
 import router from './router'
 import { initI18n } from './i18n'
 import { useTheme } from './composables/useTheme'
+import { initAuth } from './composables/useAuth'
+import { initUserAuth } from './composables/useUserAuth'
+import { initSEO } from './composables/useSEO'
 
 async function bootstrap() {
   // Apply theme from localStorage or system preference before mounting the app
@@ -15,6 +18,9 @@ async function bootstrap() {
   theme.value
 
   await initI18n()
+  await initSEO()
+  initAuth()
+  initUserAuth()
 
   const app = createApp(App)
   app.use(router)

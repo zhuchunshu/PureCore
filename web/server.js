@@ -19,9 +19,18 @@ for (const file of readdirSync(langDir)) {
 
 // Load project info from web/package.json under the "purecore" key
 let projectInfo = null
+let seoDefaults = { title: 'PureCore', description: '', keywords: '' }
 try {
   const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
   projectInfo = pkg.purecore || null
+  if (projectInfo) {
+    const desc = projectInfo.description || {}
+    seoDefaults = {
+      title: projectInfo.name || 'PureCore',
+      description: desc.en || desc.zh || '',
+      keywords: (projectInfo.keywords || []).join(', '),
+    }
+  }
 } catch (err) {
   console.warn('Could not load project info from package.json:', err.message)
 }
@@ -109,10 +118,13 @@ if (isProduction) {
       try {
         const locale = detectLocale({ headers: Object.fromEntries(req.headers.entries()) })
         const ssrTheme = detectTheme({ headers: Object.fromEntries(req.headers.entries()) })
-        const { html, statusCode = 200 } = await render(pathname, { locale, translations, projectInfo })
+        const { html, statusCode = 200, pageTitle, pageDescription } = await render(pathname, { locale, translations, projectInfo })
         const finalHtml = template
           .replace('<html', `<html data-theme="${ssrTheme}"`)
           .replace('<!--ssr-outlet-->', html)
+          .replace('<!--seo-title-->', pageTitle || seoDefaults.title)
+          .replace('<!--seo-description-->', pageDescription || seoDefaults.description)
+          .replace('<!--seo-keywords-->', seoDefaults.keywords)
           .replace('<!--preload-links-->', cssHref ? `<link rel="stylesheet" href="${cssHref}" />` : '')
         return new Response(finalHtml, { headers: { 'Content-Type': 'text/html' }, status: statusCode })
       } catch (err) {
@@ -153,11 +165,14 @@ if (isProduction) {
         const { render } = await vite.ssrLoadModule('/src/entry-server.js')
         const locale = detectLocale(req)
         const ssrTheme = detectTheme(req)
-        const { html, statusCode = 200 } = await render(url, { locale, translations, projectInfo })
+        const { html, statusCode = 200, pageTitle, pageDescription } = await render(url, { locale, translations, projectInfo })
 
         const finalHtml = template
           .replace('<html', `<html data-theme="${ssrTheme}"`)
           .replace('<!--ssr-outlet-->', html)
+          .replace('<!--seo-title-->', pageTitle || seoDefaults.title)
+          .replace('<!--seo-description-->', pageDescription || seoDefaults.description)
+          .replace('<!--seo-keywords-->', seoDefaults.keywords)
         res.writeHead(statusCode, { 'Content-Type': 'text/html' })
         res.end(finalHtml)
       } catch (err) {

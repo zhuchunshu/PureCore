@@ -14,7 +14,7 @@ const { checkHealth, isBackendReachable } = useBackendHealth()
 const retry = () => {
   checkHealth()
   if (isBackendReachable.value) {
-    window.location.reload()
+    router.go(0)
   }
 }
 

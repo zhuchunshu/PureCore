@@ -2,6 +2,7 @@
 import { RouterLink } from 'vue-router'
 import LanguageSwitcher from './LanguageSwitcher.vue'
 import ThemeSwitcher from './ThemeSwitcher.vue'
+import UserAuthNav from './UserAuthNav.vue'
 import { useI18n } from '../i18n'
 
 const { t } = useI18n()
@@ -35,6 +36,7 @@ const { t } = useI18n()
         <div class="flex items-center gap-1">
           <ThemeSwitcher />
           <LanguageSwitcher />
+          <UserAuthNav />
 
           <!-- Mobile hamburger -->
           <div class="dropdown dropdown-end lg:hidden">

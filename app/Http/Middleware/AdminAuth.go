@@ -1,9 +1,13 @@
 package middleware
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"os"
 	"strings"
+	"time"
 
+	models "purecore/app/Models"
 	"purecore/core"
 
 	"github.com/gofiber/fiber/v3"
@@ -17,6 +21,25 @@ func jwtSecret() string {
 		secret = "purecore-admin-secret-change-in-production"
 	}
 	return secret
+}
+
+// accessTokenExpiry returns the access token expiration duration
+func accessTokenExpiry() time.Duration {
+	return 15 * time.Minute
+}
+
+// refreshTokenExpiry returns the refresh token expiration duration
+func refreshTokenExpiry() time.Duration {
+	return 7 * 24 * time.Hour
+}
+
+// GenerateRefreshToken creates a cryptographically random refresh token
+func GenerateRefreshToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
 }
 
 // AdminAuth returns a JWT middleware for admin authentication.
@@ -42,24 +65,42 @@ func AdminAuth() fiber.Handler {
 			return res.Unauthorized()
 		}
 
+		userID := uint(claims["user_id"].(float64))
+		username := claims["username"].(string)
+
+		// Verify token_version matches the database
+		if tv, ok := claims["token_version"]; ok {
+			var admin models.AdminUser
+			if err := core.DB().First(&admin, userID).Error; err != nil {
+				res := core.NewResponse(c)
+				return res.Unauthorized()
+			}
+			if int(tv.(float64)) != admin.TokenVersion {
+				res := core.NewResponse(c)
+				return res.Unauthorized()
+			}
+		}
+
 		// Store admin info in Locals for downstream handlers
-		c.Locals("admin_user_id", uint(claims["user_id"].(float64)))
-		c.Locals("admin_username", claims["username"].(string))
+		c.Locals("admin_user_id", userID)
+		c.Locals("admin_username", username)
 		// Also store user for compatibility with existing code
 		c.Locals("user", map[string]string{
 			"id":   "",
-			"name": claims["username"].(string),
+			"name": username,
 		})
 
 		return c.Next()
 	}
 }
 
-// GenerateAdminToken creates a JWT token for an admin user
-func GenerateAdminToken(userID uint, username string) (string, error) {
+// GenerateAdminToken creates a JWT access token for an admin user (short-lived)
+func GenerateAdminToken(userID uint, username string, tokenVersion int) (string, error) {
 	claims := jwt.MapClaims{
-		"user_id":  userID,
-		"username": username,
+		"user_id":       userID,
+		"username":      username,
+		"token_version": tokenVersion,
+		"exp":           time.Now().Add(accessTokenExpiry()).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	return token.SignedString([]byte(jwtSecret()))

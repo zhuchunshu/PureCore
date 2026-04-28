@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../i18n'
+import { clearTokens } from '../composables/useAuth'
 import AdminNavbar from './AdminNavbar.vue'
 
 const { t } = useI18n()
@@ -18,7 +19,7 @@ function closeSidebar() {
 }
 
 function logout() {
-  localStorage.removeItem('admin_token')
+  clearTokens()
   localStorage.removeItem('admin_user')
   router.push(`/${adminPrefix}/login`)
 }
@@ -34,6 +35,24 @@ const props = defineProps({
     <AdminNavbar :profile="profile" @toggle-sidebar="toggleSidebar" />
 
     <div class="flex flex-1">
+      <!-- Desktop sidebar: fixed position, independent of content scroll -->
+      <aside class="hidden lg:flex lg:flex-col fixed top-16 left-0 bottom-0 w-64 bg-base-100 border-r border-base-300/20 z-20">
+        <div class="flex-1 overflow-y-auto">
+          <ul class="menu menu-lg w-full p-3 gap-1">
+            <li><router-link :to="`/${adminPrefix}`" :class="{ active: $route.path === `/${adminPrefix}` }"><span>📊</span> {{ t('admin.dashboard') }}</router-link></li>
+            <li><router-link :to="`/${adminPrefix}/settings`" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><span>⚙️</span> {{ t('admin.settings') }}</router-link></li>
+          </ul>
+        </div>
+        <div class="p-4 border-t border-base-300/20">
+          <ul class="menu menu-lg w-full gap-1">
+            <li>
+              <a href="/" target="_blank"><span>🏠</span> {{ t('admin.view_site') }}</a>
+            </li>
+            <li><button @click="logout"><span>🚪</span> {{ t('admin.logout') }}</button></li>
+          </ul>
+        </div>
+      </aside>
+
       <!-- Mobile sidebar overlay -->
       <Transition name="sidebar-slide">
         <div
@@ -54,10 +73,9 @@ const props = defineProps({
                 </svg>
               </button>
             </div>
-            <ul class="menu p-4 gap-1">
-              <li><a class="active" @click="closeSidebar"><span>📊</span> {{ t('admin.dashboard') }}</a></li>
-              <li><a @click="closeSidebar"><span>👥</span> {{ t('admin.users') }}</a></li>
-              <li><a @click="closeSidebar"><span>⚙️</span> {{ t('admin.settings') }}</a></li>
+            <ul class="menu menu-lg w-full p-3 gap-1">
+              <li><router-link :to="`/${adminPrefix}`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}` }"><span>📊</span> {{ t('admin.dashboard') }}</router-link></li>
+              <li><router-link :to="`/${adminPrefix}/settings`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><span>⚙️</span> {{ t('admin.settings') }}</router-link></li>
               <li class="mt-auto pt-4 border-t border-base-300/20">
                 <a href="/" target="_blank"><span>🏠</span> {{ t('admin.view_site') }}</a>
               </li>
@@ -67,27 +85,8 @@ const props = defineProps({
         </div>
       </Transition>
 
-      <!-- Desktop sidebar (always visible on lg+) -->
-      <aside class="w-64 bg-base-100 border-r border-base-300/20 hidden lg:flex lg:flex-col">
-        <div class="flex-1 overflow-y-auto">
-          <ul class="menu p-4 gap-1">
-            <li><a class="active"><span>📊</span> {{ t('admin.dashboard') }}</a></li>
-            <li><a><span>👥</span> {{ t('admin.users') }}</a></li>
-            <li><a><span>⚙️</span> {{ t('admin.settings') }}</a></li>
-          </ul>
-        </div>
-        <div class="p-4 border-t border-base-300/20">
-          <ul class="menu gap-1">
-            <li>
-              <a href="/" target="_blank"><span>🏠</span> {{ t('admin.view_site') }}</a>
-            </li>
-            <li><button @click="logout"><span>🚪</span> {{ t('admin.logout') }}</button></li>
-          </ul>
-        </div>
-      </aside>
-
-      <!-- Main content area -->
-      <main class="flex-1 p-4 md:p-6 overflow-y-auto">
+      <!-- Main content area: offset by sidebar width on desktop -->
+      <main class="flex-1 lg:ml-64 p-4 md:p-6 overflow-y-auto">
         <slot />
       </main>
     </div>
