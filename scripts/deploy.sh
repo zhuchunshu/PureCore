@@ -32,7 +32,9 @@ err()  { echo -e "${RED}✗${NC} $1"; }
 # Load current values from .env if it exists
 load_existing_env() {
   if [ -f .env ]; then
-    export $(grep -v '^#' .env | grep -v '^$' | xargs)
+    set -a
+    source .env
+    set +a
   fi
 }
 

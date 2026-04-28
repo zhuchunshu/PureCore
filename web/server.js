@@ -1,11 +1,35 @@
 import { createServer } from 'node:http'
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
-import { join, extname } from 'node:path'
+import { join, extname, dirname } from 'node:path'
 import { createServer as createViteServer } from 'vite'
 
 const __dirname = new URL('.', import.meta.url).pathname
 const isProduction = process.env.NODE_ENV === 'production'
-const PORT = process.env.SSR_PORT || 9001
+
+// Load .env file if present (fallback for standalone SSR usage)
+try {
+  const envPath = join(dirname(__dirname), '..', '.env')
+  if (existsSync(envPath)) {
+    const envContent = readFileSync(envPath, 'utf-8')
+    for (const line of envContent.split('\n')) {
+      const trimmed = line.trim()
+      if (trimmed && !trimmed.startsWith('#')) {
+        const eqIndex = trimmed.indexOf('=')
+        if (eqIndex > 0) {
+          const key = trimmed.slice(0, eqIndex).trim()
+          const value = trimmed.slice(eqIndex + 1).trim()
+          if (!process.env[key]) {
+            process.env[key] = value
+          }
+        }
+      }
+    }
+  }
+} catch (_) {
+  // Ignore errors — .env is optional for SSR
+}
+
+const PORT = process.env.FRONTEND_PORT || process.env.SSR_PORT || 9001
 
 // Load translations for SSR from web/public/lang/
 const langDir = join(__dirname, '..', 'lang')

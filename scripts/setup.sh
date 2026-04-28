@@ -178,11 +178,8 @@ if [ -f go.mod ]; then
   sed -i "s|^module .*|module $project_name|" go.mod
 fi
 
-# Step 3: Update Vite config with auto-detected ports
-log "Updating Vite config with selected ports..."
-if [ -f web/vite.config.js ]; then
-  sed -i "s|FRONTEND_PORT.*||" web/vite.config.js
-fi
+# Step 3: Vite config reads from .env automatically
+log "Vite dev server will read FRONTEND_PORT from .env automatically — no config update needed."
 
 # Step 4: Reinitialize Git
 log "Initializing fresh Git repository..."
