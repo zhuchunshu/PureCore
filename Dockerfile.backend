@@ -6,6 +6,10 @@
 # Stage 1: Build the Go binary
 FROM golang:1.24-alpine AS builder
 
+# Enable automatic toolchain downloads for projects that require a newer Go version
+# (go.mod specifies go 1.26.2, which will be auto-fetched by the Go toolchain)
+ENV GOTOOLCHAIN=auto
+
 RUN apk add --no-cache git ca-certificates
 
 WORKDIR /app
@@ -22,6 +26,7 @@ COPY app/ ./app/
 COPY routes/ ./routes/
 COPY database/ ./database/
 COPY lang/ ./lang/
+COPY docs/ ./docs/
 
 # Build with optimizations: stripped binary, static linking
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/purecore .
@@ -29,7 +34,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/purecore .
 # Stage 2: Minimal runtime image
 FROM alpine:3.21
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata curl bind-tools netcat-openbsd
 
 WORKDIR /app
 
@@ -37,6 +42,34 @@ WORKDIR /app
 COPY --from=builder /app/purecore .
 # Copy language files needed at runtime
 COPY --from=builder /app/lang/ ./lang/
+# Copy documentation files needed by DocsController
+COPY --from=builder /app/docs/ ./docs/
+
+# Entrypoint script that waits for the database to be reachable before starting the app.
+# Phase 1: wait until Docker's embedded DNS can resolve the hostname.
+# Phase 2: wait until the PostgreSQL port accepts TCP connections.
+# Uses nc -z (TCP scan) instead of wget because PostgreSQL does not speak HTTP.
+RUN printf '#!/bin/sh\n\
+set -e\n\
+DB_HOST="${DB_HOST:-postgres}"\n\
+DB_PORT="${DB_PORT:-5432}"\n\
+echo "Waiting for database at $DB_HOST:$DB_PORT..."\n\
+while ! nslookup "$DB_HOST" > /dev/null 2>&1; do\n\
+  echo "  (DNS not ready yet...)"\n\
+  sleep 2\n\
+done\n\
+echo "  DNS resolution OK"\n\
+while ! nc -z "$DB_HOST" "$DB_PORT" 2>/dev/null; do\n\
+  echo "  (waiting for port $DB_PORT...)"\n\
+  sleep 2\n\
+done\n\
+echo "Database is reachable, starting PureCore..."\n\
+/app/purecore serve\n\
+EXIT_CODE=$?\n\
+echo "PureCore exited with code $EXIT_CODE" >&2\n\
+# Brief sleep so Docker can flush logs before container exits\n\
+sleep 1\n\
+exit $EXIT_CODE\n' > /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 9002
 
@@ -44,6 +77,6 @@ ENV APP_ENV=production
 ENV BACKEND_PORT=9002
 
 HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:9002/api/v1/ping || exit 1
+  CMD curl -sf http://localhost:9002/api/v1/ping || exit 1
 
-CMD ["./purecore", "serve"]
+ENTRYPOINT ["/entrypoint.sh"]

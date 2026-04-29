@@ -31,8 +31,5 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    build: {
-      ssr: 'src/entry-server.js',
-    },
   }
 })

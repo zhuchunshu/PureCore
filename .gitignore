@@ -12,3 +12,6 @@ web/.gitignore
 purecore-server
 purecore
 tmp/
+
+# Docker volumes (data persistence)
+pgdata/

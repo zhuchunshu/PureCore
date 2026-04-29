@@ -101,14 +101,18 @@ check_prereqs() {
   log "─────────────────────"
   ask_port "Frontend HTTP port" "${FRONTEND_PORT:-9001}" "FRONTEND_PORT"
   ask_port "Backend API port" "${BACKEND_PORT:-9002}" "BACKEND_PORT"
-  ask_port "Database port" "${DB_PORT:-5432}" "DB_PORT"
   echo ""
 
-  # Write the ports back to .env
+  # Write the ports back to .env (add if missing, update if exists)
   if [ -f .env ]; then
-    sed -i "s/^FRONTEND_PORT=.*/FRONTEND_PORT=$FRONTEND_PORT/" .env
-    sed -i "s/^BACKEND_PORT=.*/BACKEND_PORT=$BACKEND_PORT/" .env
-    sed -i "s/^DB_PORT=.*/DB_PORT=$DB_PORT/" .env
+    for var in FRONTEND_PORT BACKEND_PORT; do
+      value="${!var}"
+      if grep -q "^${var}=" .env 2>/dev/null; then
+        sed -i "s/^${var}=.*/${var}=$value/" .env
+      else
+        echo "${var}=$value" >> .env
+      fi
+    done
   fi
 
   # Verify required variables are set with non-default values
@@ -175,11 +179,13 @@ start_services() {
   fi
 
   local admin_path="${ADMIN_ROUTE_PREFIX:-control-panel}"
+  local fe_port="${FRONTEND_PORT:-9001}"
+  local be_port="${BACKEND_PORT:-9002}"
 
   echo ""
   log "PureCore is running!"
-  echo "  Frontend  → http://localhost:${FRONTEND_PORT:-9001}"
-  echo "  Backend   → http://localhost:${BACKEND_PORT:-9002} (API)"
+  echo "  Frontend  → http://localhost:${fe_port}"
+  echo "  Backend   → http://localhost:${be_port} (API)"
   echo ""
   echo "  API connectivity:"
   echo "    Protocol: ${VITE_API_PROTOCOL:-http}"
@@ -189,7 +195,7 @@ start_services() {
   echo "  Theme: ${THEME:-sunset}"
   echo ""
   echo "  First-time setup:"
-  echo "    Register an admin at http://localhost:${FRONTEND_PORT:-9001}/${admin_path}/register"
+  echo "    Register an admin at http://localhost:${fe_port}/${admin_path}/register"
 }
 
 # ─── Stop ──────────────────────────────────────────────────

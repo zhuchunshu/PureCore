@@ -1,38 +1,14 @@
-# Git
-.git
-.gitignore
-.gitattributes
-
-# Node modules / Bun
-web/node_modules
-web/bun.lock
-
-# Build outputs
-web/dist
-web/.vite
-
-# Environment files (should be provided at runtime)
+# Logs
+logs
 .env
-.env.local
-.env.*.local
-
-# IDE
-.vscode
-.idea
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Go
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-*.out
-vendor/
+node_modules
+dist
+web/node_modules
+web/dist
+web/logs
+web/*.log
+web/.vscode
+web/.gitignore
+purecore-server
+purecore
+tmp/

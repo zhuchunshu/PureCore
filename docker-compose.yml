@@ -4,16 +4,19 @@
 # Usage:
 #   1. Copy .env.example to .env and fill in your secrets
 #   2. Run: docker compose up -d
-#   3. Access: http://localhost:9001 (frontend), http://localhost:9002 (backend)
+#   3. Access: http://localhost:9001 (frontend)
+#
+#   Frontend proxies all /api/* requests to the backend internally.
+#   Database and backend are NOT exposed to the host by default for
+#   security. To expose the backend port for direct API access, set
+#   EXPOSE_BACKEND=true in .env and uncomment the backend ports below.
 #
 # Quick start with automatic setup:
 #   chmod +x scripts/deploy.sh && ./scripts/deploy.sh
 # ============================================================
 
-version: "3.9"
-
 services:
-  # PostgreSQL database
+  # PostgreSQL database (internal network only, data persisted to ./pgdata)
   postgres:
     image: postgres:17-alpine
     container_name: purecore-db
@@ -23,9 +26,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-your_password_here}
       POSTGRES_DB: ${DB_NAME:-purecore}
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    ports:
-      - "${DB_PORT:-5432}:5432"
+      - ./pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-purecore}"]
       interval: 10s
@@ -34,7 +35,7 @@ services:
     networks:
       - purecore-net
 
-  # Go backend API server
+  # Go backend API server (internal network only by default)
   backend:
     build:
       context: .
@@ -44,10 +45,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    # Docker embedded DNS ensures internal hostname resolution works even when
+    # the host's resolv.conf has non-Docker nameservers (e.g., systemd-resolved's 127.0.0.53).
+    dns: 127.0.0.11
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
-      BACKEND_PORT: "9002"
+      BACKEND_PORT: ${BACKEND_PORT:-9002}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_USER: ${DB_USER:-postgres}
@@ -57,8 +61,11 @@ services:
       JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-here}
       ADMIN_ROUTE_PREFIX: ${ADMIN_ROUTE_PREFIX:-control-panel}
       TZ: ${TZ:-Asia/Shanghai}
-    ports:
-      - "${BACKEND_PORT:-9002}:9002"
+    # Uncomment the following lines to expose the backend API directly.
+    # Only needed if you want to access the backend without going through
+    # the frontend proxy (e.g., for debugging or external API consumers).
+    # ports:
+    #   - "${BACKEND_PORT:-9002}:${BACKEND_PORT:-9002}"
     networks:
       - purecore-net
 
@@ -69,30 +76,34 @@ services:
       dockerfile: Dockerfile.frontend
       args:
         VITE_API_PROTOCOL: ${VITE_API_PROTOCOL:-http}
-        VITE_API_HOST: ${VITE_API_HOST:-backend}
-        VITE_API_PORT: ${VITE_API_PORT:-9002}
         VITE_ADMIN_ROUTE_PREFIX: ${VITE_ADMIN_ROUTE_PREFIX:-control-panel}
     container_name: purecore-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    # Docker embedded DNS ensures internal hostname resolution works even when
+    # the host's resolv.conf has non-Docker nameservers (e.g., systemd-resolved's 127.0.0.53).
+    dns: 127.0.0.11
     environment:
       NODE_ENV: production
-      SSR_PORT: "9001"
-      VITE_API_PROTOCOL: ${VITE_API_PROTOCOL:-http}
-      VITE_API_HOST: ${VITE_API_HOST:-backend}
-      VITE_API_PORT: ${VITE_API_PORT:-9002}
+      SSR_PORT: ${FRONTEND_PORT:-9001}
+      FRONTEND_PORT: ${FRONTEND_PORT:-9001}
+      # Docker internal network: frontend → backend is always via "backend" on port 9002.
+      # These MUST NOT use .env values, because .env has VITE_API_HOST=localhost
+      # for local dev, which would break the proxy in a container.
+      VITE_API_PROTOCOL: http
+      VITE_API_HOST: backend
+      VITE_API_PORT: "9002"
       BACKEND_PORT: "9002"
       VITE_ADMIN_ROUTE_PREFIX: ${VITE_ADMIN_ROUTE_PREFIX:-control-panel}
+      THEME: ${THEME:-sunset}
+      VITE_THEME: ${VITE_THEME:-${THEME:-sunset}}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
-      - "${FRONTEND_PORT:-9001}:9001"
+      - "${FRONTEND_PORT:-9001}:${FRONTEND_PORT:-9001}"
     networks:
       - purecore-net
-
-volumes:
-  pgdata:
-    driver: local
 
 networks:
   purecore-net:

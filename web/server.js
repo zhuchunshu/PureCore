@@ -68,15 +68,32 @@ function proxyApiRequest(req, res) {
   })
 }
 
-// Load translations for SSR from web/public/lang/
-const langDir = join(__dirname, '..', 'lang')
-const translations = {}
-for (const file of readdirSync(langDir)) {
-  if (file.endsWith('.json')) {
-    const locale = file.replace('.json', '')
-    translations[locale] = JSON.parse(readFileSync(join(langDir, file), 'utf-8'))
+// Load translations for SSR
+// Priority: 1) web/public/lang/ (production Docker), 2) ../lang/ (development fallback)
+function loadTranslations() {
+  const candidates = [
+    join(__dirname, 'public', 'lang'),
+    join(__dirname, '..', 'lang'),
+  ]
+  for (const langDir of candidates) {
+    try {
+      if (!existsSync(langDir)) continue
+      const result = {}
+      for (const file of readdirSync(langDir)) {
+        if (file.endsWith('.json')) {
+          const locale = file.replace('.json', '')
+          result[locale] = JSON.parse(readFileSync(join(langDir, file), 'utf-8'))
+        }
+      }
+      if (Object.keys(result).length > 0) return result
+    } catch (_) {
+      // try next candidate
+    }
   }
+  console.warn('No translation files found — i18n will be unavailable')
+  return {}
 }
+const translations = loadTranslations()
 
 // Load project info from web/package.json under the "purecore" key
 let projectInfo = null
@@ -96,17 +113,20 @@ try {
   console.warn('Could not load project info from package.json:', err.message)
 }
 
-// Load theme configuration: .env > theme.config.json > 'sunset'
-let configThemeName = process.env.THEME
+// Load theme configuration: process.env.THEME > theme.config.json > 'sunset'
+let configThemeName = process.env.THEME || process.env.VITE_THEME
 if (!configThemeName) {
   try {
-    const themeConfig = JSON.parse(readFileSync(join(__dirname, 'theme.config.json'), 'utf-8'))
-    configThemeName = themeConfig.theme || 'sunset'
+    const themeConfigPath = join(__dirname, 'theme.config.json')
+    if (existsSync(themeConfigPath)) {
+      const themeConfig = JSON.parse(readFileSync(themeConfigPath, 'utf-8'))
+      configThemeName = themeConfig.theme || 'sunset'
+    }
   } catch (err) {
     console.warn('Could not load theme config, using default "sunset":', err.message)
-    configThemeName = 'sunset'
   }
 }
+if (!configThemeName) configThemeName = 'sunset'
 
 // Read theme cookie from request, fallback to config default
 function detectTheme(req) {
@@ -171,16 +191,27 @@ if (isProduction) {
       if (pathname.startsWith('/api/')) {
         try {
           const targetUrl = new URL(req.url, apiTarget)
+          // Build clean headers for forwarding. Remove hop-by-hop headers
+          // (host, connection, etc.) and set the correct target host.
+          const proxyHeaders = {}
+          for (const [key, value] of req.headers.entries()) {
+            const lower = key.toLowerCase()
+            if (['host', 'connection', 'keep-alive', 'transfer-encoding', 'te', 'trailer', 'upgrade'].includes(lower)) {
+              continue
+            }
+            proxyHeaders[key] = value
+          }
+          proxyHeaders['host'] = `${apiHost}:${apiPort}`
           const response = await fetch(targetUrl, {
             method: req.method,
-            headers: req.headers,
+            headers: proxyHeaders,
             body: req.method !== 'GET' && req.method !== 'HEAD' ? await req.arrayBuffer() : undefined,
           })
-          const headers = {}
-          response.headers.forEach((value, key) => { headers[key] = value })
+          const respHeaders = {}
+          response.headers.forEach((value, key) => { respHeaders[key] = value })
           return new Response(response.body, {
             status: response.status,
-            headers,
+            headers: respHeaders,
           })
         } catch (err) {
           console.error('[proxy] API proxy error:', err.message)

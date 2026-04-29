@@ -81,7 +81,6 @@ ask_port() {
 
 frontend_port=$(ask_port "Frontend HTTP port" "9001")
 backend_port=$(ask_port "Backend API port" "9002")
-db_port=$(ask_port "PostgreSQL port" "5432")
 
 # ─── API Connectivity ──────────────────────────────────────
 header "3. API Connectivity (Frontend → Backend)"
@@ -143,7 +142,7 @@ echo -e "  ${BOLD}Project:${NC}     $project_name"
 echo -e "  ${BOLD}Frontend:${NC}    http://localhost:$frontend_port"
 echo -e "  ${BOLD}Backend:${NC}     http://localhost:$backend_port"
 echo -e "  ${BOLD}API:${NC}         $api_protocol://$api_host:$api_port"
-echo -e "  ${BOLD}Database:${NC}    $db_host:$db_port/$db_name (user: $db_user)"
+echo -e "  ${BOLD}Database:${NC}    $db_host/$db_name (user: $db_user, internal only)"
 echo -e "  ${BOLD}Admin:${NC}       /$admin_prefix"
 echo -e "  ${BOLD}Theme:${NC}       $theme"
 echo ""
@@ -173,7 +172,6 @@ VITE_API_PORT=$api_port
 
 # Database
 DB_HOST=$db_host
-DB_PORT=$db_port
 DB_USER=$db_user
 DB_PASSWORD=$db_password
 DB_NAME=$db_name
@@ -182,6 +180,7 @@ DB_SSLMODE=disable
 # App
 APP_ENV=local
 APP_DEBUG=true
+TZ=Asia/Shanghai
 
 # Theme
 # 优先级: 用户手动选择 > 环境变量 THEME / VITE_THEME > theme.config.json > 'sunset'
@@ -224,7 +223,7 @@ Project: $project_name
 Frontend: http://localhost:$frontend_port
 Backend: http://localhost:$backend_port
 API: $api_protocol://$api_host:$api_port
-Database: $db_host:$db_port/$db_name
+Database: $db_host/$db_name (internal only)
 Theme: $theme"
 ok "Fresh Git repository initialized"
 
