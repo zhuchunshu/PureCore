@@ -167,6 +167,65 @@ function detectLocale(req) {
   return lang.startsWith('zh') ? 'zh' : 'en'
 }
 
+/**
+ * Print a beautiful startup banner with colored output.
+ *
+ * Uses only ANSI escape codes (no external dependencies).
+ * All values are derived from runtime configuration or package.json.
+ */
+function printBanner() {
+  const c = {
+    reset:   '\x1b[0m',
+    bold:    '\x1b[1m',
+    dim:     '\x1b[2m',
+    cyan:    '\x1b[36m',
+    blue:    '\x1b[34m',
+    magenta: '\x1b[35m',
+    yellow:  '\x1b[33m',
+    green:   '\x1b[32m',
+    white:   '\x1b[37m',
+    gray:    '\x1b[90m',
+  }
+
+  const name    = projectInfo?.name || 'PureCore'
+  const version = projectInfo?.version ? ` v${projectInfo.version}` : ''
+  const type    = projectInfo?.release_type || ''
+  const tag     = type ? ` [${type}]` : ''
+  const env     = isProduction ? 'production' : 'development'
+  const envColor = isProduction ? c.green : c.yellow
+  const theme   = configThemeName || 'sunset'
+
+  const boxWidth = 52
+  const top    = '╔' + '═'.repeat(boxWidth - 2) + '╗'
+  const bottom = '╚' + '═'.repeat(boxWidth - 2) + '╝'
+  const sep    = '╟' + '─'.repeat(boxWidth - 2) + '╢'
+
+  function pad(label, value, valueColor) {
+    const labelLen = label.length + 1 // +1 for the space
+    const valStr = String(value)
+    const full = ` ${label} ${c.dim}${valStr}${c.reset}`
+    return full
+  }
+
+  const lines = [
+    '',
+    `${c.cyan}${c.bold}${top}${c.reset}`,
+    `${c.cyan}║${c.reset}   ${c.bold}${c.magenta}${name}${c.reset}${c.gray}${version}${tag}${c.reset}${' '.repeat(Math.max(0, boxWidth - 10 - name.length - version.length - tag.length - 2))}${c.cyan}║${c.reset}`,
+    `${c.cyan}║${c.reset}   ${c.gray}🚀  PureCore Client Server${' '.repeat(boxWidth - 40)}${c.cyan}║${c.reset}`,
+    `${c.cyan}║${c.reset}${' '.repeat(boxWidth - 2)}${c.cyan}║${c.reset}`,
+    `${c.cyan}${sep}${c.reset}`,
+    `${c.cyan}║${c.reset}   ${c.bold}Local${c.reset}    ${c.green}http://localhost:${PORT}${' '.repeat(boxWidth - 22 - String(PORT).length)}${c.cyan}║${c.reset}`,
+    `${c.cyan}║${c.reset}   ${c.bold}API${c.reset}      ${c.gray}→ ${apiTarget}${' '.repeat(Math.max(0, boxWidth - 16 - apiTarget.length))}${c.cyan}║${c.reset}`,
+    `${c.cyan}║${c.reset}${' '.repeat(boxWidth - 2)}${c.cyan}║${c.reset}`,
+    `${c.cyan}║${c.reset}   ${c.bold}Theme${c.reset}    ${theme}${' '.repeat(boxWidth - 17 - theme.length)}${c.cyan}║${c.reset}`,
+    `${c.cyan}║${c.reset}   ${c.bold}Mode${c.reset}     ${envColor}${env}${' '.repeat(boxWidth - 17 - env.length)}${c.cyan}║${c.reset}`,
+    `${c.cyan}${bottom}${c.reset}`,
+    '',
+  ]
+
+  console.log(lines.join('\n'))
+}
+
 // ===== PRODUCTION MODE =====
 if (isProduction) {
   const clientDist = join(__dirname, 'dist', 'client')
@@ -250,7 +309,7 @@ if (isProduction) {
     },
   })
 
-  console.log(`✓ SSR server (production) → http://localhost:${PORT}`)
+  printBanner()
 
 // ===== DEVELOPMENT MODE =====
 } else {
@@ -306,6 +365,6 @@ if (isProduction) {
   })
 
   httpServer.listen(PORT, () => {
-    console.log(`✓ SSR server (development) → http://localhost:${PORT}`)
+    printBanner()
   })
 }

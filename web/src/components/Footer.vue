@@ -23,8 +23,8 @@ const currentYear = new Date().getFullYear()
         </div>
       </div>
       <div class="flex items-center gap-6">
-        <a href="/docs/zh/README.md" class="relative text-sm text-base-content/60 hover:text-blue-400 transition-all duration-300 before:absolute before:-bottom-0.5 before:left-0 before:w-0 before:h-px before:bg-blue-400 before:transition-all before:duration-300 hover:before:w-full">{{ t('nav.docs') }}</a>
-        <a href="/docs/zh/API.md" class="relative text-sm text-base-content/60 hover:text-secondary transition-all duration-300 before:absolute before:-bottom-0.5 before:left-0 before:w-0 before:h-px before:bg-secondary before:transition-all before:duration-300 hover:before:w-full">{{ t('nav.api') }}</a>
+        <a href="/docs/zh/README" class="relative text-sm text-base-content/60 hover:text-blue-400 transition-all duration-300 before:absolute before:-bottom-0.5 before:left-0 before:w-0 before:h-px before:bg-blue-400 before:transition-all before:duration-300 hover:before:w-full">{{ t('nav.docs') }}</a>
+        <a href="/docs/zh/API" class="relative text-sm text-base-content/60 hover:text-secondary transition-all duration-300 before:absolute before:-bottom-0.5 before:left-0 before:w-0 before:h-px before:bg-secondary before:transition-all before:duration-300 hover:before:w-full">{{ t('nav.api') }}</a>
         <a href="https://github.com/zhuchunshu/PureCore" target="_blank" class="relative text-sm text-base-content/60 hover:text-accent transition-all duration-300 before:absolute before:-bottom-0.5 before:left-0 before:w-0 before:h-px before:bg-accent before:transition-all before:duration-300 hover:before:w-full">GitHub</a>
       </div>
     </div>

@@ -59,7 +59,9 @@ async function fetchPages() {
     if (json.code === 0) {
       pages.value = json.data || []
       if (pages.value.length > 0 && !pages.value.find(p => p.page === currentPage.value)) {
-        currentPage.value = pages.value[0].page
+        // Default to README if available, otherwise use the first page
+        const readme = pages.value.find(p => p.page === 'README')
+        currentPage.value = readme ? readme.page : pages.value[0].page
       }
     } else if (resp.status === 404 || json.code === 404) {
       isNotFound.value = true
@@ -96,10 +98,7 @@ async function fetchDoc(page) {
 
 function switchLocale(newLocale) {
   locale.value = newLocale
-  if (pages.value.length > 0) {
-    currentPage.value = pages.value[0].page || 'README'
-  }
-  router.replace({ params: { locale: newLocale, page: currentPage.value } })
+  // Let the watcher handle page selection after fetching new locale's pages
 }
 
 function navigateTo(page) {
@@ -133,7 +132,11 @@ watch(locale, async () => {
   await fetchPages()
   if (pages.value.length > 0) {
     const found = pages.value.find(p => p.page === currentPage.value)
-    if (!found) currentPage.value = pages.value[0].page
+    if (!found) {
+      // Default to README if available, otherwise use the first page
+      const readme = pages.value.find(p => p.page === 'README')
+      currentPage.value = readme ? readme.page : pages.value[0].page
+    }
     router.replace({ params: { locale: locale.value, page: currentPage.value } })
     await fetchDoc(currentPage.value)
   }
