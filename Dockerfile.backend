@@ -27,7 +27,7 @@ COPY routes/ ./routes/
 COPY database/ ./database/
 COPY lang/ ./lang/
 COPY docs/ ./docs/
-COPY web/package.json ./web/package.json
+COPY purecore.json ./purecore.json
 
 # Build with optimizations: stripped binary, static linking
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/purecore .
@@ -41,6 +41,8 @@ WORKDIR /app
 
 # Copy binary from builder
 COPY --from=builder /app/purecore .
+# Copy project metadata for /api/v1/system/info
+COPY --from=builder /app/purecore.json .
 # Copy language files needed at runtime
 COPY --from=builder /app/lang/ ./lang/
 # Copy documentation files needed by DocsController

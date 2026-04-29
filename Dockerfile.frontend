@@ -29,6 +29,7 @@ RUN bun install --frozen-lockfile
 
 # Copy frontend source (includes web/public/ directory tree)
 COPY web/ ./
+COPY purecore.json ./purecore.json
 
 # web/public/lang may be a symlink → ../../lang (not resolved in container).
 # Copy the actual shared language files into public/lang to satisfy Vite 8 prepareOutDir.
@@ -47,9 +48,9 @@ WORKDIR /app
 
 # Copy built assets from builder
 COPY --from=builder /app/dist ./dist
-# Copy SSR server and package.json (for purecore project info)
+# Copy SSR server and project metadata
 COPY --from=builder /app/server.js .
-COPY --from=builder /app/package.json .
+COPY --from=builder /app/purecore.json .
 # Copy theme config for SSR (theme.config.json provides the default theme)
 COPY --from=builder /app/theme.config.json .
 # Copy language files for SSR translations (expected at web/public/lang/)

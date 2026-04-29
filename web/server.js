@@ -95,12 +95,26 @@ function loadTranslations() {
 }
 const translations = loadTranslations()
 
-// Load project info from web/package.json under the "purecore" key
+// Load project info from purecore.json
+// Priority: 1) alongside server.js (Docker), 2) parent directory (dev)
 let projectInfo = null
 let seoDefaults = { title: 'PureCore', description: '', keywords: '' }
 try {
-  const pkg = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8'))
-  projectInfo = pkg.purecore || null
+  const paths = [
+    join(__dirname, 'purecore.json'),
+    join(__dirname, '..', 'purecore.json'),
+  ]
+  let found = false
+  for (const p of paths) {
+    if (existsSync(p)) {
+      projectInfo = JSON.parse(readFileSync(p, 'utf-8'))
+      found = true
+      break
+    }
+  }
+  if (!found) {
+    throw new Error('purecore.json not found')
+  }
   if (projectInfo) {
     const desc = projectInfo.description || {}
     seoDefaults = {
@@ -110,7 +124,7 @@ try {
     }
   }
 } catch (err) {
-  console.warn('Could not load project info from package.json:', err.message)
+  console.warn('Could not load project info from purecore.json:', err.message)
 }
 
 // Load theme configuration: process.env.THEME > theme.config.json > 'sunset'
@@ -368,3 +382,4 @@ if (isProduction) {
     printBanner()
   })
 }
+而不是0p
