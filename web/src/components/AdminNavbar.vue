@@ -59,6 +59,7 @@ defineProps({
               <span class="badge badge-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{{ profile.role }}</span>
             </label>
             <ul tabindex="0" class="menu menu-sm dropdown-content mt-2 z-50 p-2 shadow-xl bg-base-100 rounded-box w-48 border border-base-300/20">
+              <li><RouterLink to="/docs/en/README" class="hover:text-blue-400"><span>📖</span> {{ t('admin.docs') }}</RouterLink></li>
               <li><a href="/" target="_blank" class="hover:text-blue-400"><span>🏠</span> {{ t('admin.view_site') }}</a></li>
               <li><button @click="logout" class="hover:text-red-400"><span>🚪</span> {{ t('admin.logout') }}</button></li>
             </ul>

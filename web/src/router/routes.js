@@ -2,6 +2,7 @@ import HomePage from '../pages/HomePage.vue'
 import LoginPage from '../pages/LoginPage.vue'
 import RegisterPage from '../pages/RegisterPage.vue'
 import UserDashboard from '../pages/UserDashboard.vue'
+import DocsPage from '../pages/DocsPage.vue'
 import NotFound from '../pages/NotFound.vue'
 import AdminLogin from '../pages/admin/AdminLogin.vue'
 import AdminRegister from '../pages/admin/AdminRegister.vue'
@@ -31,6 +32,22 @@ export const routes = [
     path: '/dashboard',
     name: 'UserDashboard',
     component: UserDashboard,
+  },
+  {
+    path: '/docs/:locale/:page',
+    name: 'Docs',
+    component: DocsPage,
+    props: true,
+  },
+  {
+    path: '/docs/:locale?',
+    redirect: to => {
+      return { path: `/docs/${to.params.locale || 'en'}/README` }
+    },
+  },
+  {
+    path: '/docs',
+    redirect: '/docs/en/README',
   },
   {
     path: `/${adminPrefix}/login`,

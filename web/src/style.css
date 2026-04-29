@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 @plugin "daisyui";
 /* Import all DaisyUI themes for theme switching */
 @import "daisyui/theme/light.css";

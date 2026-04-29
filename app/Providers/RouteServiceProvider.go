@@ -32,6 +32,7 @@ func (p *RouteServiceProvider) Register(router *core.Router) error {
 	userAuthCtrl := &controllers.UserAuthController{}
 	sysCtrl := &controllers.SystemController{}
 	optionCtrl := &controllers.OptionController{}
+	docsCtrl := &controllers.DocsController{}
 
 	// Public API routes
 	router.Prefix("/api/v1").Group(func(r *core.Router) {
@@ -39,6 +40,9 @@ func (p *RouteServiceProvider) Register(router *core.Router) error {
 			return res.Success("pong")
 		}))
 		r.Get("/system/info", core.H(sysCtrl.Info))
+		// Documentation endpoints
+		r.Get("/docs", core.H(docsCtrl.GetDoc))
+		r.Get("/docs/list", core.H(docsCtrl.ListDocs))
 		// Public user authentication routes
 		r.Post("/auth/register", core.H(userAuthCtrl.Register))
 		r.Post("/auth/login", core.H(userAuthCtrl.Login))

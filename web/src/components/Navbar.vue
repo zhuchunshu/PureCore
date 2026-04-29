@@ -28,7 +28,7 @@ const { t } = useI18n()
         <!-- Desktop nav links -->
         <div class="hidden lg:flex items-center gap-1">
           <RouterLink to="/" class="relative px-4 py-2 text-sm font-medium text-base-content/70 hover:text-primary rounded-lg hover:bg-primary/5 transition-all duration-300 before:absolute before:bottom-0 before:left-1/2 before:-translate-x-1/2 before:w-0 before:h-0.5 before:bg-primary before:transition-all before:duration-300 hover:before:w-3/4">{{ t('nav.home') }}</RouterLink>
-          <a href="/docs/zh/API.md" class="relative px-4 py-2 text-sm font-medium text-base-content/70 hover:text-secondary rounded-lg hover:bg-secondary/5 transition-all duration-300 before:absolute before:bottom-0 before:left-1/2 before:-translate-x-1/2 before:w-0 before:h-0.5 before:bg-secondary before:transition-all before:duration-300 hover:before:w-3/4">{{ t('nav.docs') }}</a>
+          <RouterLink to="/docs/en/README" class="relative px-4 py-2 text-sm font-medium text-base-content/70 hover:text-secondary rounded-lg hover:bg-secondary/5 transition-all duration-300 before:absolute before:bottom-0 before:left-1/2 before:-translate-x-1/2 before:w-0 before:h-0.5 before:bg-secondary before:transition-all before:duration-300 hover:before:w-3/4">{{ t('nav.docs') }}</RouterLink>
           <a href="https://github.com/zhuchunshu/PureCore" target="_blank" class="relative px-4 py-2 text-sm font-medium text-base-content/70 hover:text-accent rounded-lg hover:bg-accent/5 transition-all duration-300 before:absolute before:bottom-0 before:left-1/2 before:-translate-x-1/2 before:w-0 before:h-0.5 before:bg-accent before:transition-all before:duration-300 hover:before:w-3/4">GitHub</a>
         </div>
 
@@ -47,7 +47,7 @@ const { t } = useI18n()
             </label>
             <ul tabindex="0" class="menu menu-sm dropdown-content mt-2 z-50 p-2 shadow-xl shadow-primary/10 bg-base-100/95 backdrop-blur-xl rounded-box w-52 border border-primary/20">
               <li><RouterLink to="/" class="hover:text-primary hover:bg-primary/5 rounded-lg transition-colors">{{ t('nav.home') }}</RouterLink></li>
-              <li><a href="/docs/zh/API.md" class="hover:text-secondary hover:bg-secondary/5 rounded-lg transition-colors">{{ t('nav.docs') }}</a></li>
+              <li><RouterLink to="/docs" class="hover:text-secondary hover:bg-secondary/5 rounded-lg transition-colors">{{ t('nav.docs') }}</RouterLink></li>
               <li><a href="https://github.com/zhuchunshu/PureCore" target="_blank" class="hover:text-accent hover:bg-accent/5 rounded-lg transition-colors">GitHub</a></li>
             </ul>
           </div>
