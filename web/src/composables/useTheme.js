@@ -19,11 +19,28 @@ const isServer = typeof window === 'undefined'
 // Singleton reactive state
 const currentTheme = ref(__loadInitialTheme())
 
+function __getCookie(name) {
+  if (isServer) return null
+  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 function __loadInitialTheme() {
   if (isServer) return configTheme
+  
+  // Priority: SSR cookie > localStorage > config default
+  // SSR cookie stores the resolved theme name set by server.js (e.g., 'sunset', 'light', 'dark')
+  // This prevents flicker when user previously selected a different mode
+  const ssrCookie = __getCookie(COOKIE_KEY)
+  if (ssrCookie) {
+    // Clear any stale localStorage that might conflict with SSR
+    localStorage.removeItem(STORAGE_KEY)
+    return ssrCookie
+  }
+  
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved) return saved
-  return 'auto'
+  return configTheme
 }
 
 function __getSystemPreference() {

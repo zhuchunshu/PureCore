@@ -2,12 +2,21 @@
 # ============================================================
 # PureCore — One-Click Production Deployment Script
 # 
+# Deploys the full stack (PostgreSQL + Go backend + Bun SSR frontend)
+# using Docker Compose. Supports custom ports, API connectivity,
+# and theme configuration via environment variables.
+#
 # Usage:
 #   chmod +x scripts/deploy.sh
 #   ./scripts/deploy.sh              # Build & start
 #   ./scripts/deploy.sh --build-only  # Build images only
 #   ./scripts/deploy.sh --start-only  # Start existing containers
 #   ./scripts/deploy.sh --down        # Stop all services
+#   ./scripts/deploy.sh --status      # Show service status
+#
+# Configuration:
+#   All settings are read from .env at the project root.
+#   See .env.example for available options.
 #
 # Prerequisites:
 #   - Docker Engine 24+ and Docker Compose v2
@@ -28,8 +37,7 @@ ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC} $1"; }
 err()  { echo -e "${RED}✗${NC} $1"; }
 
-# ─── Check prerequisites ───────────────────────────────────
-# Load current values from .env if it exists
+# ─── Load existing .env ────────────────────────────────────
 load_existing_env() {
   if [ -f .env ]; then
     set -a
@@ -47,17 +55,16 @@ ask_port() {
   read -p "${prompt} [${default}]: " value
   value="${value:-$default}"
 
-  # Validate port is a number between 1-65535
   if ! [[ "$value" =~ ^[0-9]+$ ]] || [ "$value" -lt 1 ] || [ "$value" -gt 65535 ]; then
     warn "Invalid port: $value. Using default: $default"
     value="$default"
   fi
 
-  # Set the variable in the current shell and export for docker compose
   export "$var_name=$value"
   printf -v "$var_name" '%s' "$value"
 }
 
+# ─── Check prerequisites ───────────────────────────────────
 check_prereqs() {
   if ! command -v docker &>/dev/null; then
     err "Docker is not installed. Please install Docker 24+ first."
@@ -69,7 +76,6 @@ check_prereqs() {
     exit 1
   fi
 
-  # Load existing .env values to use as defaults
   load_existing_env
 
   if [ ! -f .env ]; then
@@ -82,7 +88,6 @@ check_prereqs() {
       echo "   DB_PASSWORD, JWT_SECRET must be changed from defaults"
       echo ""
       read -p "Press Enter to continue after editing .env, or Ctrl+C to abort... "
-      # Reload after user edits
       load_existing_env
     else
       err ".env.example not found either. Please create .env with your configuration."
@@ -90,28 +95,29 @@ check_prereqs() {
     fi
   fi
 
-  # Ask for ports interactively
+  # Interactive port configuration
   echo ""
   log "Port Configuration"
   log "─────────────────────"
-  ask_port "Frontend port" "${FRONTEND_PORT:-9001}" "FRONTEND_PORT"
-  ask_port "Backend port" "${BACKEND_PORT:-9002}" "BACKEND_PORT"
+  ask_port "Frontend HTTP port" "${FRONTEND_PORT:-9001}" "FRONTEND_PORT"
+  ask_port "Backend API port" "${BACKEND_PORT:-9002}" "BACKEND_PORT"
   ask_port "Database port" "${DB_PORT:-5432}" "DB_PORT"
   echo ""
 
-  # Write the ports back to .env so docker compose picks them up
-  # Only update the port lines, preserving other settings
+  # Write the ports back to .env
   if [ -f .env ]; then
     sed -i "s/^FRONTEND_PORT=.*/FRONTEND_PORT=$FRONTEND_PORT/" .env
     sed -i "s/^BACKEND_PORT=.*/BACKEND_PORT=$BACKEND_PORT/" .env
     sed -i "s/^DB_PORT=.*/DB_PORT=$DB_PORT/" .env
   fi
 
-  # Verify required variables are set
+  # Verify required variables are set with non-default values
   local required_vars=("DB_PASSWORD" "JWT_SECRET")
   local missing=()
   for var in "${required_vars[@]}"; do
-    if ! grep -q "^${var}=" .env 2>/dev/null || grep -q "^${var}=your_password_here$" .env 2>/dev/null || grep -q "^${var}=your-jwt-secret-here$" .env 2>/dev/null; then
+    if ! grep -q "^${var}=" .env 2>/dev/null || \
+       grep -q "^${var}=your_password_here$" .env 2>/dev/null || \
+       grep -q "^${var}=your-jwt-secret-here$" .env 2>/dev/null; then
       missing+=("$var")
     fi
   done
@@ -124,6 +130,7 @@ check_prereqs() {
     err "Please update them with secure values before deploying."
     exit 1
   fi
+
   ok "Prerequisites check passed"
 }
 
@@ -143,7 +150,6 @@ start_services() {
   log "Waiting for services to be healthy..."
   sleep 3
 
-  # Check health status
   local max_attempts=30
   local attempt=1
   while [ $attempt -le $max_attempts ]; do
@@ -168,12 +174,22 @@ start_services() {
     warn "Services may still be starting. Check logs with: docker compose logs -f"
   fi
 
+  local admin_path="${ADMIN_ROUTE_PREFIX:-control-panel}"
+
   echo ""
   log "PureCore is running!"
-  echo "  Frontend → http://localhost:${FRONTEND_PORT:-9001}"
-  echo "  Backend  → http://localhost:${BACKEND_PORT:-9002}"
+  echo "  Frontend  → http://localhost:${FRONTEND_PORT:-9001}"
+  echo "  Backend   → http://localhost:${BACKEND_PORT:-9002} (API)"
   echo ""
-  echo "  First-time setup: Register an admin at http://localhost:${FRONTEND_PORT:-9001}/${ADMIN_ROUTE_PREFIX:-control-panel}/register"
+  echo "  API connectivity:"
+  echo "    Protocol: ${VITE_API_PROTOCOL:-http}"
+  echo "    Host:     ${VITE_API_HOST:-backend}"
+  echo "    Port:     ${VITE_API_PORT:-9002}"
+  echo ""
+  echo "  Theme: ${THEME:-sunset}"
+  echo ""
+  echo "  First-time setup:"
+  echo "    Register an admin at http://localhost:${FRONTEND_PORT:-9001}/${admin_path}/register"
 }
 
 # ─── Stop ──────────────────────────────────────────────────
@@ -191,6 +207,9 @@ show_status() {
   log "Service URLs (from .env):"
   echo "  Frontend → http://localhost:${FRONTEND_PORT:-9001}"
   echo "  Backend  → http://localhost:${BACKEND_PORT:-9002}"
+  echo ""
+  log "API connectivity:"
+  echo "  ${VITE_API_PROTOCOL:-http}://${VITE_API_HOST:-backend}:${VITE_API_PORT:-9002}"
 }
 
 # ─── Main ──────────────────────────────────────────────────

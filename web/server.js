@@ -96,13 +96,16 @@ try {
   console.warn('Could not load project info from package.json:', err.message)
 }
 
-// Load theme configuration (default from config file)
-let configThemeName = 'sunset'
-try {
-  const themeConfig = JSON.parse(readFileSync(join(__dirname, 'theme.config.json'), 'utf-8'))
-  configThemeName = themeConfig.theme || 'sunset'
-} catch (err) {
-  console.warn('Could not load theme config, using default "sunset":', err.message)
+// Load theme configuration: .env > theme.config.json > 'sunset'
+let configThemeName = process.env.THEME
+if (!configThemeName) {
+  try {
+    const themeConfig = JSON.parse(readFileSync(join(__dirname, 'theme.config.json'), 'utf-8'))
+    configThemeName = themeConfig.theme || 'sunset'
+  } catch (err) {
+    console.warn('Could not load theme config, using default "sunset":', err.message)
+    configThemeName = 'sunset'
+  }
 }
 
 // Read theme cookie from request, fallback to config default

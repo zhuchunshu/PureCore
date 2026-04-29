@@ -7,7 +7,7 @@
 #   - Ask for your project name and rename the Go module
 #   - Update all import paths across the entire codebase
 #   - Generate secure random passwords for database and JWT
-#   - Ask for custom ports or use defaults
+#   - Ask for custom ports, API connectivity, and theme
 #   - Remove the original Git history and initialize a fresh repo
 #   - Optionally run the complete Docker production deployment
 #
@@ -83,8 +83,23 @@ frontend_port=$(ask_port "Frontend HTTP port" "9001")
 backend_port=$(ask_port "Backend API port" "9002")
 db_port=$(ask_port "PostgreSQL port" "5432")
 
+# ─── API Connectivity ──────────────────────────────────────
+header "3. API Connectivity (Frontend → Backend)"
+log "Configure how the frontend connects to the backend API."
+log "In Docker, the default host is 'backend' (Docker service name)."
+log "For local development, use 'localhost' or '127.0.0.1'."
+echo ""
+
+read -p "API protocol [http]: " api_protocol
+api_protocol="${api_protocol:-http}"
+
+read -p "API host [localhost]: " api_host
+api_host="${api_host:-localhost}"
+
+api_port="$backend_port"  # Same as backend port by default
+
 # ─── Database ──────────────────────────────────────────────
-header "3. Database Configuration"
+header "4. Database Configuration"
 log "PostgreSQL connection settings."
 echo ""
 
@@ -107,19 +122,27 @@ jwt_secret=$(openssl rand -base64 48 2>/dev/null || cat /dev/urandom | tr -dc 'a
 log "Generated secure JWT secret (saved to .env)"
 
 # ─── Admin Route ───────────────────────────────────────────
-header "4. Admin Configuration"
+header "5. Admin Configuration"
 read -p "Admin route prefix [control-panel]: " admin_prefix
 admin_prefix="${admin_prefix:-control-panel}"
 
 # ─── Theme ─────────────────────────────────────────────────
+header "6. Theme"
+log "Default DaisyUI theme. Users can override this in the browser."
+log "Available: sunset, cyberpunk, dracula, nord, emerald, corporate, synthwave, retro,"
+log "           garden, forest, aqua, pastel, cupcake, bumblebee, fantasy, valentine,"
+log "           halloween, black, luxury, cmyk, autumn, business, acid, lemonade,"
+log "           night, coffee, winter, dim, wireframe, lofi, caramellatte, abyss, silk"
+echo ""
 read -p "Default theme [sunset]: " theme
 theme="${theme:-sunset}"
 
 # ─── Summary ───────────────────────────────────────────────
-header "5. Summary"
+header "7. Summary"
 echo -e "  ${BOLD}Project:${NC}     $project_name"
 echo -e "  ${BOLD}Frontend:${NC}    http://localhost:$frontend_port"
 echo -e "  ${BOLD}Backend:${NC}     http://localhost:$backend_port"
+echo -e "  ${BOLD}API:${NC}         $api_protocol://$api_host:$api_port"
 echo -e "  ${BOLD}Database:${NC}    $db_host:$db_port/$db_name (user: $db_user)"
 echo -e "  ${BOLD}Admin:${NC}       /$admin_prefix"
 echo -e "  ${BOLD}Theme:${NC}       $theme"
@@ -131,14 +154,22 @@ if [[ ! "$confirm" =~ ^[Yy]?$ ]]; then
 fi
 
 # ─── Apply Configuration ───────────────────────────────────
-header "6. Applying Configuration"
+header "8. Applying Configuration"
 
 # Step 1: Create .env from .env.example 
 log "Creating .env file..."
 cat > .env << EOF
 # $project_name Configuration
+# Frontend
 FRONTEND_PORT=$frontend_port
+
+# Backend
 BACKEND_PORT=$backend_port
+
+# API 协议和主机 (前端连接后端使用)
+VITE_API_PROTOCOL=$api_protocol
+VITE_API_HOST=$api_host
+VITE_API_PORT=$api_port
 
 # Database
 DB_HOST=$db_host
@@ -153,7 +184,9 @@ APP_ENV=local
 APP_DEBUG=true
 
 # Theme
+# 优先级: 用户手动选择 > 环境变量 THEME / VITE_THEME > theme.config.json > 'sunset'
 THEME=$theme
+VITE_THEME=$theme
 
 # Admin
 ADMIN_ROUTE_PREFIX=$admin_prefix
@@ -178,10 +211,7 @@ if [ -f go.mod ]; then
   sed -i "s|^module .*|module $project_name|" go.mod
 fi
 
-# Step 3: Vite config reads from .env automatically
-log "Vite dev server will read FRONTEND_PORT from .env automatically — no config update needed."
-
-# Step 4: Reinitialize Git
+# Step 3: Reinitialize Git
 log "Initializing fresh Git repository..."
 if [ -d .git ]; then
   rm -rf .git
@@ -193,10 +223,12 @@ git commit -m "Initial commit from PureCore template
 Project: $project_name
 Frontend: http://localhost:$frontend_port
 Backend: http://localhost:$backend_port
-Database: $db_host:$db_port/$db_name"
+API: $api_protocol://$api_host:$api_port
+Database: $db_host:$db_port/$db_name
+Theme: $theme"
 ok "Fresh Git repository initialized"
 
-# Step 5: Download Go dependencies
+# Step 4: Download Go dependencies
 log "Downloading Go dependencies..."
 if command -v go &>/dev/null; then
   go mod tidy
@@ -205,7 +237,7 @@ else
   warn "Go not found — skipping dependency download. Run 'go mod tidy' manually."
 fi
 
-# Step 6: Build the project
+# Step 5: Build the project
 log "Building the project..."
 if command -v go &>/dev/null; then
   go build -o "$(basename "$project_name")" . 2>&1 || warn "Build failed — this is OK if you're not ready to compile yet"

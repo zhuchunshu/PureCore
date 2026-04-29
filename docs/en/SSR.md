@@ -20,6 +20,37 @@ Browser Request → Bun SSR Server (port 9001) → Vite Dev Server (HMR) → Vue
 | `web/src/entry-server.js` | Server-side entry point — creates the Vue app with `createSSRApp`, renders to HTML |
 | `web/src/entry-client.js` | Client-side entry point — hydrates the server-rendered HTML |
 | `web/src/router/routes.js` | Shared route definitions used by both server and client |
+| `web/vite.config.js` | Vite configuration — proxy `/api` to backend using `VITE_API_PROTOCOL`, `VITE_API_HOST`, `VITE_API_PORT` |
+
+## Environment Configuration
+
+The SSR server reads configuration from the project root `.env` file. Key variables for SSR:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FRONTEND_PORT` / `SSR_PORT` | SSR server listen port | `9001` |
+| `VITE_API_PROTOCOL` | Backend API protocol (`http`/`https`) | `http` |
+| `VITE_API_HOST` | Backend API hostname | `localhost` |
+| `VITE_API_PORT` | Backend API port | `9002` |
+| `THEME` | Default DaisyUI theme for SSR | `sunset` |
+| `VITE_ADMIN_ROUTE_PREFIX` | Admin route prefix | `control-panel` |
+
+### API Proxy
+
+In both development and production modes, the SSR server proxies `/api/*` requests to the backend using the configured protocol, host, and port:
+
+- **Development**: Uses Node.js `http`/`https` modules to forward requests
+- **Production**: Uses Bun's built-in `fetch()` API
+
+This allows the frontend to be served on one port while API requests are transparently forwarded to the backend, avoiding CORS issues and simplifying deployment.
+
+### Theme Handling
+
+The SSR server reads the `THEME` environment variable (or `theme.config.json` fallback) to set the initial `data-theme` attribute on the `<html>` element. The resolved theme is stored in a `purecore-theme` cookie so the client can hydrate without a flash of unstyled content. Priority:
+
+1. Environment variable `THEME`
+2. `web/theme.config.json` → `theme` field
+3. Hardcoded default (`'sunset'`)
 
 ## Starting the SSR Server
 
@@ -87,3 +118,18 @@ const ssrProjectInfo = inject('projectInfo', null)
    - Avoiding `window` or `document` access during initial render (use `onMounted` for browser-only code)
    - Using `inject()` for any server-provided data instead of `fetch()` on mount
    - Importing `style.css` only in client entry, not server entry
+
+## Development vs Production
+
+### Development Mode
+
+- Uses Vite's middleware mode for HMR
+- Proxies `/api` to backend via `node:http`/`node:https`
+- Reads `.env` from project root at startup
+
+### Production Mode
+
+- Uses Bun's `Bun.serve()` for high-performance HTTP
+- Serves pre-built client assets from `web/dist/client`
+- Proxies `/api` to backend via Bun's `fetch()`
+- Built with `VITE_API_HOST=backend` for Docker Compose deployments

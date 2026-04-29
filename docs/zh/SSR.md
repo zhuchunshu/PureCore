@@ -15,11 +15,42 @@ PureCore 内置基于 **Vue 3** + **Bun** + **Vite** 的 SSR 支持。SSR 服务
 ## 关键文件
 
 | 文件 | 用途 |
-|------|------|
+|------|---------|
 | `web/server.js` | SSR 服务器，使用 `Bun.serve()`（生产模式）或 `node:http` + Vite 中间件（开发模式） |
 | `web/src/entry-server.js` | 服务端入口点 — 使用 `createSSRApp` 创建 Vue 应用，渲染为 HTML |
 | `web/src/entry-client.js` | 客户端入口点 — 对服务端渲染的 HTML 进行 hydration |
 | `web/src/router/routes.js` | 共享路由定义，客户端和服务端共同使用 |
+| `web/vite.config.js` | Vite 配置 — 使用 `VITE_API_PROTOCOL`、`VITE_API_HOST`、`VITE_API_PORT` 将 `/api` 代理到后端 |
+
+## 环境配置
+
+SSR 服务器从项目根目录的 `.env` 文件读取配置。SSR 的关键变量：
+
+| 变量 | 描述 | 默认值 |
+|----------|-------------|---------|
+| `FRONTEND_PORT` / `SSR_PORT` | SSR 服务器监听端口 | `9001` |
+| `VITE_API_PROTOCOL` | 后端 API 协议（`http`/`https`） | `http` |
+| `VITE_API_HOST` | 后端 API 主机名 | `localhost` |
+| `VITE_API_PORT` | 后端 API 端口 | `9002` |
+| `THEME` | SSR 的默认 DaisyUI 主题 | `sunset` |
+| `VITE_ADMIN_ROUTE_PREFIX` | 后台路由前缀 | `control-panel` |
+
+### API 代理
+
+在开发和生产模式下，SSR 服务器都将 `/api/*` 请求代理到后端，使用配置的协议、主机和端口：
+
+- **开发模式**：使用 Node.js 的 `http`/`https` 模块转发请求
+- **生产模式**：使用 Bun 内置的 `fetch()` API
+
+这使得前端可以在一个端口上提供服务，同时 API 请求透明地转发到后端，避免 CORS 问题并简化部署。
+
+### 主题处理
+
+SSR 服务器读取 `THEME` 环境变量（或 `theme.config.json` 回退）来设置 `<html>` 元素上的初始 `data-theme` 属性。解析后的主题存储在 `purecore-theme` cookie 中，以便客户端在 hydration 时不会出现样式闪烁。优先级：
+
+1. 环境变量 `THEME`
+2. `web/theme.config.json` → `theme` 字段
+3. 硬编码默认值（`'sunset'`）
 
 ## 启动 SSR 服务器
 
@@ -87,3 +118,18 @@ const ssrProjectInfo = inject('projectInfo', null)
    - 在初始渲染时避免访问 `window` 或 `document`（使用 `onMounted` 处理仅限浏览器的代码）
    - 使用 `inject()` 获取服务器提供的数据，而不是在挂载时使用 `fetch()`
    - 仅在客户端入口导入 `style.css`，不要在服务端入口导入
+
+## 开发 vs 生产
+
+### 开发模式
+
+- 使用 Vite 的中间件模式进行热重载
+- 通过 `node:http`/`node:https` 将 `/api` 代理到后端
+- 启动时从项目根目录读取 `.env`
+
+### 生产模式
+
+- 使用 Bun 的 `Bun.serve()` 实现高性能 HTTP
+- 从 `web/dist/client` 提供预构建的客户端资源
+- 通过 Bun 的 `fetch()` 将 `/api` 代理到后端
+- Docker Compose 部署时使用 `VITE_API_HOST=backend` 构建

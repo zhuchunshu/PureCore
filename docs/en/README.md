@@ -209,19 +209,64 @@ To add a new language, simply create a new JSON file in the `lang/` directory.
 
 ## Configuration
 
-The project uses a `.env` file for configuration, shared between frontend and backend.
+The project uses a `.env` file for configuration, shared between frontend and backend. Copy `.env.example` to `.env` and edit as needed.
 
 | Variable | Description | Default |
 |------|------|--------|
 | FRONTEND_PORT | Frontend dev server port | 9001 |
 | BACKEND_PORT | Backend API server port | 9002 |
+| VITE_API_PROTOCOL | API protocol (http/https) | http |
+| VITE_API_HOST | API hostname | localhost |
+| VITE_API_PORT | API port | 9002 |
 | DB_HOST | Database host address | localhost |
 | DB_PORT | Database port | 5432 |
 | DB_USER | Database username | postgres |
 | DB_PASSWORD | Database password | postgres |
 | DB_NAME | Database name | purecore |
+| DB_SSLMODE | PostgreSQL SSL mode | disable |
 | APP_ENV | Runtime environment | local |
 | APP_DEBUG | Debug mode | true |
+| THEME | Default theme (SSR/backend) | sunset |
+| VITE_THEME | Default theme (Vite/frontend) | sunset |
+| ADMIN_ROUTE_PREFIX | Admin panel URL prefix | control-panel |
+| VITE_ADMIN_ROUTE_PREFIX | Admin route prefix (frontend) | control-panel |
+| JWT_SECRET | JWT signing secret | (change in production) |
+
+### API Connectivity
+
+The frontend connects to the backend API using the `VITE_API_PROTOCOL`, `VITE_API_HOST`, and `VITE_API_PORT` variables. The base URL is constructed as `{VITE_API_PROTOCOL}://{VITE_API_HOST}:{VITE_API_PORT}/api/v1`. You can also set `VITE_API_BASE_URL` directly to override this.
+
+**Examples:**
+- Local development: `VITE_API_PROTOCOL=http VITE_API_HOST=localhost VITE_API_PORT=9002`
+- Production with domain: `VITE_API_PROTOCOL=https VITE_API_HOST=api.example.com VITE_API_PORT=443`
+- Docker Compose: `VITE_API_HOST=backend` (Docker service name)
+
+### Theme Configuration
+
+The default theme is controlled by the `THEME` and `VITE_THEME` environment variables. Priority chain:
+
+1. **User manual selection** (saved in localStorage)
+2. **Environment variable** (`THEME` for SSR, `VITE_THEME` for Vite client)
+3. **`theme.config.json`** fallback
+4. **Hardcoded default** (`'sunset'`)
+
+Three theme modes are available:
+- **Auto** — follows system light/dark preference
+- **Light** / **Dark** — forces light or dark mode
+- **Specific theme** — any DaisyUI theme (sunset, cyberpunk, dracula, etc.)
+
+The SSR server applies the theme via `purecore-theme` cookie to prevent flash of unstyled content.
+
+## Docker Deployment
+
+One-click deployment with Docker Compose:
+
+```bash
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+Supports: `--build-only`, `--start-only`, `--down`, `--status`
 
 ## API Endpoints
 

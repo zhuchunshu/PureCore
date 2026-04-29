@@ -209,19 +209,64 @@ console.log(t('common.success'))  // "Operation successful"
 
 ## 配置说明
 
-项目使用 `.env` 文件进行配置，前后端共享同一份配置。
+项目使用 `.env` 文件进行配置，前后端共享同一份配置。复制 `.env.example` 到 `.env` 并按需修改。
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | FRONTEND_PORT | 前端开发服务器端口 | 9001 |
 | BACKEND_PORT | 后端 API 服务器端口 | 9002 |
+| VITE_API_PROTOCOL | API 协议 (http/https) | http |
+| VITE_API_HOST | API 主机名 | localhost |
+| VITE_API_PORT | API 端口 | 9002 |
 | DB_HOST | 数据库主机地址 | localhost |
 | DB_PORT | 数据库端口 | 5432 |
 | DB_USER | 数据库用户名 | postgres |
 | DB_PASSWORD | 数据库密码 | postgres |
 | DB_NAME | 数据库名称 | purecore |
+| DB_SSLMODE | PostgreSQL SSL 模式 | disable |
 | APP_ENV | 运行环境 | local |
 | APP_DEBUG | 调试模式 | true |
+| THEME | 默认主题 (SSR/后端) | sunset |
+| VITE_THEME | 默认主题 (Vite/前端) | sunset |
+| ADMIN_ROUTE_PREFIX | 后台路径前缀 | control-panel |
+| VITE_ADMIN_ROUTE_PREFIX | 前端后台路径前缀 | control-panel |
+| JWT_SECRET | JWT 签名密钥 | (生产环境需修改) |
+
+### API 连接配置
+
+前端通过 `VITE_API_PROTOCOL`、`VITE_API_HOST` 和 `VITE_API_PORT` 连接后端 API。基础 URL 格式为 `{VITE_API_PROTOCOL}://{VITE_API_HOST}:{VITE_API_PORT}/api/v1`。也可以直接设置 `VITE_API_BASE_URL` 覆盖。
+
+**示例：**
+- 本地开发: `VITE_API_PROTOCOL=http VITE_API_HOST=localhost VITE_API_PORT=9002`
+- 生产环境域名: `VITE_API_PROTOCOL=https VITE_API_HOST=api.example.com VITE_API_PORT=443`
+- Docker Compose: `VITE_API_HOST=backend` (Docker 服务名)
+
+### 主题配置
+
+默认主题由 `THEME` 和 `VITE_THEME` 环境变量控制。优先级链：
+
+1. **用户手动选择**（存储在 localStorage 中）
+2. **环境变量**（`THEME` 用于 SSR，`VITE_THEME` 用于 Vite 客户端）
+3. **`theme.config.json`** 回退
+4. **硬编码默认值** (`'sunset'`)
+
+三种主题模式：
+- **Auto** — 跟随系统亮/暗偏好
+- **Light** / **Dark** — 强制亮色或暗色模式
+- **具体主题名** — 任意 DaisyUI 主题 (sunset, cyberpunk, dracula 等)
+
+SSR 服务器通过 `purecore-theme` cookie 应用主题，避免页面闪烁。
+
+## Docker 部署
+
+一键部署命令：
+
+```bash
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+支持: `--build-only`, `--start-only`, `--down`, `--status`
 
 ## API 接口
 

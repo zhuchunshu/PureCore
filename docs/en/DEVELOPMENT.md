@@ -309,6 +309,11 @@ FRONTEND_PORT=9001
 # Backend
 BACKEND_PORT=9002
 
+# API Connectivity (Frontend → Backend)
+VITE_API_PROTOCOL=http
+VITE_API_HOST=localhost
+VITE_API_PORT=9002
+
 # Database
 DB_HOST=localhost
 DB_PORT=5432
@@ -320,6 +325,15 @@ DB_SSLMODE=disable
 # Application
 APP_ENV=local
 APP_DEBUG=true
+
+# Theme (Default: sunset)
+THEME=sunset
+VITE_THEME=sunset
+
+# Admin
+ADMIN_ROUTE_PREFIX=control-panel
+VITE_ADMIN_ROUTE_PREFIX=control-panel
+JWT_SECRET=change-me-in-production
 ```
 
 ### Vite Configuration

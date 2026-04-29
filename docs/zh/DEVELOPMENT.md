@@ -309,6 +309,11 @@ FRONTEND_PORT=9001
 # 后端
 BACKEND_PORT=9002
 
+# API 连接配置 (前端 → 后端)
+VITE_API_PROTOCOL=http
+VITE_API_HOST=localhost
+VITE_API_PORT=9002
+
 # 数据库
 DB_HOST=localhost
 DB_PORT=5432
@@ -320,21 +325,35 @@ DB_SSLMODE=disable
 # 应用
 APP_ENV=local
 APP_DEBUG=true
+
+# 主题 (默认: sunset)
+THEME=sunset
+VITE_THEME=sunset
+
+# 后台
+ADMIN_ROUTE_PREFIX=control-panel
+VITE_ADMIN_ROUTE_PREFIX=control-panel
+JWT_SECRET=change-me-in-production
 ```
 
 ### Vite 配置
 
-前端 `web/vite.config.js` 读取 `.env` 配置：
+前端 `web/vite.config.js` 从项目根目录的 `.env` 中读取 `VITE_API_PROTOCOL`、`VITE_API_HOST`、`VITE_API_PORT` 来构建代理目标，支持 HTTP 和 HTTPS：
 
 ```javascript
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const apiProtocol = env.VITE_API_PROTOCOL || 'http'
+  const apiHost = env.VITE_API_HOST || 'localhost'
+  const apiPort = env.VITE_API_PORT || env.BACKEND_PORT || '9002'
+  const apiTarget = `${apiProtocol}://${apiHost}:${apiPort}`
+
   return {
     server: {
       port: parseInt(env.FRONTEND_PORT) || 9001,
       proxy: {
         '/api': {
-          target: `http://localhost:${env.BACKEND_PORT || 9002}`,
+          target: apiTarget,
           changeOrigin: true,
         },
       },
