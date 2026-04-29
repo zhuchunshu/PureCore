@@ -16,7 +16,13 @@
     "url": "https://github.com/zhuchunshu/PureCore.git"
   },
   "license": "MIT",
-  "keywords": ["go", "gofiber", "vue", "laravel-style", "framework"],
+  "keywords": [
+    "go",
+    "gofiber",
+    "vue",
+    "laravel-style",
+    "framework"
+  ],
   "go_version": "1.21",
   "dependencies": {
     "backend": {
