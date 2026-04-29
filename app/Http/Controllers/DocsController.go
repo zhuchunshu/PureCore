@@ -23,12 +23,10 @@ func (dc *DocsController) GetDoc(req *core.Request, res *core.Response) error {
 	locale := req.Input("locale", "en")
 	page := req.Input("page", "README")
 
-	// Validate locale (only allow en and zh for security)
-	if locale != "en" && locale != "zh" {
-		return res.Error("Invalid locale. Supported: en, zh", 400)
+	// Validate locale and page against path traversal — any subdirectory under docs/ is valid
+	if !isSafePath(locale) {
+		return res.NotFound("Documentation not found")
 	}
-
-	// Prevent path traversal: only allow alphanumeric, hyphens, and underscores
 	if !isSafePath(page) {
 		return res.Error("Invalid page name", 400)
 	}
@@ -60,8 +58,9 @@ func (dc *DocsController) GetDoc(req *core.Request, res *core.Response) error {
 func (dc *DocsController) ListDocs(req *core.Request, res *core.Response) error {
 	locale := req.Input("locale", "en")
 
-	if locale != "en" && locale != "zh" {
-		return res.Error("Invalid locale. Supported: en, zh", 400)
+	// Validate locale against path traversal — any subdirectory under docs/ is valid
+	if !isSafePath(locale) {
+		return res.NotFound("Documentation not found")
 	}
 
 	dirPath := filepath.Join("docs", locale)

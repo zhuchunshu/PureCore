@@ -26,6 +26,7 @@ const currentPage = ref(props.page)
 const content = ref('')
 const loading = ref(false)
 const error = ref('')
+const isNotFound = ref(false)
 const showBackToTop = ref(false)
 const mobileSidebarOpen = ref(false)
 
@@ -60,6 +61,8 @@ async function fetchPages() {
       if (pages.value.length > 0 && !pages.value.find(p => p.page === currentPage.value)) {
         currentPage.value = pages.value[0].page
       }
+    } else if (resp.status === 404 || json.code === 404) {
+      isNotFound.value = true
     }
   } catch (e) {
     console.error('Failed to fetch docs list:', e)
@@ -69,6 +72,7 @@ async function fetchPages() {
 async function fetchDoc(page) {
   loading.value = true
   error.value = ''
+  isNotFound.value = false
   try {
     const resp = await fetch(`${apiBase}/docs?locale=${locale.value}&page=${page}`)
     const json = await resp.json()
@@ -77,6 +81,8 @@ async function fetchDoc(page) {
       document.title = `${json.data.page} - PureCore Docs`
       await nextTick()
       window.scrollTo({ top: 0, behavior: 'smooth' })
+    } else if (resp.status === 404 || json.code === 404) {
+      isNotFound.value = true
     } else {
       error.value = json.message || 'Failed to load documentation'
     }
@@ -244,18 +250,49 @@ const currentPageTitle = computed(() => {
             <p class="text-sm text-base-content/50">Loading documentation...</p>
           </div>
 
-          <!-- Error state -->
-          <div v-else-if="error" class="max-w-2xl mx-auto mt-8">
-            <div class="alert alert-error shadow-lg">
-              <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>{{ error }}</span>
-            </div>
-          </div>
+      <!-- Error state -->
+      <div v-else-if="error" class="max-w-2xl mx-auto mt-8">
+        <div class="alert alert-error shadow-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{{ error }}</span>
+        </div>
+      </div>
 
-          <!-- Content -->
-          <div v-else class="animate-fade-in">
+      <!-- 404 Not Found state -->
+      <div v-else-if="isNotFound" class="flex flex-col items-center justify-center py-20 lg:py-32 px-4">
+        <div class="text-center max-w-md animate-fade-in">
+          <div class="text-8xl font-black text-base-content/15 mb-6 select-none">404</div>
+          <h1 class="text-2xl lg:text-3xl font-bold text-base-content mb-3">Page Not Found</h1>
+          <p class="text-base-content/60 mb-8 leading-relaxed">
+            <template v-if="pages.length === 0">
+              Documentation is not available in <strong>{{ locale }}</strong>.
+            </template>
+            <template v-else>
+              The page <code class="bg-base-300 px-2 py-0.5 rounded text-sm font-mono">{{ currentPage }}</code>
+              does not exist in the <strong>{{ locale }}</strong> documentation.
+            </template>
+          </p>
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <a href="/docs/en/README" class="btn btn-primary shadow-lg shadow-primary/25">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              View English Docs
+            </a>
+            <a href="/docs/zh/README" class="btn btn-ghost">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+              查看中文文档
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div v-else class="animate-fade-in">
             <!-- Breadcrumb -->
             <div class="flex items-center gap-2 mb-8 text-sm text-base-content/50">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
