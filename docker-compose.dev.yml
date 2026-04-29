@@ -1,0 +1,113 @@
+# ============================================================
+# PureCore Docker Compose — Development / Build
+# PureCore Docker Compose — 开发 / 构建环境
+#
+# Builds Docker images locally from source. Used by release.sh
+# for building images before pushing to ghcr.io. Also suitable for
+# local development and testing.
+# 从源码本地构建 Docker 镜像。由 release.sh 用于在推送到 ghcr.io
+# 之前构建镜像。也适用于本地开发和测试。
+#
+# Usage / 使用方法:
+#   docker compose -f docker-compose.dev.yml up -d --build
+#
+# For production deployment (pre-built images from ghcr.io):
+# 用于生产环境部署（从 ghcr.io 拉取预构建镜像）：
+#   docker compose up -d
+# ============================================================
+
+services:
+  # PostgreSQL database (internal network only, data persisted to ./pgdata)
+  postgres:
+    image: postgres:17-alpine
+    container_name: purecore-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-your_password_here}
+      POSTGRES_DB: ${DB_NAME:-purecore}
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-purecore}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - purecore-net
+
+  # Go backend API server (internal network only by default)
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: purecore-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Docker automatically configures embedded DNS (127.0.0.11) for service discovery
+    # and external resolution. No explicit dns directive needed.
+    # Docker 自动配置内嵌 DNS (127.0.0.11) 用于服务发现和外部解析，
+    # 无需显式设置 dns 指令。
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      BACKEND_PORT: ${BACKEND_PORT:-9002}
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-your_password_here}
+      DB_NAME: ${DB_NAME:-purecore}
+      DB_SSLMODE: disable
+      JWT_SECRET: ${JWT_SECRET:-your-jwt-secret-here}
+      ADMIN_ROUTE_PREFIX: ${ADMIN_ROUTE_PREFIX:-control-panel}
+      TZ: ${TZ:-Asia/Shanghai}
+    # Uncomment the following lines to expose the backend API directly.
+    # Only needed if you want to access the backend without going through
+    # the frontend proxy (e.g., for debugging or external API consumers).
+    # ports:
+    #   - "${BACKEND_PORT:-9002}:${BACKEND_PORT:-9002}"
+    networks:
+      - purecore-net
+
+  # Bun SSR frontend server
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      args:
+        VITE_API_PROTOCOL: ${VITE_API_PROTOCOL:-http}
+        VITE_ADMIN_ROUTE_PREFIX: ${VITE_ADMIN_ROUTE_PREFIX:-control-panel}
+    container_name: purecore-frontend
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    # Docker automatically configures embedded DNS (127.0.0.11) for service discovery
+    # and external resolution. No explicit dns directive needed.
+    # Docker 自动配置内嵌 DNS (127.0.0.11) 用于服务发现和外部解析，
+    # 无需显式设置 dns 指令。
+    environment:
+      NODE_ENV: production
+      SSR_PORT: ${FRONTEND_PORT:-9001}
+      FRONTEND_PORT: ${FRONTEND_PORT:-9001}
+      # Docker internal network: frontend → backend is always via "backend" on port 9002.
+      # These MUST NOT use .env values, because .env has VITE_API_HOST=localhost
+      # for local dev, which would break the proxy in a container.
+      VITE_API_PROTOCOL: http
+      VITE_API_HOST: backend
+      VITE_API_PORT: "9002"
+      BACKEND_PORT: "9002"
+      VITE_ADMIN_ROUTE_PREFIX: ${VITE_ADMIN_ROUTE_PREFIX:-control-panel}
+      THEME: ${THEME:-sunset}
+      VITE_THEME: ${VITE_THEME:-${THEME:-sunset}}
+      TZ: ${TZ:-Asia/Shanghai}
+    ports:
+      - "${FRONTEND_PORT:-9001}:${FRONTEND_PORT:-9001}"
+    networks:
+      - purecore-net
+
+networks:
+  purecore-net:
+    driver: bridge

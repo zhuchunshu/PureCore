@@ -1,22 +1,48 @@
 # ============================================================
 # PureCore Docker Compose — Production Deployment
-# 
-# Usage:
+# PureCore Docker Compose — 生产环境部署
+#
+# Pulls pre-built images from GitHub Container Registry (ghcr.io)
+# instead of building locally. This is the recommended way to deploy
+# PureCore on production servers.
+# 从 GitHub Container Registry (ghcr.io) 拉取预构建的镜像，
+# 而非在本地构建。这是在生产服务器上部署 PureCore 的推荐方式。
+#
+# Usage / 使用方法:
 #   1. Copy .env.example to .env and fill in your secrets
-#   2. Run: docker compose up -d
-#   3. Access: http://localhost:9001 (frontend)
+#      复制 .env.example 为 .env 并填写你的密钥
+#   2. Set the version you want to deploy (default: latest):
+#      设置你要部署的版本（默认为 latest）：
+#         export PURECORE_VERSION=1.0.0
+#      Or create a .env file with PURECORE_VERSION=1.0.0
+#      或在 .env 文件中设置 PURECORE_VERSION=1.0.0
+#   3. Login to GitHub Container Registry (one-time setup):
+#      登录 GitHub Container Registry（一次性设置）：
+#         echo $CR_PAT | docker login ghcr.io -u YOUR_USERNAME --password-stdin
+#   4. Run: docker compose pull && docker compose up -d
+#      运行: docker compose pull && docker compose up -d
+#   5. Access: http://localhost:9001 (frontend)
+#      访问: http://localhost:9001（前端）
 #
 #   Frontend proxies all /api/* requests to the backend internally.
 #   Database and backend are NOT exposed to the host by default for
 #   security. To expose the backend port for direct API access, set
 #   EXPOSE_BACKEND=true in .env and uncomment the backend ports below.
+#   前端将所有 /api/* 请求代理到内部后端。
+#   出于安全考虑，默认情况下数据库和后端不对外暴露。
+#   如需直接访问后端 API，请在 .env 中设置 EXPOSE_BACKEND=true
+#   并取消下方后端端口映射的注释。
 #
-# Quick start with automatic setup:
+# Quick start with automatic setup / 使用自动设置脚本快速开始:
 #   chmod +x scripts/deploy.sh && ./scripts/deploy.sh
 # ============================================================
 
 services:
-  # PostgreSQL database (internal network only, data persisted to ./pgdata)
+  # ──────────────────────────────────────────────────────────
+  # PostgreSQL database / PostgreSQL 数据库
+  # (internal network only, data persisted to ./pgdata)
+  # （仅限内部网络，数据持久化到 ./pgdata）
+  # ──────────────────────────────────────────────────────────
   postgres:
     image: postgres:17-alpine
     container_name: purecore-db
@@ -26,6 +52,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-your_password_here}
       POSTGRES_DB: ${DB_NAME:-purecore}
     volumes:
+      # Persistent database storage / 持久化数据库存储
       - ./pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-purecore}"]
@@ -35,19 +62,24 @@ services:
     networks:
       - purecore-net
 
-  # Go backend API server (internal network only by default)
+  # ──────────────────────────────────────────────────────────
+  # Go backend API server / Go 后端 API 服务器
+  # Image pulled from ghcr.io (built and pushed by release.sh)
+  # 镜像从 ghcr.io 拉取（由 release.sh 构建并推送）
+  # ──────────────────────────────────────────────────────────
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile.backend
+    # Pull pre-built image instead of building locally
+    # 拉取预构建镜像而非本地构建
+    image: ghcr.io/zhuchunshu/purecore-backend:${PURECORE_VERSION:-latest}
     container_name: purecore-backend
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
-    # Docker embedded DNS ensures internal hostname resolution works even when
-    # the host's resolv.conf has non-Docker nameservers (e.g., systemd-resolved's 127.0.0.53).
-    dns: 127.0.0.11
+    # Docker automatically configures embedded DNS (127.0.0.11) for service discovery
+    # and external resolution. No explicit dns directive needed.
+    # Docker 自动配置内嵌 DNS (127.0.0.11) 用于服务发现和外部解析，
+    # 无需显式设置 dns 指令。
     environment:
       APP_ENV: production
       APP_DEBUG: "false"
@@ -64,27 +96,31 @@ services:
     # Uncomment the following lines to expose the backend API directly.
     # Only needed if you want to access the backend without going through
     # the frontend proxy (e.g., for debugging or external API consumers).
+    # 如需直接暴露后端 API，请取消以下行的注释。
+    # 仅在需要绕过前端代理直接访问后端时使用（如调试或外部 API 调用）。
     # ports:
     #   - "${BACKEND_PORT:-9002}:${BACKEND_PORT:-9002}"
     networks:
       - purecore-net
 
-  # Bun SSR frontend server
+  # ──────────────────────────────────────────────────────────
+  # Bun SSR frontend server / Bun SSR 前端服务器
+  # Image pulled from ghcr.io (built and pushed by release.sh)
+  # 镜像从 ghcr.io 拉取（由 release.sh 构建并推送）
+  # ──────────────────────────────────────────────────────────
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-      args:
-        VITE_API_PROTOCOL: ${VITE_API_PROTOCOL:-http}
-        VITE_ADMIN_ROUTE_PREFIX: ${VITE_ADMIN_ROUTE_PREFIX:-control-panel}
+    # Pull pre-built image instead of building locally
+    # 拉取预构建镜像而非本地构建
+    image: ghcr.io/zhuchunshu/purecore-frontend:${PURECORE_VERSION:-latest}
     container_name: purecore-frontend
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
-    # Docker embedded DNS ensures internal hostname resolution works even when
-    # the host's resolv.conf has non-Docker nameservers (e.g., systemd-resolved's 127.0.0.53).
-    dns: 127.0.0.11
+    # Docker automatically configures embedded DNS (127.0.0.11) for service discovery
+    # and external resolution. No explicit dns directive needed.
+    # Docker 自动配置内嵌 DNS (127.0.0.11) 用于服务发现和外部解析，
+    # 无需显式设置 dns 指令。
     environment:
       NODE_ENV: production
       SSR_PORT: ${FRONTEND_PORT:-9001}
@@ -92,6 +128,9 @@ services:
       # Docker internal network: frontend → backend is always via "backend" on port 9002.
       # These MUST NOT use .env values, because .env has VITE_API_HOST=localhost
       # for local dev, which would break the proxy in a container.
+      # Docker 内部网络：前端 → 后端始终通过 "backend" 在 9002 端口通信。
+      # 这里不能使用 .env 中的值，因为 .env 中 VITE_API_HOST=localhost
+      # 是给本地开发用的，在容器中会导致代理失败。
       VITE_API_PROTOCOL: http
       VITE_API_HOST: backend
       VITE_API_PORT: "9002"
@@ -101,10 +140,13 @@ services:
       VITE_THEME: ${VITE_THEME:-${THEME:-sunset}}
       TZ: ${TZ:-Asia/Shanghai}
     ports:
+      # Expose frontend to host / 将前端暴露到主机
       - "${FRONTEND_PORT:-9001}:${FRONTEND_PORT:-9001}"
     networks:
       - purecore-net
 
+# ─── Network / 网络 ────────────────────────────────────────
 networks:
   purecore-net:
+    name: purecore-net
     driver: bridge
