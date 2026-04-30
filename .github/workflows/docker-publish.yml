@@ -29,6 +29,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
+  # ghcr.io requires lowercase owner
+  OWNER: ${{ github.repository_owner }}
 
 jobs:
   build-and-push:
@@ -82,6 +84,13 @@ jobs:
             echo "Pre-release detected"
           fi
 
+      # ─── Lowercase owner (ghcr.io requirement) ────
+      - name: Prepare registry variables
+        id: registry
+        run: |
+          OWNER_LOWER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          echo "owner=$OWNER_LOWER" >> "$GITHUB_OUTPUT"
+
       # ─── Login to ghcr.io ──────────────────────────
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -102,9 +111,10 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           platforms: linux/amd64
+          provenance: false
           build-args: |
             VITE_API_PROTOCOL=http
-          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}
+          tags: ${{ env.REGISTRY }}/${{ steps.registry.outputs.owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -112,16 +122,15 @@ jobs:
       - name: Tag and push as latest (stable only)
         if: steps.version.outputs.is_stable == 'true'
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}
-          docker tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }} ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:latest
-          docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ steps.registry.outputs.owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}
+          docker tag ${{ env.REGISTRY }}/${{ steps.registry.outputs.owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }} ${{ env.REGISTRY }}/${{ steps.registry.outputs.owner }}/${{ matrix.image_suffix }}:latest
+          docker push ${{ env.REGISTRY }}/${{ steps.registry.outputs.owner }}/${{ matrix.image_suffix }}:latest
 
       # ─── Summary ───────────────────────────────────
       - name: Print summary
         run: |
-          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "✅ Published images:"
-          echo "  ${{ env.REGISTRY }}/${OWNER}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}"
+          echo "  ${{ env.REGISTRY }}/${{ steps.registry.outputs.owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}"
           if [ "${{ steps.version.outputs.is_stable }}" = "true" ]; then
-            echo "  ${{ env.REGISTRY }}/${OWNER}/${{ matrix.image_suffix }}:latest"
+            echo "  ${{ env.REGISTRY }}/${{ steps.registry.outputs.owner }}/${{ matrix.image_suffix }}:latest"
           fi

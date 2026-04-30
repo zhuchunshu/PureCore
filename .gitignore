@@ -16,3 +16,4 @@ tmp/
 # Docker volumes (data persistence)
 pgdata/
 .nuxt
+scripts/.release-lang

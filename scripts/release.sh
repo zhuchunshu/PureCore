@@ -70,6 +70,22 @@ LANG=""
 # 每个 t_* 函数在运行时检查 $LANG 并返回相应的字符串。
 # 默认为英文。
 
+# Core dispatcher — calls the appropriate t_* function based on the key
+# 核心调度器 — 根据 key 调用相应的 t_* 函数
+t() {
+  local key="$1"
+  local fallback="${2:-$key}"
+  if declare -f "t_${key}" &>/dev/null; then
+    local val
+    val="$(t_${key})"
+    if [ -n "$val" ]; then
+      echo "$val"
+      return
+    fi
+  fi
+  echo "$fallback"
+}
+
 t_select_release_type_title() { case "${LANG:-en}" in zh) echo "选择发布类型:" ;; *) echo "Select release type:" ;; esac; }
 t_alpha_desc() { case "${LANG:-en}" in zh) echo "alpha   — 内部测试预发布" ;; *) echo "alpha   — pre-release for internal testing" ;; esac; }
 t_beta_desc() { case "${LANG:-en}" in zh) echo "beta    — 公开测试预发布" ;; *) echo "beta    — pre-release for public testing" ;; esac; }
