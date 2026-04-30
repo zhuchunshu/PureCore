@@ -239,6 +239,88 @@ router := core.NewRouter(app)
 routes.RegisterAPI(router)
 ```
 
+### Service Providers (app/Providers/)
+
+Service providers are the central place to register routes, middleware, and services. They implement the `core.ServiceProvider` interface:
+
+```go
+type ServiceProvider interface {
+    Name() string
+    Register(router *core.Router) error
+    Boot() error
+}
+```
+
+Each provider is registered in `cmd/serve.go` via `app.AddProviders()`:
+
+```go
+app.AddProviders(
+    &providers.RouteServiceProvider{},
+    // Add new providers here
+)
+```
+
+**Creating a new provider module:**
+
+```bash
+./purecore make:module Post
+```
+
+This generates `app/Providers/PostServiceProvider.go`. After creating:
+
+1. Add it to `AddProviders()` in `cmd/serve.go`
+2. Implement routes in `Register()`
+3. Add initialization logic in `Boot()`
+
+The existing `RouteServiceProvider` in `app/Providers/RouteServiceProvider.go` is the main provider that registers all application routes. It:
+
+- Registers named middleware (`auth`, `admin_auth`, `cors`, `lang`)
+- Defines public API routes, admin routes, and authenticated user routes
+- Uses the configurable admin route prefix from `core.GetConfig().AdminRoutePrefix()`
+
+### Named Middleware Registration
+
+Named middleware can be registered in a service provider and then referenced by name:
+
+```go
+// Register named middleware
+router.RegisterNamedMiddlewares(map[string]core.MiddlewareFunc{
+    "auth":       middleware.Auth(),
+    "admin_auth": middleware.AdminAuth(),
+})
+
+// Use by name
+router.Prefix("/admin").MiddlewareByName("admin_auth").Group(func(r *core.Router) {
+    r.Get("/dashboard", handler)
+})
+```
+
+### Options System
+
+The options system allows storing key-value configuration pairs in the `web_options` database table. Uses:
+
+- `core.AdminOption(key, default)` — get an option value with default fallback
+- `core.SetAdminOption(key, value)` — set an option value
+- `GET /{admin_prefix}/options` — public endpoint to read options
+- `POST /{admin_prefix}/options` — authenticated admin endpoint to set options
+
+Common option keys include `site_name`, `site_description`, `site_keywords`, and Turnstile configuration keys.
+
+Options are implemented in `core/option.go` and exposed via `app/Http/Controllers/OptionController.go`.
+
+### Config System
+
+The config system (`core/config.go`) loads configuration from environment variables and provides typed accessors:
+
+```go
+config := core.GetConfig()
+port := config.BackendPort()        // BACKEND_PORT env var
+prefix := config.AdminRoutePrefix()  // ADMIN_ROUTE_PREFIX env var
+jwtSecret := config.JWTSecret()      // JWT_SECRET env var
+```
+
+Configuration values are cached after first load. Use `GetConfig()` throughout the application to access configuration.
+
 ## Multi-Language Support
 
 ### Translation File Structure

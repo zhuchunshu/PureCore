@@ -41,13 +41,22 @@ PureCore is a full-stack Go web development framework that wraps GoFiber v3 into
 │   ├── Http/
 │   │   ├── Controllers/   # Application controllers
 │   │   │   ├── UserController.go
-│   │   │   └── SystemController.go
+│   │   │   ├── UserAuthController.go
+│   │   │   ├── AdminAuthController.go
+│   │   │   ├── SystemController.go
+│   │   │   ├── OptionController.go
+│   │   │   └── DocsController.go
 │   │   └── Middleware/     # Middleware
-│   │       ├── Auth.go    # Token authentication
+│   │       ├── Auth.go    # User token authentication
+│   │       ├── AdminAuth.go # Admin token authentication
 │   │       ├── Cors.go    # CORS handling
 │   │       └── Lang.go    # Language detection
-│   └── Models/            # Database models (GORM)
-│       └── User.go
+│   ├── Models/            # Database models (GORM)
+│   │   ├── User.go
+│   │   ├── AdminUser.go
+│   │   └── WebOption.go
+│   └── Providers/         # Service providers
+│       └── RouteServiceProvider.go
 ├── routes/                # Route registration
 │   └── api.go
 ├── lang/                  # Translation files (shared frontend & backend)
@@ -132,6 +141,15 @@ bun run dev
 | `./purecore --help` | Show available commands |
 
 ## Core Features
+
+### Authentication System
+
+PureCore implements a dual JWT authentication system with access tokens and refresh tokens for both regular users and administrators. See [Authentication Documentation](./AUTH.md) for details.
+
+- **User Auth**: Register, login, token refresh, profile retrieval
+- **Admin Auth**: Register, login, token refresh, password change with token invalidation
+- **Security**: bcrypt password hashing, refresh token rotation, `token_version` for forced logout
+- **Turnstile**: Optional Cloudflare Turnstile CAPTCHA for login/register endpoints. See [Turnstile Documentation](./TURNSTILE.md)
 
 ### Database & Models
 
@@ -278,17 +296,53 @@ For detailed API documentation, see [API Documentation](./API.md).
 |------|------|------|
 | GET | /api/v1/ping | Health check |
 | GET | /api/v1/system/info | Project information |
+| GET | /api/v1/docs | Get documentation file |
+| GET | /api/v1/docs/list | List all documentation files |
+| POST | /api/v1/auth/register | User registration |
+| POST | /api/v1/auth/login | User login |
+| POST | /api/v1/auth/refresh | Refresh user token |
+| GET | /{admin_prefix}/auth/check | Check if admins exist |
+| POST | /{admin_prefix}/auth/register | Admin registration |
+| POST | /{admin_prefix}/auth/login | Admin login |
+| GET | /{admin_prefix}/options | Public options |
 
 ### Authenticated Endpoints
 
 | Method | Path | Description |
 |------|------|------|
+| GET | /api/v1/auth/profile | User profile |
 | GET | /api/v1/users | User list |
 | POST | /api/v1/users | Create user |
 | GET | /api/v1/users/:id | User details |
+| GET | /{admin_prefix}/auth/profile | Admin profile |
+| POST | /{admin_prefix}/auth/change-password | Change admin password |
+| POST | /{admin_prefix}/options | Set options |
 
 Authentication: `Authorization: Bearer <token>`
 
-## Development Guide
+## CLI Commands
 
-For detailed development documentation, see [Development Guide](./DEVELOPMENT.md).
+| Command | Description |
+|---------|-------------|
+| `./purecore serve` | Start the HTTP server |
+| `./purecore migrate` | Run database migrations |
+| `./purecore make:model` | Create a new model file |
+| `./purecore make:controller` | Create a new controller file |
+| `./purecore make:migration` | Create a new migration file |
+| `./purecore make:module` | Create a new service provider module |
+| `./purecore make:middleware` | Create a new middleware file |
+
+For full CLI documentation, see [CLI Documentation](./CLI.md).
+
+## Documentation Index
+
+| Document | Description |
+|----------|-------------|
+| [README](./README.md) | Project overview and quick start |
+| [API Documentation](./API.md) | Complete API reference |
+| [CLI Documentation](./CLI.md) | Command-line interface guide |
+| [Development Guide](./DEVELOPMENT.md) | Development environment and architecture |
+| [Database & Models](./DATABASE.md) | GORM models and migrations |
+| [SSR Documentation](./SSR.md) | Server-side rendering setup |
+| [Authentication](./AUTH.md) | JWT authentication system |
+| [Turnstile](./TURNSTILE.md) | Cloudflare Turnstile integration |

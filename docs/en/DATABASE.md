@@ -91,39 +91,60 @@ core.DB().Delete(&user)
 
 ## Migrations
 
-Run the migrate command to create or update tables based on your models:
+PureCore uses a migration system similar to Laravel's, with each migration registered via `init()` and tracked in the database. Migrations run automatically on server startup and can also be triggered manually:
 
 ```bash
 ./purecore migrate
 ```
 
 **How it works:**
-- `cmd/migrate.go` contains a list of all models to migrate
-- GORM's `AutoMigrate` creates missing tables and columns
-- Existing data is preserved — migrations are non-destructive
-- New models must be registered in the `models` slice in `cmd/migrate.go`
+- Each migration file in `database/migrations/` registers itself via `init()` using `core.RegisterMigration(name, upFunc)`
+- `core.RunMigrations()` (in `core/migrator.go`) reads all registered migrations and runs any that haven't been executed
+- A `migrations` table in the database tracks which migrations have run and their batch number
+- Migrations are compiled into the binary — no filesystem scanning needed
+- The `cmd/serve.go` file imports the migrations package (`_ "purecore/database/migrations"`), so all registered migrations are available
 
-**Adding a new model to migrations:**
+**Example migration file:**
 
 ```go
-// In cmd/migrate.go
-func migrateRun(cmd *cobra.Command, args []string) {
-    db := core.DB()
+// database/migrations/2026_04_27_175200_create_web_options_table.go
+package migrations
 
-    models := []interface{}{
-        &models.User{},
-        &models.Post{},    // ← Add your new model here
-    }
+import (
+    "purecore/core"
+    "gorm.io/gorm"
+)
 
-    for _, model := range models {
-        name := reflect.TypeOf(model).Elem().Name()
-        if err := db.AutoMigrate(model); err != nil {
-            log.Fatalf("Failed to migrate %s: %v", name, err)
-        }
-        log.Printf("  ✓ %s table migrated", name)
+func init() {
+    core.RegisterMigration("2026_04_27_175200_create_web_options_table", up2026_04_27_175200)
+}
+
+func up2026_04_27_175200(db *gorm.DB) error {
+    type WebOption struct {
+        core.Model
+        Name  string `gorm:"type:varchar(100);uniqueIndex;not null"`
+        Value string `gorm:"type:text;not null;default:''"`
     }
+    return db.AutoMigrate(&WebOption{})
 }
 ```
+
+**Creating a migration with the CLI:**
+
+```bash
+./purecore make:migration create_posts_table
+```
+
+This generates a migration file with the proper `init()` registration and `up()` function. The migration is automatically registered — just rebuild and run `./purecore migrate`.
+
+**Migration naming conventions:**
+- Use timestamp prefixes for ordering: `YYYY_MM_DD_HHMMSS_description.go`
+- Example: `2026_04_30_120000_create_posts_table.go`
+
+**Migration tracking:**
+- The `migrations` table stores migration name, batch number, and timestamp
+- Each `migrate` run creates a new batch number for all executed migrations
+- Previously-run migrations are skipped via lookup in the tracking table
 
 ## Query Building
 

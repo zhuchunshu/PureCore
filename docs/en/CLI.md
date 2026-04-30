@@ -7,10 +7,12 @@ PureCore provides an Artisan-style CLI powered by [Cobra](https://github.com/spf
 | Command | Description |
 |---------|-------------|
 | `./purecore serve` | Start the HTTP server |
+| `./purecore migrate` | Run database migrations |
 | `./purecore make:model` | Create a new model file |
 | `./purecore make:controller` | Create a new controller file |
 | `./purecore make:migration` | Create a new migration file |
-| `./purecore migrate` | Run database migrations |
+| `./purecore make:module` | Create a new service provider module |
+| `./purecore make:middleware` | Create a new middleware file |
 | `./purecore --help` | Show all available commands |
 | `./purecore completion` | Generate shell autocompletion script |
 
@@ -28,8 +30,8 @@ The server listens on the port specified by the `BACKEND_PORT` environment varia
 1. Loads environment variables from `.env`
 2. Initializes the language manager (`lang/` directory)
 3. Establishes a database connection (GORM + PostgreSQL)
-4. Registers middleware (CORS, language detection)
-5. Registers all API routes
+4. Loads and runs all registered service providers (routes, middleware)
+5. Runs any pending database migrations
 6. Starts listening for HTTP requests
 
 ## migrate
@@ -108,6 +110,87 @@ This generates a migration file with:
 - `up()` function — Creates the table using GORM AutoMigrate with `core.Model` embedding
 
 The migration is automatically registered when the binary is compiled — no need to manually add it to any list. Simply rebuild and run `./purecore migrate`.
+
+## make:module
+
+Create a new service provider module in `app/Providers/`.
+
+```bash
+./purecore make:module Post
+```
+
+This generates `app/Providers/PostServiceProvider.go` that implements the `core.ServiceProvider` interface with:
+- `Name()` — Returns the provider's unique identifier (`"post"`)
+- `Register(router)` — Placeholder for adding routes and middleware
+- `Boot()` — Post-registration initialization hook
+
+**After creating a module:**
+
+1. Add the provider to the `AddProviders()` chain in `cmd/serve.go`:
+```go
+app.AddProviders(
+    &providers.RouteServiceProvider{},
+    &providers.PostServiceProvider{},  // ← Add your new provider
+)
+```
+2. Implement your routes in the `Register()` method
+3. Add any initialization logic in the `Boot()` method
+
+**Example Register() implementation:**
+
+```go
+func (p *PostServiceProvider) Register(router *core.Router) error {
+    router.Prefix("/api/v1").Group(func(r *core.Router) {
+        r.Get("/posts", core.H(postCtrl.Index))
+        r.Post("/posts", core.H(postCtrl.Store))
+    })
+    return nil
+}
+```
+
+## make:middleware
+
+Create a new middleware file in `app/Http/Middleware/`.
+
+```bash
+./purecore make:middleware RateLimit
+```
+
+This generates `app/Http/Middleware/RateLimit.go` with a function that returns `fiber.Handler`:
+
+```go
+package middleware
+
+import "github.com/gofiber/fiber/v3"
+
+func RateLimit() fiber.Handler {
+    return func(c fiber.Ctx) error {
+        // Add your middleware logic here
+        return c.Next()
+    }
+}
+```
+
+**Using the middleware in routes:**
+
+```go
+// Direct use
+router.Middleware(middleware.RateLimit()).Group(func(r *core.Router) {
+    r.Get("/protected", handler)
+})
+
+// Register as named middleware (in a service provider):
+router.RegisterNamedMiddlewares(map[string]core.MiddlewareFunc{
+    "rate_limit": middleware.RateLimit(),
+})
+
+// Then use by name
+router.MiddlewareByName("rate_limit").Group(func(r *core.Router) {
+    r.Get("/protected", handler)
+})
+```
+
+**For global middleware**, add it to `RunWithMiddleware()` in `cmd/serve.go`.
 
 ## Adding New Commands
 

@@ -41,13 +41,22 @@ PureCore 是一个基于 Go 语言的全栈 Web 开发框架，将 GoFiber v3 �
 │   ├── Http/
 │   │   ├── Controllers/   # 应用控制器
 │   │   │   ├── UserController.go
-│   │   │   └── SystemController.go
+│   │   │   ├── UserAuthController.go
+│   │   │   ├── AdminAuthController.go
+│   │   │   ├── SystemController.go
+│   │   │   ├── OptionController.go
+│   │   │   └── DocsController.go
 │   │   └── Middleware/     # 中间件
-│   │       ├── Auth.go    # Token 鉴权
+│   │       ├── Auth.go    # 用户 Token 鉴权
+│   │       ├── AdminAuth.go # 管理员 Token 鉴权
 │   │       ├── Cors.go    # 跨域处理
 │   │       └── Lang.go    # 语言检测
-│   └── Models/            # 数据库模型（GORM）
-│       └── User.go
+│   ├── Models/            # 数据库模型（GORM）
+│   │   ├── User.go
+│   │   ├── AdminUser.go
+│   │   └── WebOption.go
+│   └── Providers/         # 服务提供者
+│       └── RouteServiceProvider.go
 ├── routes/                # 路由注册
 │   └── api.go
 ├── lang/                  # 多语言翻译文件(前后端共享)
@@ -132,6 +141,15 @@ bun run dev
 | `./purecore --help` | 查看可用命令 |
 
 ## 核心特性
+
+### 认证系统
+
+PureCore 实现了双 JWT 认证系统，为普通用户和管理员提供访问令牌和刷新令牌。详情请参阅 [认证文档](./AUTH.md)。
+
+- **用户认证**: 注册、登录、令牌刷新、获取个人资料
+- **管理员认证**: 注册、登录、令牌刷新、修改密码并自动作废令牌
+- **安全**: bcrypt 密码哈希、刷新令牌轮换、`token_version` 强制退出
+- **Turnstile**: 可选的 Cloudflare Turnstile 验证码，用于登录/注册端点。详情请参阅 [Turnstile 文档](./TURNSTILE.md)
 
 ### 数据库与模型
 
@@ -278,17 +296,53 @@ chmod +x scripts/deploy.sh
 |------|------|------|
 | GET | /api/v1/ping | 健康检查 |
 | GET | /api/v1/system/info | 项目信息 |
+| GET | /api/v1/docs | 获取文档文件 |
+| GET | /api/v1/docs/list | 列出所有文档文件 |
+| POST | /api/v1/auth/register | 用户注册 |
+| POST | /api/v1/auth/login | 用户登录 |
+| POST | /api/v1/auth/refresh | 刷新用户令牌 |
+| GET | /{admin_prefix}/auth/check | 检查管理员是否存在 |
+| POST | /{admin_prefix}/auth/register | 管理员注册 |
+| POST | /{admin_prefix}/auth/login | 管理员登录 |
+| GET | /{admin_prefix}/options | 公开选项 |
 
 ### 需认证接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
+| GET | /api/v1/auth/profile | 用户个人资料 |
 | GET | /api/v1/users | 用户列表 |
 | POST | /api/v1/users | 创建用户 |
 | GET | /api/v1/users/:id | 用户详情 |
+| GET | /{admin_prefix}/auth/profile | 管理员资料 |
+| POST | /{admin_prefix}/auth/change-password | 修改管理员密码 |
+| POST | /{admin_prefix}/options | 设置选项 |
 
 认证方式: `Authorization: Bearer <token>`
 
-## 开发指南
+## CLI 命令
 
-详细开发文档请参阅 [开发文档](./DEVELOPMENT.md)。
+| 命令 | 描述 |
+|------|------|
+| `./purecore serve` | 启动 HTTP 服务器 |
+| `./purecore migrate` | 运行数据库迁移 |
+| `./purecore make:model` | 创建新的模型文件 |
+| `./purecore make:controller` | 创建新的控制器文件 |
+| `./purecore make:migration` | 创建新的迁移文件 |
+| `./purecore make:module` | 创建新的服务提供者模块 |
+| `./purecore make:middleware` | 创建新的中间件文件 |
+
+完整 CLI 文档请参阅 [CLI 文档](./CLI.md)。
+
+## 文档索引
+
+| 文档 | 说明 |
+|------|------|
+| [README](./README.md) | 项目概述与快速开始 |
+| [API 文档](./API.md) | 完整 API 参考 |
+| [CLI 文档](./CLI.md) | 命令行界面指南 |
+| [开发指南](./DEVELOPMENT.md) | 开发环境与架构 |
+| [数据库与模型](./DATABASE.md) | GORM 模型与迁移 |
+| [SSR 文档](./SSR.md) | 服务端渲染设置 |
+| [认证系统](./AUTH.md) | JWT 认证系统 |
+| [Turnstile](./TURNSTILE.md) | Cloudflare Turnstile 集成 |

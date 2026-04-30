@@ -91,39 +91,60 @@ core.DB().Delete(&user)
 
 ## 数据库迁移
 
-运行 migration 命令，根据模型创建或更新数据表：
+PureCore 使用类似 Laravel 的迁移系统，每个迁移通过 `init()` 注册并在数据库中跟踪。迁移在服务器启动时自动运行，也可以手动触发：
 
 ```bash
 ./purecore migrate
 ```
 
 **工作原理：**
-- `cmd/migrate.go` 包含要迁移的模型列表
-- GORM 的 `AutoMigrate` 创建缺失的表和列
-- 不会破坏现有数据——迁移是无损的
-- 新模型必须在 `cmd/migrate.go` 的 `models` 切片中注册
+- `database/migrations/` 中的每个迁移文件通过 `init()` 使用 `core.RegisterMigration(name, upFunc)` 注册自身
+- `core.RunMigrations()`（位于 `core/migrator.go`）读取所有已注册的迁移并运行尚未执行的迁移
+- 数据库中的 `migrations` 表跟踪已运行的迁移及其批次号
+- 迁移编译进二进制文件——无需文件系统扫描
+- `cmd/serve.go` 文件导入迁移包（`_ "purecore/database/migrations"`），因此所有已注册的迁移都可用
 
-**添加新模型到迁移：**
+**示例迁移文件：**
 
 ```go
-// 在 cmd/migrate.go 中
-func migrateRun(cmd *cobra.Command, args []string) {
-    db := core.DB()
+// database/migrations/2026_04_27_175200_create_web_options_table.go
+package migrations
 
-    models := []interface{}{
-        &models.User{},
-        &models.Post{},    // ← 在这里添加新模型
-    }
+import (
+    "purecore/core"
+    "gorm.io/gorm"
+)
 
-    for _, model := range models {
-        name := reflect.TypeOf(model).Elem().Name()
-        if err := db.AutoMigrate(model); err != nil {
-            log.Fatalf("Failed to migrate %s: %v", name, err)
-        }
-        log.Printf("  ✓ %s table migrated", name)
+func init() {
+    core.RegisterMigration("2026_04_27_175200_create_web_options_table", up2026_04_27_175200)
+}
+
+func up2026_04_27_175200(db *gorm.DB) error {
+    type WebOption struct {
+        core.Model
+        Name  string `gorm:"type:varchar(100);uniqueIndex;not null"`
+        Value string `gorm:"type:text;not null;default:''"`
     }
+    return db.AutoMigrate(&WebOption{})
 }
 ```
+
+**使用 CLI 创建迁移：**
+
+```bash
+./purecore make:migration create_posts_table
+```
+
+这会生成一个迁移文件，包含正确的 `init()` 注册和 `up()` 函数。迁移会自动注册——只需重新构建并运行 `./purecore migrate`。
+
+**迁移命名规范：**
+- 使用时间戳前缀以确保顺序：`YYYY_MM_DD_HHMMSS_description.go`
+- 示例：`2026_04_30_120000_create_posts_table.go`
+
+**迁移跟踪：**
+- `migrations` 表存储迁移名称、批次号和时间戳
+- 每次 `migrate` 运行为所有执行的迁移创建新的批次号
+- 通过在跟踪表中查找，跳过之前已运行的迁移
 
 ## 查询构建器
 

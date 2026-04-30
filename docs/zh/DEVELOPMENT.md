@@ -239,6 +239,88 @@ router := core.NewRouter(app)
 routes.RegisterAPI(router)
 ```
 
+### 服务提供者 (app/Providers/)
+
+服务提供者是注册路由、中间件和服务的核心位置。它们实现 `core.ServiceProvider` 接口：
+
+```go
+type ServiceProvider interface {
+    Name() string
+    Register(router *core.Router) error
+    Boot() error
+}
+```
+
+每个提供者通过 `app.AddProviders()` 在 `cmd/serve.go` 中注册：
+
+```go
+app.AddProviders(
+    &providers.RouteServiceProvider{},
+    // 在这里添加新的提供者
+)
+```
+
+**创建新的提供者模块：**
+
+```bash
+./purecore make:module Post
+```
+
+这会生成 `app/Providers/PostServiceProvider.go`。创建后：
+
+1. 将其添加到 `cmd/serve.go` 的 `AddProviders()` 中
+2. 在 `Register()` 中实现路由
+3. 在 `Boot()` 中添加初始化逻辑
+
+现有的 `RouteServiceProvider`（位于 `app/Providers/RouteServiceProvider.go`）是注册所有应用路由的主要提供者。它：
+
+- 注册命名中间件（`auth`、`admin_auth`、`cors`、`lang`）
+- 定义公开 API 路由、管理员路由和认证用户路由
+- 使用 `core.GetConfig().AdminRoutePrefix()` 获取可配置的管理员路由前缀
+
+### 命名中间件注册
+
+命名中间件可以在服务提供者中注册，然后通过名称引用：
+
+```go
+// 注册命名中间件
+router.RegisterNamedMiddlewares(map[string]core.MiddlewareFunc{
+    "auth":       middleware.Auth(),
+    "admin_auth": middleware.AdminAuth(),
+})
+
+// 通过名称使用
+router.Prefix("/admin").MiddlewareByName("admin_auth").Group(func(r *core.Router) {
+    r.Get("/dashboard", handler)
+})
+```
+
+### 选项系统
+
+选项系统允许在 `web_options` 数据库表中存储键值对配置。使用方式：
+
+- `core.AdminOption(key, default)` — 获取选项值，可指定默认回退值
+- `core.SetAdminOption(key, value)` — 设置选项值
+- `GET /{admin_prefix}/options` — 公开端点，用于读取选项
+- `POST /{admin_prefix}/options` — 需认证的管理员端点，用于设置选项
+
+常见的选项键包括 `site_name`、`site_description`、`site_keywords` 以及 Turnstile 配置键。
+
+选项系统在 `core/option.go` 中实现，并通过 `app/Http/Controllers/OptionController.go` 暴露。
+
+### 配置系统
+
+配置系统（`core/config.go`）从环境变量加载配置并提供类型化的访问器：
+
+```go
+config := core.GetConfig()
+port := config.BackendPort()        // BACKEND_PORT 环境变量
+prefix := config.AdminRoutePrefix()  // ADMIN_ROUTE_PREFIX 环境变量
+jwtSecret := config.JWTSecret()      // JWT_SECRET 环境变量
+```
+
+配置值在首次加载后被缓存。在应用程序中通过 `GetConfig()` 访问配置。
+
 ## 多语言支持
 
 ### 翻译文件结构
