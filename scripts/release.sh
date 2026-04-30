@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# PureCore — Release Script
+# PureCore — Release Script / 发布脚本
 #
 # Automates a new version release:
 #   1. Bump version in purecore.json (interactive, auto-increments patch)
@@ -9,15 +9,25 @@
 #   4. Create and push a Git tag (version suffix like -alpha.1, -beta.1)
 #   5. Create a GitHub Release with auto-generated release notes
 #
-# Usage:
-#   chmod +x scripts/release.sh
-#   ./scripts/release.sh              # Interactive
-#   ./scripts/release.sh 1.0.1        # Non-interactive: use given version
+# 自动发布新版本：
+#   1. 更新 purecore.json 中的版本号（交互式，自动递增补丁号）
+#   2. 通过 docker compose 构建 Docker 镜像
+#   3. 为镜像打标签并推送到 GitHub Container Registry (ghcr.io)
+#   4. 创建并推送 Git 标签（版本后缀如 -alpha.1, -beta.1）
+#   5. 创建 GitHub Release 并自动生成发布说明
 #
-#   Override release type via env:
+# Usage / 使用方法:
+#   chmod +x scripts/release.sh
+#   ./scripts/release.sh              # Interactive / 交互式
+#   ./scripts/release.sh 1.0.1        # Non-interactive / 非交互式
+#
+#   Override release type via env / 通过环境变量覆盖发布类型:
 #     RELEASE_TYPE=beta PRE_RELEASE_NUM=2 ./scripts/release.sh 1.0.1
 #
-# Prerequisites:
+#   Override language via env / 通过环境变量覆盖语言:
+#     RELEASE_LANG=zh ./scripts/release.sh
+#
+# Prerequisites / 前置要求:
 #   - jq, docker, git, gh (GitHub CLI)
 #   - GitHub personal access token with write:packages scope
 #     (export CR_PAT=ghp_xxx, or log in via docker login ghcr.io)
@@ -26,7 +36,7 @@
 
 set -euo pipefail
 
-# ─── Colors ────────────────────────────────────────────────
+# ─── Colors / 颜色 ────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -39,45 +49,173 @@ ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC} $1"; }
 err()  { echo -e "${RED}✗${NC} $1"; }
 
-# ─── Configuration ─────────────────────────────────────────
+# ─── Configuration / 配置 ─────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 PURECORE_JSON="$PROJECT_DIR/purecore.json"
+LANG_FILE="$SCRIPT_DIR/.release-lang"
 # ghcr.io target — derived from purecore.json "repository.url"
-# Example: https://github.com/zhuchunshu/PureCore.git → ghcr.io/zhuchunshu/purecore
 GHCR_OWNER=""
 GHCR_REPO="purecore"
 # Full repository name (e.g., "zhuchunshu/PureCore")
 GITHUB_REPO=""
 # Owner in lowercase (ghcr.io requires lowercase)
 OWNER_LOWER=""
+# Current language / 当前语言
+LANG=""
 
-# ─── Select release type ───────────────────────────────────
-select_release_type() {
+# ─── Translation system / 翻译系统 ─────────────────────────
+# Each t_* function checks $LANG at runtime and returns the
+# appropriate string. English is the default.
+# 每个 t_* 函数在运行时检查 $LANG 并返回相应的字符串。
+# 默认为英文。
+
+t_select_release_type_title() { case "${LANG:-en}" in zh) echo "选择发布类型:" ;; *) echo "Select release type:" ;; esac; }
+t_alpha_desc() { case "${LANG:-en}" in zh) echo "alpha   — 内部测试预发布" ;; *) echo "alpha   — pre-release for internal testing" ;; esac; }
+t_beta_desc() { case "${LANG:-en}" in zh) echo "beta    — 公开测试预发布" ;; *) echo "beta    — pre-release for public testing" ;; esac; }
+t_stable_desc() { case "${LANG:-en}" in zh) echo "stable  — 正式生产发布" ;; *) echo "stable  — official production release" ;; esac; }
+t_enter_choice() { case "${LANG:-en}" in zh) echo "请输入选项 [1-3]: " ;; *) echo "Enter choice [1-3]: " ;; esac; }
+t_invalid_choice() { case "${LANG:-en}" in zh) echo "无效选项。请输入 1、2 或 3。" ;; *) echo "Invalid choice. Please enter 1, 2, or 3." ;; esac; }
+t_release_type_label() { case "${LANG:-en}" in zh) echo "发布类型" ;; *) echo "Release type" ;; esac; }
+t_via_env() { case "${LANG:-en}" in zh) echo "通过环境变量/覆盖" ;; *) echo "via env/override" ;; esac; }
+t_current_version() { case "${LANG:-en}" in zh) echo "当前版本" ;; *) echo "Current version" ;; esac; }
+t_enter_base_version() { case "${LANG:-en}" in zh) echo "输入新基础版本号" ;; *) echo "Enter new base version" ;; esac; }
+t_invalid_version() { case "${LANG:-en}" in zh) echo "无效的版本格式" ;; *) echo "Invalid version format" ;; esac; }
+t_expected_semver() { case "${LANG:-en}" in zh) echo "应为 X.Y.Z 格式" ;; *) echo "expected X.Y.Z" ;; esac; }
+t_base_version_label() { case "${LANG:-en}" in zh) echo "基础版本" ;; *) echo "Base version" ;; esac; }
+t_enter_pre_release_num() { case "${LANG:-en}" in zh) echo "输入预发布编号" ;; *) echo "Enter pre-release number" ;; esac; }
+t_invalid_pre_release() { case "${LANG:-en}" in zh) echo "无效的预发布编号" ;; *) echo "Invalid pre-release number" ;; esac; }
+t_expected_positive_int() { case "${LANG:-en}" in zh) echo "应为正整数" ;; *) echo "expected positive integer" ;; esac; }
+t_version_bumped() { case "${LANG:-en}" in zh) echo "版本已更新" ;; *) echo "Version bumped" ;; esac; }
+t_type() { case "${LANG:-en}" in zh) echo "类型" ;; *) echo "type" ;; esac; }
+t_github_repo_label() { case "${LANG:-en}" in zh) echo "GitHub 仓库" ;; *) echo "GitHub repository" ;; esac; }
+t_ghcr_target_label() { case "${LANG:-en}" in zh) echo "GHCR 目标" ;; *) echo "GHCR target" ;; esac; }
+t_prereqs_passed() { case "${LANG:-en}" in zh) echo "前置检查通过" ;; *) echo "Prerequisites check passed" ;; esac; }
+t_missing_tools() { case "${LANG:-en}" in zh) echo "缺少必需工具" ;; *) echo "Missing required tools" ;; esac; }
+t_install_gh() { case "${LANG:-en}" in zh) echo "安装 gh (GitHub CLI): https://cli.github.com/" ;; *) echo "Install gh (GitHub CLI): https://cli.github.com/" ;; esac; }
+t_then_auth() { case "${LANG:-en}" in zh) echo "然后认证: gh auth login" ;; *) echo "Then authenticate: gh auth login" ;; esac; }
+t_gh_not_auth() { case "${LANG:-en}" in zh) echo "GitHub CLI (gh) 未认证。" ;; *) echo "GitHub CLI (gh) is not authenticated." ;; esac; }
+t_run_gh_auth() { case "${LANG:-en}" in zh) echo "运行: gh auth login" ;; *) echo "Run: gh auth login" ;; esac; }
+t_purecore_json_not_found() { case "${LANG:-en}" in zh) echo "未找到 purecore.json 文件，路径" ;; *) echo "purecore.json not found at" ;; esac; }
+t_no_repo_url() { case "${LANG:-en}" in zh) echo "在 purecore.json 中未找到 repository.url" ;; *) echo "Could not find repository.url in purecore.json" ;; esac; }
+t_no_parse_owner() { case "${LANG:-en}" in zh) echo "无法从仓库 URL 解析 GitHub 所有者" ;; *) echo "Could not parse GitHub owner from repository URL" ;; esac; }
+t_no_parse_repo() { case "${LANG:-en}" in zh) echo "无法从 URL 解析 GitHub 仓库" ;; *) echo "Could not parse GitHub repository from URL" ;; esac; }
+t_logging_in_ghcr() { case "${LANG:-en}" in zh) echo "正在使用 CR_PAT 登录 ghcr.io..." ;; *) echo "Logging in to ghcr.io with CR_PAT..." ;; esac; }
+t_logged_in_ghcr() { case "${LANG:-en}" in zh) echo "已登录 ghcr.io" ;; *) echo "Logged in to ghcr.io" ;; esac; }
+t_already_auth_ghcr() { case "${LANG:-en}" in zh) echo "已认证到 ghcr.io" ;; *) echo "Already authenticated to ghcr.io" ;; esac; }
+t_not_logged_in_ghcr() { case "${LANG:-en}" in zh) echo "未登录 ghcr.io。请运行:" ;; *) echo "Not logged in to ghcr.io. Please run:" ;; esac; }
+t_press_enter_after_login() { case "${LANG:-en}" in zh) echo "登录后按 Enter 继续 (或 Ctrl+C 取消)... " ;; *) echo "Press Enter after logging in (or Ctrl+C to abort)... " ;; esac; }
+t_building_docker() { case "${LANG:-en}" in zh) echo "正在构建 Docker 镜像..." ;; *) echo "Building Docker images..." ;; esac; }
+t_tagging_backend() { case "${LANG:-en}" in zh) echo "正在为后端打标签" ;; *) echo "Tagging backend" ;; esac; }
+t_tagging_frontend() { case "${LANG:-en}" in zh) echo "正在为前端打标签" ;; *) echo "Tagging frontend" ;; esac; }
+t_tagging_latest() { case "${LANG:-en}" in zh) echo "正在打 latest 别名标签 (稳定版)..." ;; *) echo "Tagging latest aliases (stable release)..." ;; esac; }
+t_pushing_to_ghcr() { case "${LANG:-en}" in zh) echo "正在推送镜像到 ghcr.io..." ;; *) echo "Pushing images to ghcr.io..." ;; esac; }
+t_all_images_pushed() { case "${LANG:-en}" in zh) echo "所有镜像已推送到 ghcr.io" ;; *) echo "All images pushed to ghcr.io" ;; esac; }
+t_creating_git_tag() { case "${LANG:-en}" in zh) echo "正在创建 Git 标签" ;; *) echo "Creating Git tag" ;; esac; }
+t_no_changes() { case "${LANG:-en}" in zh) echo "没有要提交的更改 (版本已是最新)" ;; *) echo "No changes to commit (version already up to date)" ;; esac; }
+t_committed_bump() { case "${LANG:-en}" in zh) echo "已提交版本更新" ;; *) echo "Committed version bump" ;; esac; }
+t_commit_bump_msg() { case "${LANG:-en}" in zh) echo "chore: 更新版本至" ;; *) echo "chore: bump version to" ;; esac; }
+t_release_tag_msg() { case "${LANG:-en}" in zh) echo "发布" ;; *) echo "Release" ;; esac; }
+t_tag_exists_locally() { case "${LANG:-en}" in zh) echo "标签在本地已存在" ;; *) echo "Tag already exists locally" ;; esac; }
+t_tag_exists_remote() { case "${LANG:-en}" in zh) echo "标签在远程已存在，跳过创建" ;; *) echo "Tag already exists on remote, skipping tag creation" ;; esac; }
+t_pushing_existing_tag() { case "${LANG:-en}" in zh) echo "正在推送本地已有标签到远程..." ;; *) echo "Pushing existing local tag to remote..." ;; esac; }
+t_pushed_existing_tag() { case "${LANG:-en}" in zh) echo "已推送已有标签" ;; *) echo "Pushed existing tag" ;; esac; }
+t_pushing_commits() { case "${LANG:-en}" in zh) echo "正在推送提交和标签到 origin..." ;; *) echo "Pushing commits and tags to origin..." ;; esac; }
+t_git_tag_pushed() { case "${LANG:-en}" in zh) echo "Git 标签已推送" ;; *) echo "Git tag pushed" ;; esac; }
+t_creating_gh_release() { case "${LANG:-en}" in zh) echo "正在创建 GitHub Release" ;; *) echo "Creating GitHub Release for" ;; esac; }
+t_release_title() { echo "PureCore"; }
+t_alpha_title_suffix() { case "${LANG:-en}" in zh) echo "(Alpha)" ;; *) echo "(Alpha)" ;; esac; }
+t_beta_title_suffix() { case "${LANG:-en}" in zh) echo "(Beta)" ;; *) echo "(Beta)" ;; esac; }
+t_docker_images_header() { case "${LANG:-en}" in zh) echo "🐳 Docker 镜像" ;; *) echo "🐳 Docker Images" ;; esac; }
+t_deploy_header() { case "${LANG:-en}" in zh) echo "🚀 部署" ;; *) echo "🚀 Deploy" ;; esac; }
+t_changes_header() { case "${LANG:-en}" in zh) echo "📝 自上次以来的变更" ;; *) echo "📝 Changes since" ;; esac; }
+t_release_created() { case "${LANG:-en}" in zh) echo "GitHub Release 已创建" ;; *) echo "GitHub Release created" ;; esac; }
+t_marked_prerelease() { case "${LANG:-en}" in zh) echo "已标记为预发布" ;; *) echo "Marked as pre-release" ;; esac; }
+t_failed_gh_release() { case "${LANG:-en}" in zh) echo "创建 GitHub Release 失败" ;; *) echo "Failed to create GitHub Release" ;; esac; }
+t_create_manually_at() { case "${LANG:-en}" in zh) echo "你可以手动创建于" ;; *) echo "You can create it manually at" ;; esac; }
+t_or_run() { case "${LANG:-en}" in zh) echo "或运行" ;; *) echo "Or run" ;; esac; }
+t_using_existing_tag() { case "${LANG:-en}" in zh) echo "使用已有远程标签 — 发布说明将从标签消息中获取" ;; *) echo "Using existing remote tag — release notes will be from tag message" ;; esac; }
+t_docker_images_summary() { case "${LANG:-en}" in zh) echo "🐳 Docker 镜像" ;; *) echo "🐳 Docker Images" ;; esac; }
+t_git_tag_summary() { case "${LANG:-en}" in zh) echo "🏷️  Git 标签" ;; *) echo "🏷️  Git tag" ;; esac; }
+t_github_release_summary() { case "${LANG:-en}" in zh) echo "📦 GitHub Release" ;; *) echo "📦 GitHub Release" ;; esac; }
+t_deploy_summary() { case "${LANG:-en}" in zh) echo "🚀 在服务器上部署" ;; *) echo "🚀 Deploy on server" ;; esac; }
+
+# ─── Language selection / 语言选择 ─────────────────────────
+detect_or_select_language() {
+  # If already set via env, use it
+  if [ -n "${RELEASE_LANG:-}" ]; then
+    LANG="${RELEASE_LANG}"
+    return
+  fi
+
+  # Check for saved preference
+  if [ -f "$LANG_FILE" ]; then
+    LANG=$(cat "$LANG_FILE")
+    if [ "$LANG" = "en" ] || [ "$LANG" = "zh" ]; then
+      return
+    fi
+  fi
+
+  # First run — ask user to choose language
   echo ""
-  echo -e "${BLUE}Select release type:${NC}"
-  echo "  1) alpha   — pre-release for internal testing"
-  echo "  2) beta    — pre-release for public testing"
-  echo "  3) stable  — official production release"
+  echo "  Please select language / 请选择语言："
+  echo "    [1] English"
+  echo "    [2] 中文"
   echo ""
 
   local choice
   while true; do
-    printf "Enter choice [1-3]: "
+    printf "  Enter choice / 请输入选项 [1-2]: "
+    read -r choice
+    case "$choice" in
+      1) LANG="en"; break ;;
+      2) LANG="zh"; break ;;
+      *) echo -e "  ${YELLOW}Invalid / 无效${NC}" ;;
+    esac
+  done
+
+  # Save preference
+  mkdir -p "$(dirname "$LANG_FILE")"
+  echo "$LANG" > "$LANG_FILE"
+
+  if [ "$LANG" = "zh" ]; then
+    echo ""
+    echo -e "  ${GREEN}✓${NC} 语言已设置为中文 (保存在 ${LANG_FILE})"
+    echo -e "    下次运行将自动使用中文。可通过设置 RELEASE_LANG=en 覆盖。"
+  else
+    echo ""
+    echo -e "  ${GREEN}✓${NC} Language set to English (saved to ${LANG_FILE})"
+    echo -e "    Will auto-detect on next run. Override with RELEASE_LANG=zh."
+  fi
+  echo ""
+}
+
+# ─── Select release type / 选择发布类型 ────────────────────
+select_release_type() {
+  echo ""
+  echo -e "${BLUE}$(t select_release_type_title)${NC}"
+  echo "  1) $(t alpha_desc)"
+  echo "  2) $(t beta_desc)"
+  echo "  3) $(t stable_desc)"
+  echo ""
+
+  local choice
+  while true; do
+    printf "$(t enter_choice)"
     read -r choice
     case "$choice" in
       1) RELEASE_TYPE="alpha"; break ;;
       2) RELEASE_TYPE="beta"; break ;;
       3) RELEASE_TYPE="stable"; break ;;
-      *) warn "Invalid choice. Please enter 1, 2, or 3." ;;
+      *) warn "$(t invalid_choice)" ;;
     esac
   done
 
   echo ""
-  ok "Release type: ${YELLOW}${RELEASE_TYPE}${NC}"
+  ok "$(t release_type_label): ${YELLOW}${RELEASE_TYPE}${NC}"
 }
 
-# ─── Check prerequisites ───────────────────────────────────
+# ─── Check prerequisites / 检查前置条件 ────────────────────
 check_prereqs() {
   local missing=()
   for tool in jq docker git gh; do
@@ -86,22 +224,22 @@ check_prereqs() {
     fi
   done
   if [ ${#missing[@]} -gt 0 ]; then
-    err "Missing required tools: ${missing[*]}"
+    err "$(t missing_tools): ${missing[*]}"
     echo ""
-    echo "  Install gh (GitHub CLI): https://cli.github.com/"
-    echo "  Then authenticate: gh auth login"
+    echo "  $(t install_gh)"
+    echo "  $(t then_auth)"
     exit 1
   fi
 
   # Verify gh is authenticated
   if ! gh auth status &>/dev/null 2>&1; then
-    err "GitHub CLI (gh) is not authenticated."
-    echo "  Run: gh auth login"
+    err "$(t gh_not_auth)"
+    echo "  $(t run_gh_auth)"
     exit 1
   fi
 
   if [ ! -f "$PURECORE_JSON" ]; then
-    err "purecore.json not found at $PURECORE_JSON"
+    err "$(t purecore_json_not_found) $PURECORE_JSON"
     exit 1
   fi
 
@@ -109,31 +247,29 @@ check_prereqs() {
   local repo_url
   repo_url=$(jq -r '.repository.url // empty' "$PURECORE_JSON")
   if [ -z "$repo_url" ]; then
-    err "Could not find repository.url in purecore.json"
+    err "$(t no_repo_url)"
     exit 1
   fi
-  # Extract owner from GitHub URL: https://github.com/OWNER/REPO.git → OWNER
   GHCR_OWNER=$(echo "$repo_url" | sed -n 's|.*github\.com/\([^/]*\)/.*|\1|p')
   if [ -z "$GHCR_OWNER" ]; then
-    err "Could not parse GitHub owner from repository URL: $repo_url"
+    err "$(t no_parse_owner): $repo_url"
     exit 1
   fi
 
-  # Extract full repo name: https://github.com/OWNER/REPO.git → OWNER/REPO
   GITHUB_REPO=$(echo "$repo_url" | sed -n 's|.*github\.com/\([^/]*/[^/]*\)\.git|\1|p')
   if [ -z "$GITHUB_REPO" ]; then
-    err "Could not parse GitHub repository from URL: $repo_url"
+    err "$(t no_parse_repo): $repo_url"
     exit 1
   fi
 
   OWNER_LOWER="${GHCR_OWNER,,}"
 
-  log "GitHub repository: ${CYAN}${GITHUB_REPO}${NC}"
-  log "GHCR target: ${CYAN}ghcr.io/${OWNER_LOWER}/${GHCR_REPO}${NC}"
-  ok "Prerequisites check passed"
+  log "$(t github_repo_label): ${CYAN}${GITHUB_REPO}${NC}"
+  log "$(t ghcr_target_label): ${CYAN}ghcr.io/${OWNER_LOWER}/${GHCR_REPO}${NC}"
+  ok "$(t prereqs_passed)"
 }
 
-# ─── Bump version ──────────────────────────────────────────
+# ─── Bump version / 更新版本号 ─────────────────────────────
 bump_version() {
   local old_version new_version input_version
   local base_version pre_release_num
@@ -141,36 +277,29 @@ bump_version() {
   old_version=$(jq -r '.version // "0.0.0"' "$PURECORE_JSON")
 
   if [ -n "${1:-}" ]; then
-    # Non-interactive mode — use provided version
     base_version="$1"
   else
-    # Interactive mode
-    # Auto-increment patch version as default suggestion
     local suggested
     suggested=$(echo "$old_version" | awk -F. '{printf "%d.%d.%d", $1, $2, $3+1}')
 
     echo ""
-    log "Current version: ${YELLOW}$old_version${NC}"
-    printf "Enter new base version [%s]: " "$suggested"
+    log "$(t current_version): ${YELLOW}$old_version${NC}"
+    printf "$(t enter_base_version) [%s]: " "$suggested"
     read -r input_version
     base_version="${input_version:-$suggested}"
   fi
 
-  # Basic semver validation
   if ! echo "$base_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-    err "Invalid version format: $base_version (expected X.Y.Z)"
+    err "$(t invalid_version): $base_version ($(t expected_semver))"
     exit 1
   fi
 
-  # Build final version based on release type
   if [ "$RELEASE_TYPE" = "stable" ]; then
     new_version="$base_version"
   else
-    # For alpha/beta, ask for pre-release number
     if [ -n "${PRE_RELEASE_NUM:-}" ]; then
       pre_release_num="$PRE_RELEASE_NUM"
     else
-      # Try to auto-detect the next pre-release number from existing tags
       local existing_pre
       existing_pre=$(git tag -l "v${base_version}-${RELEASE_TYPE}.*" 2>/dev/null | sort -V | tail -1 | sed "s/.*${RELEASE_TYPE}\.//")
       local suggested_num
@@ -180,54 +309,50 @@ bump_version() {
       fi
 
       echo ""
-      log "Base version: ${YELLOW}$base_version${NC}"
-      log "Release type: ${YELLOW}$RELEASE_TYPE${NC}"
-      printf "Enter pre-release number [%d]: " "$suggested_num"
+      log "$(t base_version_label): ${YELLOW}$base_version${NC}"
+      log "$(t release_type_label): ${YELLOW}$RELEASE_TYPE${NC}"
+      printf "$(t enter_pre_release_num) [%d]: " "$suggested_num"
       read -r pre_release_num
       pre_release_num="${pre_release_num:-$suggested_num}"
     fi
 
-    # Validate pre-release number is a positive integer
     if ! echo "$pre_release_num" | grep -qE '^[1-9][0-9]*$'; then
-      err "Invalid pre-release number: $pre_release_num (expected positive integer)"
+      err "$(t invalid_pre_release): $pre_release_num ($(t expected_positive_int))"
       exit 1
     fi
 
     new_version="${base_version}-${RELEASE_TYPE}.${pre_release_num}"
   fi
 
-  # Also update release_type in purecore.json
   jq --arg v "$new_version" --arg rt "$RELEASE_TYPE" \
     '.version = $v | .release_type = $rt' \
     "$PURECORE_JSON" > "${PURECORE_JSON}.tmp" \
     && mv "${PURECORE_JSON}.tmp" "$PURECORE_JSON"
 
-  ok "Version bumped: $old_version → $new_version (type: $RELEASE_TYPE)"
+  ok "$(t version_bumped): $old_version → $new_version ($(t type): $RELEASE_TYPE)"
 
   NEW_VERSION="$new_version"
   TAG_NAME="v${new_version}"
 }
 
-# ─── Docker login to ghcr.io ───────────────────────────────
+# ─── Docker login to ghcr.io / Docker 登录 ghcr.io ────────
 docker_login() {
-  # Try CR_PAT (GitHub Personal Access Token) first
   if [ -n "${CR_PAT:-}" ]; then
-    log "Logging in to ghcr.io with CR_PAT..."
+    log "$(t logging_in_ghcr)"
     echo "$CR_PAT" | docker login ghcr.io -u "$GHCR_OWNER" --password-stdin 2>/dev/null
-    ok "Logged in to ghcr.io"
+    ok "$(t logged_in_ghcr)"
   elif docker pull ghcr.io/${OWNER_LOWER}/${GHCR_REPO}-backend:latest &>/dev/null 2>&1; then
-    # Pull succeeded — we are likely already logged in
-    ok "Already authenticated to ghcr.io"
+    ok "$(t already_auth_ghcr)"
   else
-    warn "Not logged in to ghcr.io. Please run:"
+    warn "$(t not_logged_in_ghcr)"
     echo "  export CR_PAT=ghp_xxxxxxxxxxxx"
     echo "  echo \$CR_PAT | docker login ghcr.io -u $GHCR_OWNER --password-stdin"
     echo ""
-    read -rp "Press Enter after logging in (or Ctrl+C to abort)... "
+    read -rp "$(t press_enter_after_login)"
   fi
 }
 
-# ─── Build and push Docker images ──────────────────────────
+# ─── Build and push Docker images / 构建推送 Docker 镜像 ───
 build_and_push() {
   local version="$1"
 
@@ -236,31 +361,26 @@ build_and_push() {
   local backend_latest="ghcr.io/${OWNER_LOWER}/${GHCR_REPO}-backend:latest"
   local frontend_latest="ghcr.io/${OWNER_LOWER}/${GHCR_REPO}-frontend:latest"
 
-  log "Building Docker images..."
+  log "$(t building_docker)"
   cd "$PROJECT_DIR"
 
-  # Build both images via docker-compose.dev.yml (local build), then tag for ghcr.io
   docker compose -f docker-compose.dev.yml build --pull
 
-  # Tag backend
   local backend_built="purecore-backend"
-  log "Tagging backend: $backend_image"
+  log "$(t tagging_backend): $backend_image"
   docker tag "${backend_built}:latest" "$backend_image"
 
-  # Tag frontend
   local frontend_built="purecore-frontend"
-  log "Tagging frontend: $frontend_image"
+  log "$(t tagging_frontend): $frontend_image"
   docker tag "${frontend_built}:latest" "$frontend_image"
 
-  # Only tag :latest for stable releases
   if [ "$RELEASE_TYPE" = "stable" ]; then
-    log "Tagging latest aliases (stable release)..."
+    log "$(t tagging_latest)"
     docker tag "${backend_built}:latest" "$backend_latest"
     docker tag "${frontend_built}:latest" "$frontend_latest"
   fi
 
-  # Push tagged images
-  log "Pushing images to ghcr.io..."
+  log "$(t pushing_to_ghcr)"
   echo "  → $backend_image"
   docker push "$backend_image"
   echo "  → $frontend_image"
@@ -273,85 +393,74 @@ build_and_push() {
     docker push "$frontend_latest"
   fi
 
-  ok "All images pushed to ghcr.io"
+  ok "$(t all_images_pushed)"
 }
 
-# ─── Git tag and push ──────────────────────────────────────
+# ─── Git tag and push / Git 标签与推送 ─────────────────────
 git_tag_and_push() {
   local version="$1"
   local tag_name="v${version}"
 
-  log "Creating Git tag: ${CYAN}${tag_name}${NC}"
+  log "$(t creating_git_tag): ${CYAN}${tag_name}${NC}"
 
   cd "$PROJECT_DIR"
 
-  # Commit purecore.json version bump
   if ! git diff --quiet purecore.json 2>/dev/null; then
-    local commit_msg="chore: bump version to ${version}"
+    local commit_msg="$(t commit_bump_msg) ${version}"
     if [ "$RELEASE_TYPE" != "stable" ]; then
-      commit_msg="chore: bump version to ${version} (${RELEASE_TYPE} release)"
+      commit_msg="$(t commit_bump_msg) ${version} (${RELEASE_TYPE} release)"
     fi
     git add purecore.json
     git commit -m "$commit_msg"
-    ok "Committed version bump"
+    ok "$(t committed_bump)"
   else
-    log "No changes to commit (version already up to date)"
+    log "$(t no_changes)"
   fi
 
-  # Create and push tag
   if git rev-parse "$tag_name" >/dev/null 2>&1; then
-    warn "Tag $tag_name already exists locally"
-    # Check if the tag is already on remote
+    warn "$(t tag_exists_locally): $tag_name"
     if git ls-remote --tags origin "$tag_name" | grep -q "$tag_name"; then
-      warn "Tag $tag_name already exists on remote, skipping tag creation"
+      warn "$(t tag_exists_remote)"
       TAG_EXISTS_REMOTE=true
       return
     fi
-    # Tag exists locally but not remotely — push it
-    log "Pushing existing local tag $tag_name to remote..."
+    log "$(t pushing_existing_tag)"
     git push origin "$tag_name"
-    ok "Pushed existing tag: $tag_name"
+    ok "$(t pushed_existing_tag): $tag_name"
     TAG_EXISTS_REMOTE=false
     return
   fi
 
-  local tag_msg="Release ${tag_name}"
+  local tag_msg="$(t release_tag_msg) ${tag_name}"
   if [ "$RELEASE_TYPE" != "stable" ]; then
-    tag_msg="Release ${tag_name} (${RELEASE_TYPE})"
+    tag_msg="$(t release_tag_msg) ${tag_name} (${RELEASE_TYPE})"
   fi
   git tag -a "$tag_name" -m "$tag_msg"
   ok "Created tag: $tag_name"
 
-  log "Pushing commits and tags to origin..."
+  log "$(t pushing_commits)"
   git push origin HEAD
   git push origin "$tag_name"
 
-  ok "Git tag pushed: $tag_name"
+  ok "$(t git_tag_pushed): $tag_name"
   TAG_EXISTS_REMOTE=false
 }
 
-# ─── Create GitHub Release ─────────────────────────────────
+# ─── Create GitHub Release / 创建 GitHub Release ───────────
 create_github_release() {
   local version="$1"
   local tag_name="v${version}"
   local is_pre_release="false"
 
-  if [ "$RELEASE_TYPE" != "stable" ]; then
-    is_pre_release="true"
-  fi
+  [ "$RELEASE_TYPE" != "stable" ] && is_pre_release="true"
 
-  log "Creating GitHub Release for ${CYAN}${tag_name}${NC}..."
+  log "$(t creating_gh_release) ${CYAN}${tag_name}${NC}..."
 
-  # Build release title
-  local release_title="PureCore v${version}"
-  if [ "$RELEASE_TYPE" = "alpha" ]; then
-    release_title="PureCore v${version} (Alpha)"
-  elif [ "$RELEASE_TYPE" = "beta" ]; then
-    release_title="PureCore v${version} (Beta)"
-  fi
+  local release_title="$(t release_title) v${version}"
+  [ "$RELEASE_TYPE" = "alpha" ] && release_title="$(t release_title) v${version} $(t alpha_title_suffix)"
+  [ "$RELEASE_TYPE" = "beta" ]  && release_title="$(t release_title) v${version} $(t beta_title_suffix)"
 
-  # Build release notes
-  local release_notes="## 🐳 Docker Images
+  local release_notes="## $(t docker_images_header)
 
 - \`ghcr.io/${OWNER_LOWER}/${GHCR_REPO}-backend:${version}\`
 - \`ghcr.io/${OWNER_LOWER}/${GHCR_REPO}-frontend:${version}\`
@@ -365,7 +474,7 @@ create_github_release() {
   fi
 
   release_notes+="
-## 🚀 Deploy
+## $(t deploy_header)
 
 \`\`\`bash
 export PURECORE_VERSION=${version}
@@ -374,7 +483,6 @@ docker compose up -d
 \`\`\`
 "
 
-  # Try to include changes since last tag
   local last_tag
   last_tag=$(git describe --tags --abbrev=0 "v${version}" 2>/dev/null || git describe --tags --abbrev=0 2>/dev/null || echo "")
   if [ -n "$last_tag" ] && [ "$last_tag" != "$tag_name" ]; then
@@ -382,14 +490,13 @@ docker compose up -d
     changelog=$(git log "${last_tag}..HEAD" --pretty=format:"- %s (%an)" 2>/dev/null || echo "")
     if [ -n "$changelog" ]; then
       release_notes+="
-## 📝 Changes since ${last_tag}
+## $(t changes_header) ${last_tag}
 
 ${changelog}
 "
     fi
   fi
 
-  # Create the GitHub Release using gh CLI
   local gh_args=(
     release create "$tag_name"
     --repo "$GITHUB_REPO"
@@ -397,32 +504,27 @@ ${changelog}
     --notes "$release_notes"
   )
 
-  if [ "$is_pre_release" = "true" ]; then
-    gh_args+=(--prerelease)
-  fi
+  [ "$is_pre_release" = "true" ] && gh_args+=(--prerelease)
 
-  # If tag was already pushed remotely, use it directly
   if [ "${TAG_EXISTS_REMOTE:-false}" = "true" ]; then
     gh_args+=(--notes-from-tag)
-    warn "Using existing remote tag — release notes will be from tag message"
+    warn "$(t using_existing_tag)"
   fi
 
   if gh "${gh_args[@]}" 2>&1; then
-    ok "GitHub Release created: ${CYAN}${release_title}${NC}"
-    if [ "$is_pre_release" = "true" ]; then
-      ok "Marked as pre-release"
-    fi
+    ok "$(t release_created): ${CYAN}${release_title}${NC}"
+    [ "$is_pre_release" = "true" ] && ok "$(t marked_prerelease)"
   else
-    err "Failed to create GitHub Release"
-    echo "  You can create it manually at:"
+    err "$(t failed_gh_release)"
+    echo "  $(t create_manually_at):"
     echo "  https://github.com/${GITHUB_REPO}/releases/new?tag=${tag_name}"
     echo ""
-    echo "  Or run:"
+    echo "  $(t or_run):"
     echo "  gh release create ${tag_name} --repo ${GITHUB_REPO} --title \"${release_title}\" --notes \"${release_notes}\" --prerelease"
   fi
 }
 
-# ─── Summary ───────────────────────────────────────────────
+# ─── Summary / 摘要 ────────────────────────────────────────
 print_summary() {
   local version="$1"
 
@@ -434,7 +536,7 @@ print_summary() {
   fi
   echo -e "${BLUE}============================================${NC}"
   echo ""
-  echo "  🐳 Docker Images:"
+  echo "  $(t docker_images_summary):"
   echo "    ghcr.io/${OWNER_LOWER}/${GHCR_REPO}-backend:${version}"
   echo "    ghcr.io/${OWNER_LOWER}/${GHCR_REPO}-frontend:${version}"
   if [ "$RELEASE_TYPE" = "stable" ]; then
@@ -442,49 +544,42 @@ print_summary() {
     echo "    ghcr.io/${OWNER_LOWER}/${GHCR_REPO}-frontend:latest"
   fi
   echo ""
-  echo "  🏷️  Git tag: v${version}"
+  echo "  $(t git_tag_summary): v${version}"
   echo ""
-  echo "  📦 GitHub Release:"
+  echo "  $(t github_release_summary):"
   echo "    https://github.com/${GITHUB_REPO}/releases/tag/v${version}"
   echo ""
-  echo "  🚀 Deploy on server:"
+  echo "  $(t deploy_summary):"
   echo "    export PURECORE_VERSION=${version}"
   echo "    docker compose pull"
   echo "    docker compose up -d"
   echo ""
 }
 
-# ─── Main ──────────────────────────────────────────────────
+# ─── Main / 主函数 ─────────────────────────────────────────
 main() {
+  detect_or_select_language
+
   check_prereqs
 
-  # Step 1: Select release type (skip in non-interactive mode if RELEASE_TYPE is set)
   if [ -z "${1:-}" ] && [ -z "${RELEASE_TYPE_OVERRIDE:-}" ]; then
     select_release_type
   else
     RELEASE_TYPE="${RELEASE_TYPE:-stable}"
-    log "Release type: ${YELLOW}${RELEASE_TYPE}${NC} (via env/override)"
+    log "$(t release_type_label): ${YELLOW}${RELEASE_TYPE}${NC} ($(t via_env))"
   fi
 
-  # Step 2: Bump version
   bump_version "${1:-}"
   local version="$NEW_VERSION"
 
-  # Step 3: Login to ghcr.io
   docker_login
 
-  # Step 4: Build and push Docker images
   build_and_push "$version"
 
-  # Step 5: Git tag and push
-  # (this triggers the GitHub Actions workflow in .github/workflows/docker-publish.yml,
-  #  but we've already pushed images manually, so the CI is a fallback safety net)
   git_tag_and_push "$version"
 
-  # Step 6: Create GitHub Release
   create_github_release "$version"
 
-  # Step 7: Summary
   print_summary "$version"
 }
 
