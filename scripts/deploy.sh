@@ -35,6 +35,9 @@ COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
 LANG="auto"          # auto / en / zh
 DOCKER_COMPOSE_CMD="" # will be set after detection
 DOCKER_INSTALLED=false
+GH_REPO="https://github.com/zhuchunshu/PureCore.git"
+# Essential deployment files for simple mode
+ESSENTIAL_FILES=("docker-compose.yml" ".env.example" ".dockerignore")
 
 # ─── Color palette (cyber / tech aesthetic) ────────────────
 C_RESET='\033[0m'
@@ -116,6 +119,43 @@ MSG_EN[deploy_aborted]="Deployment aborted."
 MSG_EN[compose_cmd_not_found]="Could not find docker compose or docker-compose command."
 MSG_EN[install_success]="Docker installed successfully! You may need to log out and back in."
 MSG_EN[press_enter_continue]="Press Enter to continue..."
+MSG_EN[select_mode]="Select Deployment Mode"
+MSG_EN[mode_expert]="Expert Mode (manual configuration)"
+MSG_EN[mode_beginner]="Beginner Mode (auto-configure everything)"
+MSG_EN[mode_expert_desc]="You will be prompted to configure ports, version, and review secrets manually."
+MSG_EN[mode_beginner_desc]="Everything will be auto-configured with secure defaults. No manual input needed."
+MSG_EN[beginner_auto_config]="Auto-configuring .env with secure defaults..."
+MSG_EN[beginner_config_done]=".env configured successfully."
+MSG_EN[beginner_generated]="Generated random value for"
+MSG_EN[beginner_skip_env]=".env already exists, skipping copy."
+MSG_EN[beginner_confirm]="Beginner mode will auto-generate database password and JWT secret. Continue? [Y/n]: "
+MSG_EN[beginner_port_config]="Quick Port Setup"
+MSG_EN[beginner_ask_frontend_port]="Frontend HTTP port"
+MSG_EN[beginner_ask_backend_port]="Backend API port"
+MSG_EN[beginner_ask_version]="Image version"
+MSG_EN[beginner_ask_theme]="DaisyUI theme"
+MSG_EN[beginner_ask_db_name]="Database name"
+MSG_EN[beginner_ask_db_user]="Database user"
+MSG_EN[beginner_summary]="Configuration Summary"
+MSG_EN[beginner_confirm_config]="Proceed with this configuration? [Y/n]: "
+MSG_EN[beginner_cancelled]="Configuration cancelled."
+MSG_EN[clone_missing_title]="Project Not Found"
+MSG_EN[clone_missing_desc]="This directory does not contain the PureCore project files."
+MSG_EN[clone_missing_action]="You can clone the project now."
+MSG_EN[clone_select_mode]="Clone Mode"
+MSG_EN[clone_simple]="Simple Mode (essential files only)"
+MSG_EN[clone_full]="Full Mode (complete project)"
+MSG_EN[clone_simple_desc]="Only download files needed for deployment (docker-compose.yml, .env.example, .dockerignore). Smaller download."
+MSG_EN[clone_full_desc]="Clone the entire project including source code, docs, and development files."
+MSG_EN[clone_ask_repo]="Repository URL"
+MSG_EN[clone_ask_dir]="Directory to clone into"
+MSG_EN[clone_starting]="Cloning PureCore project..."
+MSG_EN[clone_success]="Project cloned successfully."
+MSG_EN[clone_failed]="Clone failed. Please check your network and try again."
+MSG_EN[clone_dir_exists]="Directory already exists. Use it? [Y/n]: "
+MSG_EN[clone_using_existing]="Using existing directory."
+MSG_EN[clone_enter_dir]="Project ready at %s. The deploy script will now continue from that directory."
+MSG_EN[clone_relaunch]="Re-launching deploy script from %s..."
 
 # --- 中文 ---
 MSG_ZH[title]="PureCore 部署工具"
@@ -178,6 +218,43 @@ MSG_ZH[deploy_aborted]="部署已取消。"
 MSG_ZH[compose_cmd_not_found]="无法找到 docker compose 或 docker-compose 命令。"
 MSG_ZH[install_success]="Docker 安装成功！你可能需要重新登录终端使其生效。"
 MSG_ZH[press_enter_continue]="按 Enter 继续..."
+MSG_ZH[select_mode]="选择部署模式"
+MSG_ZH[mode_expert]="高手模式（手动配置）"
+MSG_ZH[mode_beginner]="新手模式（全自动配置）"
+MSG_ZH[mode_expert_desc]="你将手动配置端口、版本并检查密钥。"
+MSG_ZH[mode_beginner_desc]="一切将使用安全默认值自动配置，无需手动输入。"
+MSG_ZH[beginner_auto_config]="正在使用安全默认值自动配置 .env..."
+MSG_ZH[beginner_config_done]=".env 配置完成。"
+MSG_ZH[beginner_generated]="已为以下项生成随机值："
+MSG_ZH[beginner_skip_env]=".env 已存在，跳过复制。"
+MSG_ZH[beginner_confirm]="新手模式将自动生成数据库密码和 JWT 密钥。是否继续？[Y/n]: "
+MSG_ZH[beginner_port_config]="快速端口设置"
+MSG_ZH[beginner_ask_frontend_port]="前端 HTTP 端口"
+MSG_ZH[beginner_ask_backend_port]="后端 API 端口"
+MSG_ZH[beginner_ask_version]="镜像版本"
+MSG_ZH[beginner_ask_theme]="DaisyUI 主题"
+MSG_ZH[beginner_ask_db_name]="数据库名称"
+MSG_ZH[beginner_ask_db_user]="数据库用户"
+MSG_ZH[beginner_summary]="配置摘要"
+MSG_ZH[beginner_confirm_config]="确认以上配置并继续？[Y/n]: "
+MSG_ZH[beginner_cancelled]="配置已取消。"
+MSG_ZH[clone_missing_title]="未找到项目文件"
+MSG_ZH[clone_missing_desc]="当前目录不包含 PureCore 项目文件。"
+MSG_ZH[clone_missing_action]="你可以现在克隆该项目。"
+MSG_ZH[clone_select_mode]="克隆模式"
+MSG_ZH[clone_simple]="简易模式（仅必要文件）"
+MSG_ZH[clone_full]="完整模式（全部项目）"
+MSG_ZH[clone_simple_desc]="仅下载部署所需的文件（docker-compose.yml、.env.example、.dockerignore）。体积更小。"
+MSG_ZH[clone_full_desc]="克隆完整项目，包括源代码、文档和开发文件。"
+MSG_ZH[clone_ask_repo]="仓库地址"
+MSG_ZH[clone_ask_dir]="克隆目标目录"
+MSG_ZH[clone_starting]="正在克隆 PureCore 项目..."
+MSG_ZH[clone_success]="项目克隆成功。"
+MSG_ZH[clone_failed]="克隆失败，请检查网络后重试。"
+MSG_ZH[clone_dir_exists]="目录已存在，使用已有目录？[Y/n]: "
+MSG_ZH[clone_using_existing]="使用已有目录。"
+MSG_ZH[clone_enter_dir]="项目已就绪，路径：%s。部署脚本将从该目录继续。"
+MSG_ZH[clone_relaunch]="正在从 %s 重新启动部署脚本..."
 
 # ─── Helper: translate ─────────────────────────────────────
 t() {
@@ -255,6 +332,155 @@ select_language() {
   done
   echo ""
   ok_msg "$(t lang_selected)"
+}
+
+# ─── Select deployment mode (expert vs beginner) ────────────
+select_mode() {
+  echo ""
+  echo -e "  ${C_CYAN}┌─ $(t select_mode) ────────────────────────────┐${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}   1) ${C_BRIGHT_CYAN}$(t mode_expert)${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}      ${C_DIM}$(t mode_expert_desc)${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}   2) ${C_BRIGHT_GREEN}$(t mode_beginner)${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}      ${C_DIM}$(t mode_beginner_desc)${C_RESET}"
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+
+  local choice
+  while true; do
+    printf "  Enter choice [1-2]: "
+    read -r choice
+    case "$choice" in
+      1) DEPLOY_MODE="expert"; break ;;
+      2) DEPLOY_MODE="beginner"; break ;;
+      *) echo -e "  ${C_YELLOW}⚠${C_RESET} Invalid choice. Please enter 1 or 2." ;;
+    esac
+  done
+  echo ""
+}
+
+# ─── Beginner mode: interactive quick-configure .env ────────
+beginner_auto_configure() {
+  step_banner "$(t step_config)"
+
+  cd "$PROJECT_DIR"
+
+  # Ensure .env exists
+  if [ ! -f .env ]; then
+    if [ -f .env.example ]; then
+      cp .env.example .env
+      ok_msg "$(t env_created)"
+    else
+      err_msg ".env.example not found. Cannot proceed."
+      exit 1
+    fi
+  else
+    info_msg "$(t beginner_skip_env)"
+  fi
+
+  local input
+
+  # --- 1. Quick Port Setup ---
+  echo ""
+  echo -e "  ${C_CYAN}┌─ $(t beginner_port_config) ───────────────────────┐${C_RESET}"
+  printf "  ${C_CYAN}│${C_RESET} $(t beginner_ask_frontend_port) [${C_BRIGHT_GREEN}9001${C_RESET}]: "
+  read -r input
+  B_FRONTEND_PORT="${input:-9001}"
+
+  printf "  ${C_CYAN}│${C_RESET} $(t beginner_ask_backend_port) [${C_BRIGHT_GREEN}9002${C_RESET}]: "
+  read -r input
+  B_BACKEND_PORT="${input:-9002}"
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+  ok_msg "$(printf "$(t port_sync_fixed)" "$B_BACKEND_PORT")"
+
+  # --- 2. Version ---
+  echo ""
+  echo -e "  ${C_CYAN}┌─ $(t version_config) ──────────────────────────┐${C_RESET}"
+  printf "  ${C_CYAN}│${C_RESET} $(t beginner_ask_version) [${C_BRIGHT_GREEN}latest${C_RESET}]: "
+  read -r input
+  B_PURECORE_VERSION="${input:-latest}"
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+
+  # --- 3. Theme ---
+  echo ""
+  echo -e "  ${C_CYAN}┌─ $(t beginner_ask_theme) ──────────────────────────┐${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET} ${C_DIM}Available: light, dark, cupcake, bumblebee, emerald,${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET} ${C_DIM}corporate, synthwave, retro, cyberpunk, valentine,${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET} ${C_DIM}halloween, garden, forest, aqua, lofi, pastel,${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET} ${C_DIM}fantasy, wireframe, black, luxury, dracula, cmyk,${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET} ${C_DIM}autumn, business, acid, lemonade, night, coffee,${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET} ${C_DIM}winter, dim, nord, sunset${C_RESET}"
+  printf "  ${C_CYAN}│${C_RESET} Theme [${C_BRIGHT_GREEN}sunset${C_RESET}]: "
+  read -r input
+  B_THEME="${input:-sunset}"
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+
+  # --- 4. Database Name & User ---
+  echo ""
+  echo -e "  ${C_CYAN}┌─ Database ───────────────────────────────┐${C_RESET}"
+  printf "  ${C_CYAN}│${C_RESET} $(t beginner_ask_db_name) [${C_BRIGHT_GREEN}purecore${C_RESET}]: "
+  read -r input
+  B_DB_NAME="${input:-purecore}"
+
+  printf "  ${C_CYAN}│${C_RESET} $(t beginner_ask_db_user) [${C_BRIGHT_GREEN}postgres${C_RESET}]: "
+  read -r input
+  B_DB_USER="${input:-postgres}"
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+
+  # --- Generate secrets automatically ---
+  B_DB_PASSWORD=$(openssl rand -hex 32 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+  B_JWT_SECRET=$(openssl rand -hex 48 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 48 | head -n 1)
+
+  # --- Summary & Confirmation ---
+  echo ""
+  echo -e "  ${C_BRIGHT_GREEN}┌─ $(t beginner_summary) ─────────────────────────────┐${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}│${C_RESET}  ${C_BOLD}FRONTEND_PORT${C_RESET}      = ${C_BRIGHT_CYAN}$B_FRONTEND_PORT${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}│${C_RESET}  ${C_BOLD}BACKEND_PORT${C_RESET}       = ${C_BRIGHT_CYAN}$B_BACKEND_PORT${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}│${C_RESET}  ${C_BOLD}PURECORE_VERSION${C_RESET}    = ${C_BRIGHT_CYAN}$B_PURECORE_VERSION${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}│${C_RESET}  ${C_BOLD}THEME${C_RESET}              = ${C_MAGENTA}$B_THEME${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}│${C_RESET}  ${C_BOLD}DB_NAME${C_RESET}            = ${C_CYAN}$B_DB_NAME${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}│${C_RESET}  ${C_BOLD}DB_USER${C_RESET}            = ${C_CYAN}$B_DB_USER${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}│${C_RESET}  ${C_BOLD}DB_PASSWORD${C_RESET}        = ${C_GREEN}(auto-generated, 64 hex chars)${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}│${C_RESET}  ${C_BOLD}JWT_SECRET${C_RESET}         = ${C_GREEN}(auto-generated, 96 hex chars)${C_RESET}"
+  echo -e "  ${C_BRIGHT_GREEN}└────────────────────────────────────────────┘${C_RESET}"
+
+  echo ""
+  read -rp "  $(t beginner_confirm_config)" confirm
+  if [ "${confirm,,}" != "y" ] && [ "${confirm,,}" != "yes" ] && [ -n "$confirm" ]; then
+    echo ""
+    warn_msg "$(t beginner_cancelled)"
+    exit 0
+  fi
+
+  # --- Write to .env ---
+  update_env_var "FRONTEND_PORT" "$B_FRONTEND_PORT"
+  update_env_var "BACKEND_PORT" "$B_BACKEND_PORT"
+  update_env_var "VITE_API_PORT" "$B_BACKEND_PORT"
+  update_env_var "VITE_API_PROTOCOL" "http"
+  update_env_var "VITE_API_HOST" "localhost"
+  update_env_var "DB_HOST" "localhost"
+  update_env_var "DB_USER" "$B_DB_USER"
+  update_env_var "DB_PASSWORD" "$B_DB_PASSWORD"
+  update_env_var "DB_NAME" "$B_DB_NAME"
+  update_env_var "DB_SSLMODE" "disable"
+  update_env_var "APP_ENV" "local"
+  update_env_var "APP_DEBUG" "false"
+  update_env_var "THEME" "$B_THEME"
+  update_env_var "VITE_THEME" "$B_THEME"
+  update_env_var "ADMIN_ROUTE_PREFIX" "control-panel"
+  update_env_var "VITE_ADMIN_ROUTE_PREFIX" "control-panel"
+  update_env_var "JWT_SECRET" "$B_JWT_SECRET"
+  update_env_var "PURECORE_VERSION" "$B_PURECORE_VERSION"
+
+  # Export for subsequent steps
+  export FRONTEND_PORT="$B_FRONTEND_PORT"
+  export BACKEND_PORT="$B_BACKEND_PORT"
+  export VITE_API_PORT="$B_BACKEND_PORT"
+  export DB_PASSWORD="$B_DB_PASSWORD"
+  export JWT_SECRET="$B_JWT_SECRET"
+  export PURECORE_VERSION="$B_PURECORE_VERSION"
+
+  ok_msg "$(t beginner_config_done)"
+  echo ""
 }
 
 # ─── Detect language from system locale ─────────────────────
@@ -700,6 +926,168 @@ show_status() {
   echo ""
 }
 
+# ─── Check if project files exist ──────────────────────────
+check_project_files() {
+  # Check for essential deployment files
+  local missing=false
+  if [ ! -f "$PROJECT_DIR/.env.example" ] && [ ! -f "$PROJECT_DIR/docker-compose.yml" ]; then
+    missing=true
+  fi
+  if [ "$missing" = true ]; then
+    return 1
+  fi
+  return 0
+}
+
+# ─── Select clone mode and configure clone params ───────────
+clone_select_mode() {
+  echo ""
+  echo -e "  ${C_YELLOW}┌─ $(t clone_missing_title) ────────────────────────────┐${C_RESET}"
+  echo -e "  ${C_YELLOW}│${C_RESET}  ${C_BOLD}$(t clone_missing_desc)${C_RESET}"
+  echo -e "  ${C_YELLOW}│${C_RESET}  $(t clone_missing_action)"
+  echo -e "  ${C_YELLOW}└────────────────────────────────────────────┘${C_RESET}"
+  echo ""
+
+  # Ask for repository URL
+  echo -e "  ${C_CYAN}┌─ $(t clone_ask_repo) ──────────────────────────┐${C_RESET}"
+  printf "  ${C_CYAN}│${C_RESET} URL [${C_BRIGHT_GREEN}${GH_REPO}${C_RESET}]: "
+  local repo_input
+  read -r repo_input
+  if [ -n "$repo_input" ]; then
+    GH_REPO="$repo_input"
+  fi
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+  echo ""
+
+  # Select simple vs full clone
+  echo -e "  ${C_CYAN}┌─ $(t clone_select_mode) ────────────────────────────┐${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}   1) ${C_BRIGHT_GREEN}$(t clone_simple)${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}      ${C_DIM}$(t clone_simple_desc)${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}   2) ${C_BRIGHT_CYAN}$(t clone_full)${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET}      ${C_DIM}$(t clone_full_desc)${C_RESET}"
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+
+  local choice
+  while true; do
+    printf "  Enter choice [1-2]: "
+    read -r choice
+    case "$choice" in
+      1) CLONE_MODE="simple"; break ;;
+      2) CLONE_MODE="full"; break ;;
+      *) echo -e "  ${C_YELLOW}⚠${C_RESET} Invalid choice. Please enter 1 or 2." ;;
+    esac
+  done
+  echo ""
+
+  # Ask for target directory
+  echo -e "  ${C_CYAN}┌─ $(t clone_ask_dir) ──────────────────────────┐${C_RESET}"
+  printf "  ${C_CYAN}│${C_RESET} Directory [${C_BRIGHT_GREEN}.${C_RESET}]: "
+  read -r CLONE_TARGET_DIR
+  CLONE_TARGET_DIR="${CLONE_TARGET_DIR:-.}"
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+  echo ""
+}
+
+# ─── Clone project ─────────────────────────────────────────
+clone_project() {
+  step_banner "$(t clone_starting)"
+
+  local target_dir="$CLONE_TARGET_DIR"
+  # Resolve absolute path for target
+  if [ "$target_dir" = "." ]; then
+    target_dir="$PWD"
+  fi
+  local target_abs
+  if [[ "$target_dir" == /* ]]; then
+    target_abs="$target_dir"
+  else
+    target_abs="$PWD/$target_dir"
+  fi
+
+  local dir_name
+  dir_name="$(basename "$target_abs")"
+
+  # Check if directory already exists
+  if [ -d "$target_abs" ]; then
+    read -rp "  $(t clone_dir_exists)" answer
+    if [ "${answer,,}" != "y" ] && [ "${answer,,}" != "yes" ] && [ -n "$answer" ]; then
+      printf "  New directory: "
+      read -r target_dir
+      if [ -z "$target_dir" ]; then
+        err_msg "No directory specified. Aborting."
+        exit 1
+      fi
+      if [[ "$target_dir" == /* ]]; then
+        target_abs="$target_dir"
+      else
+        target_abs="$PWD/$target_dir"
+      fi
+      dir_name="$(basename "$target_abs")"
+      if [ -d "$target_abs" ]; then
+        info_msg "$(t clone_using_existing)"
+      else
+        mkdir -p "$target_abs" 2>/dev/null || true
+      fi
+    else
+      info_msg "$(t clone_using_existing)"
+    fi
+  fi
+
+  local parent_dir
+  parent_dir="$(dirname "$target_abs")"
+  mkdir -p "$parent_dir" 2>/dev/null || true
+  cd "$parent_dir"
+
+  info_msg "$(printf "$(t clone_ask_dir)"): $target_abs"
+
+  if [ "$CLONE_MODE" = "simple" ]; then
+    info_msg "Simple mode: cloning with --depth 1..."
+    if ! git clone --depth 1 "$GH_REPO" "$dir_name" 2>&1; then
+      err_msg "$(t clone_failed)"
+      exit 1
+    fi
+    cd "$dir_name"
+    info_msg "Keeping only essential deployment files..."
+    find . -maxdepth 1 ! -name '.' ! -name '..' \
+      ! -name 'docker-compose.yml' \
+      ! -name '.env.example' \
+      ! -name '.dockerignore' \
+      ! -name '.git' \
+      ! -name 'scripts' \
+      -exec rm -rf {} \; 2>/dev/null || true
+    if [ -d "scripts" ]; then
+      find scripts -type f ! -name 'deploy.sh' -delete 2>/dev/null || true
+    fi
+    ok_msg "Simple clone complete (essential files only)."
+  else
+    info_msg "Full mode: cloning complete repository..."
+    if ! git clone "$GH_REPO" "$dir_name" 2>&1; then
+      err_msg "$(t clone_failed)"
+      exit 1
+    fi
+    ok_msg "$(t clone_success)"
+  fi
+
+  PROJECT_DIR="$target_abs"
+  ENV_FILE="$PROJECT_DIR/.env"
+  ENV_EXAMPLE="$PROJECT_DIR/.env.example"
+  COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
+
+  # Relaunch deploy script from the cloned project if different from source
+  if [ "$PROJECT_DIR" != "$(dirname "$SCRIPT_DIR")" ]; then
+    ok_msg "$(printf "$(t clone_enter_dir)" "$PROJECT_DIR")"
+    echo ""
+    if [ -f "$PROJECT_DIR/scripts/deploy.sh" ]; then
+      info_msg "$(printf "$(t clone_relaunch)" "$PROJECT_DIR/scripts/deploy.sh")"
+      cd "$PROJECT_DIR"
+      exec bash "$PROJECT_DIR/scripts/deploy.sh" --lang "$LANG"
+    fi
+    cd "$PROJECT_DIR"
+    echo ""
+  fi
+}
+
 # ─── Main ───────────────────────────────────────────────────
 main() {
   parse_args "$@"
@@ -723,9 +1111,20 @@ main() {
       show_status
       ;;
     *)
+      # Detect if project files exist; if not, offer clone
+      if ! check_project_files; then
+        clone_select_mode
+        clone_project
+        header
+      fi
       # Full deployment flow
       ensure_docker
-      configure_env
+      select_mode
+      if [ "$DEPLOY_MODE" = "beginner" ]; then
+        beginner_auto_configure
+      else
+        configure_env
+      fi
       docker_login
       pull_images
       start_services
