@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -174,15 +175,17 @@ func (d themeDelegate) Render(w io.Writer, m list.Model, index int, item list.It
 // ─── Update Model (version selector) ──────────────────────
 
 type updateModel struct {
-	list       list.Model
-	versions   []string
-	loading    bool
-	loadErr    string
-	done       bool
-	message    string
-	msgIsError bool
-	manual     bool
-	input      textinput.Model
+	list            list.Model
+	versions        []string
+	loading         bool
+	loadErr         string
+	done            bool
+	message         string
+	msgIsError      bool
+	manual          bool
+	input           textinput.Model
+	selectedVersion string
+	spinner         int
 }
 
 func newUpdateModel() *updateModel {
@@ -277,6 +280,8 @@ func (m *MainModel) Init() tea.Cmd {
 
 type versionsLoadedMsg []string
 type versionsLoadErrMsg struct{ err error }
+type tickMsg struct{}
+
 type updateDoneMsg struct {
 	err     error
 	version string
@@ -291,6 +296,12 @@ func loadVersionsCmd() tea.Msg {
 		return versionsLoadErrMsg{err}
 	}
 	return versionsLoadedMsg(versions)
+}
+
+func tickCmd() tea.Cmd {
+	return tea.Every(100, func(t time.Time) tea.Msg {
+		return tickMsg{}
+	})
 }
 
 func doUpdateCmd(composeFile, version string) tea.Cmd {
@@ -546,11 +557,25 @@ func (m *MainModel) updateTheme(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *MainModel) updateVersionSelector(msg tea.Msg) (tea.Model, tea.Cmd) {
 	um := m.updateModel
 	if um.done {
-		if _, ok := msg.(tea.KeyMsg); ok {
+		switch msg := msg.(type) {
+		case tickMsg:
+			um.spinner = (um.spinner + 1) % 10
+			return m, tickCmd()
+		case updateDoneMsg:
+			if msg.err != nil {
+				m.message = fmt.Sprintf("%s: %v", T("update_failed"), msg.err)
+				m.msgIsError = true
+			} else {
+				m.message = fmt.Sprintf(T("update_done"), msg.version)
+				m.msgIsError = false
+			}
+			m.screen = screenMessage
+			return m, nil
+		case tea.KeyMsg:
 			m.screen = screenMain
 			return m, nil
 		}
-		return m, nil
+		return m, tickCmd()
 	}
 
 	if um.manual {
@@ -565,8 +590,9 @@ func (m *MainModel) updateVersionSelector(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if ver == "" {
 					ver = "latest"
 				}
+				um.selectedVersion = ver
 				um.done = true
-				return m, doUpdateCmd(m.composeFile, ver)
+				return m, tea.Batch(doUpdateCmd(m.composeFile, ver), tickCmd())
 			}
 		}
 		var cmd tea.Cmd
@@ -604,20 +630,11 @@ func (m *MainModel) updateVersionSelector(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, textinput.Blink
 				}
 				ver := item.name
+				um.selectedVersion = ver
 				um.done = true
-				return m, doUpdateCmd(m.composeFile, ver)
+				return m, tea.Batch(doUpdateCmd(m.composeFile, ver), tickCmd())
 			}
 		}
-	case updateDoneMsg:
-		if msg.err != nil {
-			m.message = fmt.Sprintf("%s: %v", T("update_failed"), msg.err)
-			m.msgIsError = true
-		} else {
-			m.message = fmt.Sprintf(T("update_done"), msg.version)
-			m.msgIsError = false
-		}
-		m.screen = screenMessage
-		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -837,7 +854,9 @@ func (m *MainModel) viewTheme() string {
 func (m *MainModel) viewVersionSelector() string {
 	um := m.updateModel
 	if um.done {
-		return m.header() + "\n\n" + infoStyle.Render(T("updating")) + "\n\n" + helpStyle.Render("Please wait...")
+		spinnerChars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+		msg := fmt.Sprintf(T("updating"), um.selectedVersion)
+		return m.header() + "\n\n" + infoStyle.Render(spinnerChars[um.spinner]+" "+msg) + "\n\n" + helpStyle.Render("Please wait...")
 	}
 
 	if um.manual {
