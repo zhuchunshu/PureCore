@@ -28,8 +28,6 @@
 PIPE_MODE=false
 if [[ ! -t 0 ]] || [[ "${0##*/}" == "bash" ]] || [[ "$0" == "/dev/stdin" ]] || [[ "$0" == /dev/fd/* ]]; then
   PIPE_MODE=true
-  # Reopen stdin from /dev/tty so read prompts work
-  exec </dev/tty 2>/dev/null || true
 fi
 
 set -euo pipefail
@@ -1104,6 +1102,13 @@ clone_project() {
 
 # ─── Main ───────────────────────────────────────────────────
 main() {
+  # Reconnect stdin to terminal if running in pipe mode
+  # Must be done here (not at top of script) because bash needs to finish
+  # reading the entire script from the pipe before we can safely redirect.
+  if [ "$PIPE_MODE" = true ]; then
+    exec </dev/tty 2>/dev/null || true
+  fi
+
   parse_args "$@"
   detect_lang
 
