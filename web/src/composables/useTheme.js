@@ -28,16 +28,9 @@ function __getCookie(name) {
 function __loadInitialTheme() {
   if (isServer) return configTheme
   
-  // Priority: SSR cookie > localStorage > config default
-  // SSR cookie stores the resolved theme name set by server.js (e.g., 'sunset', 'light', 'dark')
-  // This prevents flicker when user previously selected a different mode
-  const ssrCookie = __getCookie(COOKIE_KEY)
-  if (ssrCookie) {
-    // Clear any stale localStorage that might conflict with SSR
-    localStorage.removeItem(STORAGE_KEY)
-    return ssrCookie
-  }
-  
+  // Priority: localStorage (explicit user choice) > config default (env var)
+  // Cookie is NOT used here — the SSR server reads env vars directly for the default theme.
+  // This allows VITE_THEME changes to take effect immediately without stale cookie interference.
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved) return saved
   return configTheme

@@ -132,8 +132,8 @@ try {
   console.warn('Could not load project info from purecore.json:', err.message)
 }
 
-// Load theme configuration: process.env.THEME > theme.config.json > 'sunset'
-let configThemeName = process.env.THEME || process.env.VITE_THEME
+// Load theme configuration: process.env.VITE_THEME > process.env.THEME > theme.config.json > 'sunset'
+let configThemeName = process.env.VITE_THEME || process.env.THEME
 if (!configThemeName) {
   try {
     const themeConfigPath = join(__dirname, 'theme.config.json')
@@ -147,15 +147,11 @@ if (!configThemeName) {
 }
 if (!configThemeName) configThemeName = 'sunset'
 
-// Read theme cookie from request, fallback to config default
-function detectTheme(req) {
-  const getCookie = (name) => {
-    const cookieHeader = req.headers['cookie'] || ''
-    const match = cookieHeader.match(new RegExp(`(?:^|; )${name}=([^;]*)`))
-    return match ? decodeURIComponent(match[1]) : null
-  }
-  const cookieTheme = getCookie('purecore-theme')
-  return cookieTheme || configThemeName
+// SSR always uses the config default theme (from VITE_THEME / THEME env var).
+// User's manual theme choice is stored in localStorage and applied on client hydration.
+// Not reading the cookie prevents stale theme values from overriding env var changes.
+function detectTheme() {
+  return configThemeName
 }
 
 const mimeMap = {

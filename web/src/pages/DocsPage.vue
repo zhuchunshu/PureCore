@@ -182,14 +182,14 @@ const currentPageTitle = computed(() => {
       <!-- Mobile sidebar overlay -->
       <div
         v-if="mobileSidebarOpen"
-        class="fixed inset-0 z-20 bg-black/50 lg:hidden"
+        class="fixed inset-0 z-30 bg-black/50 lg:hidden"
         @click="mobileSidebarOpen = false"
       ></div>
 
       <!-- Sidebar -->
       <aside
         :class="[
-          'fixed lg:sticky top-0 lg:top-16 z-20 h-screen lg:h-[calc(100vh-4rem)] overflow-y-auto border-r transition-all duration-300 flex-shrink-0',
+          'fixed lg:sticky top-0 lg:top-16 z-40 h-screen lg:h-[calc(100vh-4rem)] overflow-y-auto border-r transition-all duration-300 flex-shrink-0',
           'bg-base-100 border-base-300/30',
           mobileSidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full lg:translate-x-0 lg:w-64'
         ]"
