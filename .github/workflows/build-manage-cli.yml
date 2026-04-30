@@ -1,0 +1,152 @@
+name: Build Manage CLI
+
+# ============================================================
+# PureCore — Build Manage CLI Binaries
+#
+# Triggers:
+#   - Push of a version tag (e.g., v1.0.0, v1.0.1-alpha.1)
+#   - GitHub Release published
+#   - Manual dispatch (workflow_dispatch)
+#
+# Builds the `purecore manage` TUI binary for multiple
+# platforms and architectures, then attaches them to the
+# release as downloadable assets.
+#
+# Output binaries:
+#   purecore-manage-<os>-<arch>[.exe]
+#   Packaged as .tar.gz (Linux/macOS) or .zip (Windows)
+# ============================================================
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  release:
+    types: [published]
+  workflow_dispatch:
+
+env:
+  # ghcr.io requires lowercase owner — same pattern as docker-publish.yml
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+
+    steps:
+      # ─── Checkout ───────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ─── Setup Go ───────────────────────────────────
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      # ─── Extract version ────────────────────────────
+      - name: Extract version from tag or release
+        id: version
+        run: |
+          # Priority: 1) git tag, 2) release tag_name
+          VERSION=""
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"
+          fi
+
+          # Fallback to commit sha if no version found
+          if [ -z "$VERSION" ]; then
+            VERSION="${GITHUB_SHA::7}"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+      # ─── Lowercase owner ────────────────────────────
+      - name: Prepare registry variables
+        id: registry
+        run: |
+          OWNER_LOWER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          echo "owner=$OWNER_LOWER" >> "$GITHUB_OUTPUT"
+
+      # ─── Build ──────────────────────────────────────
+      - name: Build binary for ${{ matrix.goos }}/${{ matrix.goarch }}
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          EXT=""
+          if [ "$GOOS" = "windows" ]; then
+            EXT=".exe"
+          fi
+          mkdir -p dist
+          go build -ldflags="-s -w -X 'purecore/manage.Version=${{ steps.version.outputs.version }}'" \
+            -o "dist/purecore-manage-${GOOS}-${GOARCH}${EXT}" .
+
+      # ─── Upload artifact ────────────────────────────
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: purecore-manage-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/
+
+  # ─── Attach binaries to GitHub Release ──────────────
+  release-attach:
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+
+    steps:
+      # ─── Download all artifacts ─────────────────────
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/
+          merge-multiple: true
+
+      # ─── Create archives ────────────────────────────
+      - name: Create archives
+        run: |
+          cd dist
+          for f in purecore-manage-*; do
+            if [ -f "$f" ]; then
+              base="${f%.exe}"
+              base="${base%.exe}"
+              if echo "$f" | grep -q "windows"; then
+                zip "${base}.zip" "$f"
+                rm "$f"
+              else
+                tar czf "${base}.tar.gz" "$f"
+                rm "$f"
+              fi
+            fi
+          done
+          ls -la
+
+      # ─── Upload to release ──────────────────────────
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ─── Summary ───────────────────────────────────
+      - name: Print summary
+        run: |
+          echo "✅ Published manage CLI binaries:"
+          cd dist && ls -1 | while read f; do
+            echo "  $f"
+          done

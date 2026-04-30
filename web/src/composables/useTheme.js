@@ -28,11 +28,17 @@ function __getCookie(name) {
 function __loadInitialTheme() {
   if (isServer) return configTheme
   
-  // Priority: localStorage (explicit user choice) > config default (env var)
-  // Cookie is NOT used here — the SSR server reads env vars directly for the default theme.
-  // This allows VITE_THEME changes to take effect immediately without stale cookie interference.
+  // Priority: localStorage (explicit user choice) > SSR data-theme (runtime env var) > config default (build-time .env)
+  // The SSR server reads runtime env vars (VITE_THEME / THEME) and sets <html data-theme="...">.
+  // Reading it here allows Docker runtime env var changes to take effect immediately,
+  // without requiring a rebuild of the client JS bundle.
   const saved = localStorage.getItem(STORAGE_KEY)
   if (saved) return saved
+  
+  // Read the theme that SSR rendered on the <html> element (from runtime env vars)
+  const ssrTheme = document.documentElement.getAttribute('data-theme')
+  if (ssrTheme) return ssrTheme
+  
   return configTheme
 }
 
