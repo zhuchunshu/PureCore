@@ -155,6 +155,14 @@ t_docker_images_summary() { case "${LANG:-en}" in zh) echo "🐳 Docker 镜像" 
 t_git_tag_summary() { case "${LANG:-en}" in zh) echo "🏷️  Git 标签" ;; *) echo "🏷️  Git tag" ;; esac; }
 t_github_release_summary() { case "${LANG:-en}" in zh) echo "📦 GitHub Release" ;; *) echo "📦 GitHub Release" ;; esac; }
 t_deploy_summary() { case "${LANG:-en}" in zh) echo "🚀 在服务器上部署" ;; *) echo "🚀 Deploy on server" ;; esac; }
+t_select_build_method_title() { case "${LANG:-en}" in zh) echo "选择 Docker 镜像构建方式:" ;; *) echo "Select Docker image build method:" ;; esac; }
+t_build_local_desc() { case "${LANG:-en}" in zh) echo "本地构建 — 在此机器上构建并推送镜像 (需要 docker 登录)" ;; *) echo "local  — Build and push images from this machine (requires docker login)" ;; esac; }
+t_build_ci_desc() { case "${LANG:-en}" in zh) echo "CI 构建  — 推送标签后由 GitHub Actions 自动构建并推送镜像" ;; *) echo "ci    — Let GitHub Actions build and push images after tag push" ;; esac; }
+t_enter_build_choice() { case "${LANG:-en}" in zh) echo "请输入选项 [1-2]: " ;; *) echo "Enter choice [1-2]: " ;; esac; }
+t_build_method_label() { case "${LANG:-en}" in zh) echo "构建方式" ;; *) echo "Build method" ;; esac; }
+t_skipping_local_build() { case "${LANG:-en}" in zh) echo "已选择 CI 构建，跳过本地 Docker 构建" ;; *) echo "CI build selected, skipping local Docker build" ;; esac; }
+t_ci_will_handle() { case "${LANG:-en}" in zh) echo "推送标签后，GitHub Actions 将自动构建并推送镜像到 ghcr.io" ;; *) echo "GitHub Actions will build and push images to ghcr.io after tag push" ;; esac; }
+t_check_ci_status() { case "${LANG:-en}" in zh) echo "你可以在以下地址查看构建状态:" ;; *) echo "You can check the build status at:" ;; esac; }
 
 # ─── Language selection / 语言选择 ─────────────────────────
 detect_or_select_language() {
@@ -231,10 +239,47 @@ select_release_type() {
   ok "$(t release_type_label): ${YELLOW}${RELEASE_TYPE}${NC}"
 }
 
+# ─── Select build method / 选择构建方式 ────────────────────
+select_build_method() {
+  # Allow override via env
+  if [ -n "${BUILD_METHOD:-}" ]; then
+    if [ "$BUILD_METHOD" = "local" ] || [ "$BUILD_METHOD" = "ci" ]; then
+      BUILD_METHOD="${BUILD_METHOD}"
+      return
+    fi
+  fi
+
+  echo ""
+  echo -e "${BLUE}$(t select_build_method_title)${NC}"
+  echo "  1) $(t build_local_desc)"
+  echo "  2) $(t build_ci_desc)"
+  echo ""
+
+  local choice
+  while true; do
+    printf "$(t enter_build_choice)"
+    read -r choice
+    case "$choice" in
+      1) BUILD_METHOD="local"; break ;;
+      2) BUILD_METHOD="ci"; break ;;
+      *) warn "$(t invalid_choice)" ;;
+    esac
+  done
+
+  echo ""
+  ok "$(t build_method_label): ${YELLOW}${BUILD_METHOD}${NC}"
+}
+
 # ─── Check prerequisites / 检查前置条件 ────────────────────
 check_prereqs() {
+  local required_tools=("jq" "git" "gh")
+  # Only require docker for local builds
+  if [ "${BUILD_METHOD:-local}" = "local" ]; then
+    required_tools+=("docker")
+  fi
+
   local missing=()
-  for tool in jq docker git gh; do
+  for tool in "${required_tools[@]}"; do
     if ! command -v "$tool" &>/dev/null; then
       missing+=("$tool")
     fi
@@ -585,12 +630,28 @@ main() {
     log "$(t release_type_label): ${YELLOW}${RELEASE_TYPE}${NC} ($(t via_env))"
   fi
 
+  # Step 0b: Select build method (skip if overridden via env)
+  if [ -z "${BUILD_METHOD:-}" ]; then
+    select_build_method
+  else
+    log "$(t build_method_label): ${YELLOW}${BUILD_METHOD}${NC} ($(t via_env))"
+  fi
+
   bump_version "${1:-}"
   local version="$NEW_VERSION"
 
-  docker_login
-
-  build_and_push "$version"
+  # Step 3-4: Build Docker images (local only; CI handles this automatically)
+  if [ "${BUILD_METHOD:-local}" = "local" ]; then
+    docker_login
+    build_and_push "$version"
+  else
+    log "$(t skipping_local_build)"
+    log "$(t ci_will_handle)"
+    echo ""
+    echo "  $(t check_ci_status)"
+    echo "  https://github.com/${GITHUB_REPO}/actions/workflows/docker-publish.yml"
+    echo ""
+  fi
 
   git_tag_and_push "$version"
 
