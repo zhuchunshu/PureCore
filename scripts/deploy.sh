@@ -24,11 +24,25 @@
 #    ./scripts/deploy.sh --lang en    # Force English
 # ============================================================
 
+# ─── Detect pipe mode (curl | bash) ────────────────────────
+PIPE_MODE=false
+if [[ ! -t 0 ]] || [[ "${0##*/}" == "bash" ]] || [[ "$0" == "/dev/stdin" ]] || [[ "$0" == /dev/fd/* ]]; then
+  PIPE_MODE=true
+  # Reopen stdin from /dev/tty so read prompts work
+  exec </dev/tty 2>/dev/null || true
+fi
+
 set -euo pipefail
 
 # ─── Global state ──────────────────────────────────────────
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+if [ "$PIPE_MODE" = true ]; then
+  # Running via pipe — no physical script location
+  SCRIPT_DIR="$PWD"
+  PROJECT_DIR="$PWD"
+else
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+fi
 ENV_FILE="$PROJECT_DIR/.env"
 ENV_EXAMPLE="$PROJECT_DIR/.env.example"
 COMPOSE_FILE="$PROJECT_DIR/docker-compose.yml"
