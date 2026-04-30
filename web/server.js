@@ -42,7 +42,12 @@ const apiTarget = `${apiProtocol}://${apiHost}:${apiPort}`
 // Helper: proxy an API request to the backend
 function proxyApiRequest(req, res) {
   return new Promise((resolve, reject) => {
-    const targetUrl = new URL(req.url, apiTarget)
+    // Parse the incoming URL to extract pathname + search.
+    // When behind a reverse proxy, req.url may be an absolute URL;
+    // using new URL(req.url, base) breaks because absolute URLs ignore the base.
+    // Instead, always construct the target from the path components.
+    const incomingUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`)
+    const targetUrl = `${apiProtocol}://${apiHost}:${apiPort}${incomingUrl.pathname}${incomingUrl.search || ''}`
     const requester = apiProtocol === 'https' ? httpsRequest : httpRequest
     const proxyReq = requester(
       targetUrl,
@@ -263,7 +268,12 @@ if (isProduction) {
       // Proxy API requests to backend
       if (pathname.startsWith('/api/')) {
         try {
-          const targetUrl = new URL(req.url, apiTarget)
+          // Build the target URL using the incoming request's pathname + search,
+          // NOT req.url directly. When behind a reverse proxy (nginx, etc.),
+          // req.url may be an absolute URL (e.g. http://public-domain.com/api/v1/ping)
+          // which causes new URL(absoluteUrl, base) to ignore the base and return
+          // the absolute URL unchanged — breaking the internal proxy.
+          const targetUrl = `${apiTarget}${pathname}${url.search}`
           // Build clean headers for forwarding. Remove hop-by-hop headers
           // (host, connection, etc.) and set the correct target host.
           const proxyHeaders = {}
