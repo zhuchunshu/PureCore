@@ -994,9 +994,9 @@ clone_select_mode() {
 
   # Ask for target directory
   echo -e "  ${C_CYAN}┌─ $(t clone_ask_dir) ──────────────────────────┐${C_RESET}"
-  printf "  ${C_CYAN}│${C_RESET} Directory [${C_BRIGHT_GREEN}.${C_RESET}]: "
+  printf "  ${C_CYAN}│${C_RESET} Directory [${C_BRIGHT_GREEN}${PWD}${C_RESET}]: "
   read -r CLONE_TARGET_DIR
-  CLONE_TARGET_DIR="${CLONE_TARGET_DIR:-.}"
+  CLONE_TARGET_DIR="${CLONE_TARGET_DIR:-$PWD}"
   echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
   echo ""
 }
@@ -1007,7 +1007,7 @@ clone_project() {
 
   local target_dir="$CLONE_TARGET_DIR"
   # Resolve absolute path for target
-  if [ "$target_dir" = "." ]; then
+  if [ "$target_dir" = "$PWD" ]; then
     target_dir="$PWD"
   fi
   local target_abs
@@ -1055,7 +1055,7 @@ clone_project() {
 
   if [ "$CLONE_MODE" = "simple" ]; then
     info_msg "Simple mode: cloning with --depth 1..."
-    if ! git clone --depth 1 "$GH_REPO" "$dir_name" 2>&1; then
+    if ! env GIT_TERMINAL_PROMPT=0 git clone --depth 1 "$GH_REPO" "$dir_name" 2>&1; then
       err_msg "$(t clone_failed)"
       exit 1
     fi
@@ -1074,7 +1074,7 @@ clone_project() {
     ok_msg "Simple clone complete (essential files only)."
   else
     info_msg "Full mode: cloning complete repository..."
-    if ! git clone "$GH_REPO" "$dir_name" 2>&1; then
+    if ! env GIT_TERMINAL_PROMPT=0 git clone "$GH_REPO" "$dir_name" 2>&1; then
       err_msg "$(t clone_failed)"
       exit 1
     fi
