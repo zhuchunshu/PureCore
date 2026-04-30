@@ -168,6 +168,15 @@ MSG_EN[clone_dir_exists]="Directory already exists. Use it? [Y/n]: "
 MSG_EN[clone_using_existing]="Using existing directory."
 MSG_EN[clone_enter_dir]="Project ready at %s. The deploy script will now continue from that directory."
 MSG_EN[clone_relaunch]="Re-launching deploy script from %s..."
+MSG_EN[ghcr_auth_failed]="Authentication required to pull from ghcr.io."
+MSG_EN[ghcr_ask_login]="Would you like to log in to ghcr.io now? [Y/n]: "
+MSG_EN[ghcr_ask_username]="GitHub username"
+MSG_EN[ghcr_ask_pat]="GitHub Personal Access Token (classic) with read:packages scope"
+MSG_EN[ghcr_pat_hint]="Create one at: https://github.com/settings/tokens"
+MSG_EN[ghcr_logging_in]="Logging in to ghcr.io..."
+MSG_EN[ghcr_login_ok]="Successfully logged in to ghcr.io."
+MSG_EN[ghcr_login_fail]="Login failed. Please check your credentials and try again."
+MSG_EN[ghcr_login_skip]="Skipping ghcr login. You can log in manually later."
 
 # --- 中文 ---
 MSG_ZH[title]="PureCore 部署工具"
@@ -267,6 +276,15 @@ MSG_ZH[clone_dir_exists]="目录已存在，使用已有目录？[Y/n]: "
 MSG_ZH[clone_using_existing]="使用已有目录。"
 MSG_ZH[clone_enter_dir]="项目已就绪，路径：%s。部署脚本将从该目录继续。"
 MSG_ZH[clone_relaunch]="正在从 %s 重新启动部署脚本..."
+MSG_ZH[ghcr_auth_failed]="从 ghcr.io 拉取镜像需要登录认证。"
+MSG_ZH[ghcr_ask_login]="是否现在登录 ghcr.io？[Y/n]: "
+MSG_ZH[ghcr_ask_username]="GitHub 用户名"
+MSG_ZH[ghcr_ask_pat]="GitHub 个人访问令牌 (classic)，需要 read:packages 权限"
+MSG_ZH[ghcr_pat_hint]="在此创建：https://github.com/settings/tokens"
+MSG_ZH[ghcr_logging_in]="正在登录 ghcr.io..."
+MSG_ZH[ghcr_login_ok]="已成功登录 ghcr.io。"
+MSG_ZH[ghcr_login_fail]="登录失败，请检查用户名和令牌后重试。"
+MSG_ZH[ghcr_login_skip]="跳过 ghcr 登录，你可以稍后手动登录。"
 
 # ─── Helper: translate ─────────────────────────────────────
 t() {
@@ -757,17 +775,62 @@ docker_login() {
     return 0
   fi
 
-  # Try CR_PAT
+  # Try CR_PAT env var
   if [ -n "${CR_PAT:-}" ]; then
     echo "$CR_PAT" | docker login ghcr.io -u "${GHCR_USER:-}" --password-stdin 2>/dev/null && \
       ok_msg "$(t ghcr_ok)" && return 0
   fi
 
-  # Prompt user
-  warn_msg "$(t ghcr_fail)"
-  echo -e "  $(t ghcr_cmd_hint)"
+  # Authentication required — offer interactive login
+  warn_msg "$(t ghcr_auth_failed)"
   echo ""
-  read -rp "  $(t press_enter_continue)" _
+
+  local login_answer
+  read -rp "  $(t ghcr_ask_login)" login_answer
+  if [ "${login_answer,,}" != "y" ] && [ "${login_answer,,}" != "yes" ] && [ -n "$login_answer" ]; then
+    warn_msg "$(t ghcr_login_skip)"
+    echo ""
+    return 0
+  fi
+
+  echo ""
+  echo -e "  ${C_CYAN}┌─ ghcr.io Login ───────────────────────────────┐${C_RESET}"
+
+  local gh_user
+  printf "  ${C_CYAN}│${C_RESET} $(t ghcr_ask_username): "
+  read -r gh_user
+
+  echo -e "  ${C_CYAN}│${C_RESET}"
+  printf "  ${C_CYAN}│${C_RESET} $(t ghcr_ask_pat): "
+  local gh_pat
+  read -r gh_pat
+
+  echo -e "  ${C_CYAN}│${C_RESET}"
+  echo -e "  ${C_CYAN}│${C_RESET} ${C_DIM}$(t ghcr_pat_hint)${C_RESET}"
+  echo -e "  ${C_CYAN}└────────────────────────────────────────────┘${C_RESET}"
+  echo ""
+
+  # Attempt login
+  info_msg "$(t ghcr_logging_in)"
+  if echo "$gh_pat" | docker login ghcr.io -u "$gh_user" --password-stdin 2>/dev/null; then
+    ok_msg "$(t ghcr_login_ok)"
+    echo ""
+    return 0
+  fi
+
+  err_msg "$(t ghcr_login_fail)"
+  echo ""
+
+  # Allow retry
+  local retry_answer
+  read -rp "  $(t ghcr_ask_login)" retry_answer
+  if [ "${retry_answer,,}" = "y" ] || [ "${retry_answer,,}" = "yes" ]; then
+    # Recursive retry — user can try again
+    docker_login
+  else
+    warn_msg "$(t ghcr_login_skip)"
+    echo ""
+  fi
 }
 
 # ─── Pull images ────────────────────────────────────────────
@@ -1055,7 +1118,7 @@ clone_project() {
 
   if [ "$CLONE_MODE" = "simple" ]; then
     info_msg "Simple mode: cloning with --depth 1..."
-    if ! env GIT_TERMINAL_PROMPT=0 git clone --depth 1 "$GH_REPO" "$dir_name" 2>&1; then
+    if ! env GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat git clone --depth 1 --progress "$GH_REPO" "$dir_name" 0<&-; then
       err_msg "$(t clone_failed)"
       exit 1
     fi
@@ -1074,7 +1137,7 @@ clone_project() {
     ok_msg "Simple clone complete (essential files only)."
   else
     info_msg "Full mode: cloning complete repository..."
-    if ! env GIT_TERMINAL_PROMPT=0 git clone "$GH_REPO" "$dir_name" 2>&1; then
+    if ! env GIT_TERMINAL_PROMPT=0 GIT_PAGER=cat git clone --progress "$GH_REPO" "$dir_name" 0<&-; then
       err_msg "$(t clone_failed)"
       exit 1
     fi
