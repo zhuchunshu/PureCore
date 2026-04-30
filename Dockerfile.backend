@@ -21,6 +21,7 @@ RUN go mod download
 # Copy the entire backend source
 COPY main.go ./
 COPY cmd/ ./cmd/
+COPY manage/ ./manage/
 COPY core/ ./core/
 COPY app/ ./app/
 COPY routes/ ./routes/
