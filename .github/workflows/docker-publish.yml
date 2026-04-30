@@ -1,0 +1,127 @@
+name: Build and Publish Docker Images
+
+# ============================================================
+# PureCore — Docker Image Build & Publish to ghcr.io
+#
+# Triggers:
+#   - Push of a version tag (e.g., v1.0.0, v1.0.1-alpha.1)
+#   - GitHub Release published
+#
+# Actions:
+#   1. Build backend Docker image (Go API server)
+#   2. Build frontend Docker image (Bun SSR server)
+#   3. Push both images to GitHub Container Registry (ghcr.io)
+#
+# Image names:
+#   ghcr.io/<owner>/purecore-backend:<version>
+#   ghcr.io/<owner>/purecore-frontend:<version>
+#
+# Only stable releases (tags without alpha/beta suffix) also
+# receive the `:latest` tag.
+# ============================================================
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+  release:
+    types: [published]
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        include:
+          - name: backend
+            dockerfile: Dockerfile.backend
+            image_suffix: purecore-backend
+          - name: frontend
+            dockerfile: Dockerfile.frontend
+            image_suffix: purecore-frontend
+
+    steps:
+      # ─── Checkout ───────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ─── Extract metadata ──────────────────────────
+      - name: Extract version from tag or release
+        id: version
+        run: |
+          # Priority: 1) git tag, 2) release tag_name
+          VERSION=""
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"
+          fi
+
+          # Fallback to commit sha if no version found
+          if [ -z "$VERSION" ]; then
+            VERSION="${GITHUB_SHA::7}"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Version: $VERSION"
+
+          # Determine if this is a stable release (no alpha/beta in version)
+          if echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "is_stable=true" >> "$GITHUB_OUTPUT"
+            echo "Stable release detected"
+          else
+            echo "is_stable=false" >> "$GITHUB_OUTPUT"
+            echo "Pre-release detected"
+          fi
+
+      # ─── Login to ghcr.io ──────────────────────────
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # ─── Set up Docker Buildx ──────────────────────
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ─── Build and push Docker image ───────────────
+      - name: Build and push ${{ matrix.name }} image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            VITE_API_PROTOCOL=http
+          tags: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ─── Push latest tag for stable releases ───────
+      - name: Tag and push as latest (stable only)
+        if: steps.version.outputs.is_stable == 'true'
+        run: |
+          docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}
+          docker tag ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }} ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:latest
+          docker push ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ matrix.image_suffix }}:latest
+
+      # ─── Summary ───────────────────────────────────
+      - name: Print summary
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          echo "✅ Published images:"
+          echo "  ${{ env.REGISTRY }}/${OWNER}/${{ matrix.image_suffix }}:${{ steps.version.outputs.version }}"
+          if [ "${{ steps.version.outputs.is_stable }}" = "true" ]; then
+            echo "  ${{ env.REGISTRY }}/${OWNER}/${{ matrix.image_suffix }}:latest"
+          fi
