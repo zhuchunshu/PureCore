@@ -177,6 +177,8 @@ MSG_EN[ghcr_logging_in]="Logging in to ghcr.io..."
 MSG_EN[ghcr_login_ok]="Successfully logged in to ghcr.io."
 MSG_EN[ghcr_login_fail]="Login failed. Please check your credentials and try again."
 MSG_EN[ghcr_login_skip]="Skipping ghcr login. You can log in manually later."
+MSG_EN[hint_stuck]="If the script appears stuck, try pressing Enter to continue."
+MSG_EN[hint_operation]="This may take a while. Do not close the terminal."
 
 # --- 中文 ---
 MSG_ZH[title]="PureCore 部署工具"
@@ -285,6 +287,8 @@ MSG_ZH[ghcr_logging_in]="正在登录 ghcr.io..."
 MSG_ZH[ghcr_login_ok]="已成功登录 ghcr.io。"
 MSG_ZH[ghcr_login_fail]="登录失败，请检查用户名和令牌后重试。"
 MSG_ZH[ghcr_login_skip]="跳过 ghcr 登录，你可以稍后手动登录。"
+MSG_ZH[hint_stuck]="如果脚本看起来卡住了，尝试按回车键继续。"
+MSG_ZH[hint_operation]="这可能需要一些时间，请勿关闭终端。"
 
 # ─── Helper: translate ─────────────────────────────────────
 t() {
@@ -317,6 +321,8 @@ header() {
   echo -e "${C_RESET}"
   echo -e "  ${C_MAGENTA}$(t title)${C_RESET} ${C_DIM}— $(t title_sub)${C_RESET}"
   echo -e "${C_DIM}  $(t divider)${C_RESET}"
+  echo ""
+  echo -e "  ${C_DIM}💡 $(t hint_stuck)${C_RESET}"
   echo ""
 }
 
@@ -644,7 +650,7 @@ run_compose() {
   # If it fails, prints the original output and exits.
   local output
   local rc=0
-  output=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" "$@" 2>&1) || rc=$?
+  output=$($DOCKER_COMPOSE_CMD -f "$COMPOSE_FILE" "$@" 2>&1 0<&-) || rc=$?
   if [ $rc -ne 0 ]; then
     echo ""
     err_msg "$(t error_compose)"
