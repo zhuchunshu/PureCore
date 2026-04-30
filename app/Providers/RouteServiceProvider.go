@@ -51,7 +51,7 @@ func (p *RouteServiceProvider) Register(router *core.Router) error {
 
 	// Admin routes (dynamic prefix from config)
 	adminCtrl := &controllers.AdminAuthController{}
-	adminPrefix := "/" + core.GetConfig().AdminRoutePrefix()
+	adminPrefix := "/api/v1/" + core.GetConfig().AdminRoutePrefix()
 
 	// Public admin routes (no authentication required)
 	router.Prefix(adminPrefix).Group(func(r *core.Router) {

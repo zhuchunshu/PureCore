@@ -218,7 +218,13 @@ export function createApiService({ type = 'admin' } = {}) {
     if (!accessToken.value) return null
     await refreshIfNeeded()
     try {
-      const resp = await fetch(`${config.apiBaseUrl}/auth/profile`, {
+      // Admin and user profiles live at different endpoints:
+      //   admin → /api/v1/{adminRoutePrefix}/auth/profile
+      //   user  → /api/v1/auth/profile
+      const profileUrl = type === 'admin'
+        ? `${config.apiBaseUrl}/${config.adminRoutePrefix}/auth/profile`
+        : `${config.apiBaseUrl}/auth/profile`
+      const resp = await fetch(profileUrl, {
         headers: { Authorization: `Bearer ${accessToken.value}` },
       })
       const json = await resp.json()
