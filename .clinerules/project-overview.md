@@ -4,7 +4,8 @@ This file contains guidelines for developing on the **PureCore** project — a f
 ## Project architecture
 - Backend entry: `main.go` → Cobra CLI (`cmd/`) → GoFiber v3 server
 - Core layer (`core/`) provides: database singleton, request/response wrappers, router builder, JWT middleware helpers, language manager, migration runner
-- Routes defined in `routes/api.go` using Laravel-style chaining: `Prefix → Middleware → Group`
+- Routes defined in `routes/` directory using Laravel-style chaining: `Prefix → Middleware → Group`
+- **IMPORTANT**: Backend routes MUST be defined in files under `routes/`, NOT in `RouteServiceProvider.go`. Create a new file (e.g., `routes/sessions.go`) for each feature group and call its registration function from `cmd/serve.go` after `app.Boot()`.
 - Models in `app/Models/` embed `core.Model` (ID, CreatedAt, UpdatedAt, DeletedAt)
 - Controllers in `app/Http/Controllers/` use `core.H()` wrapper that auto-injects `*core.Request` and `*core.Response`
 - Frontend entry: `web/` — Vite SSR with `server.js` as the Node/Bun SSR server
@@ -23,6 +24,13 @@ This file contains guidelines for developing on the **PureCore** project — a f
 - Public pages (HomePage, NotFound, etc.) use `Navbar.vue` + `Footer.vue`
 - Login and Register pages use the public `Navbar.vue` + `Footer.vue` — they are NOT standalone pages
 
+## Dashboard page splitting rules
+- Each dashboard feature (profile, security, api keys, sessions, etc.) MUST be a **separate page component** under `web/src/pages/dashboard/`, e.g. `ProfilePage.vue`, `SecurityPage.vue`, `SessionsPage.vue`
+- `UserDashboard.vue` MUST act as a **layout container** only — it provides the sidebar navigation and a `<router-view />` for child pages. It MUST NOT directly include the feature components.
+- Each dashboard child page MUST have a **unique URL route** (e.g. `/dashboard/profile`, `/dashboard/security`, `/dashboard/sessions`)
+- Sidebar items MUST use `<router-link>` to navigate between child routes, enabling direct URL sharing and browser back/forward support
+- Route definitions MUST use nested `children` arrays under the `/dashboard` parent route
+
 ## Frontend conventions
 - Vue 3 with `<script setup>` syntax and Composition API
 - Styling: TailwindCSS 4 utility classes + DaisyUI 5 component classes
@@ -30,6 +38,35 @@ This file contains guidelines for developing on the **PureCore** project — a f
 - State management: Vue composables (`web/src/composables/`)
 - API calls: proxy `/api` to backend (port 9002) via Vite dev server or SSR server
 - Environment variables: `VITE_ADMIN_ROUTE_PREFIX` for admin route prefix
+
+## SSR safety rules (CRITICAL)
+- **NEVER** access `window`, `document`, `localStorage`, `navigator`, or any other browser-only API directly in Vue templates (`<template>`) or in `<script setup>` top-level scope. These do not exist during server-side rendering and will cause the component to crash, preventing hydration — the page will stay in an infinite loading state.
+- Always guard browser API access with `typeof window !== 'undefined'` check inside `onMounted()`, and store the result in a `ref()` for use in the template.
+- Example (correct):
+  ```js
+  const callbackUrl = ref('')
+  onMounted(() => {
+    if (typeof window !== 'undefined') {
+      callbackUrl.value = `${window.location.protocol}//${window.location.host}/callback`
+    }
+  })
+  ```
+  Then use `:value="callbackUrl"` in the template instead of `` :value="`${window.location.protocol}//...`" ``.
+- **NEVER** do this in a template: `:value="window.location.href"` or `{{ document.title }}` — these will crash SSR.
+
+## Loading spinner rules (CRITICAL)
+- When a page component uses a loading spinner pattern (`loading` ref starts as `true`, set to `false` in `onMounted`), every early return path in `onMounted` MUST set `loading.value = false` before returning. Failure to do so will leave the spinner running forever.
+- Example (correct):
+  ```js
+  onMounted(async () => {
+    if (!accessToken.value) {
+      loading.value = false  // REQUIRED before early return
+      router.push('/login')
+      return
+    }
+    try { ... } finally { loading.value = false }
+  })
+  ```
 
 ## CLI commands (code generation)
 - `purecore serve` — start the HTTP server
@@ -66,6 +103,34 @@ Paginated responses include: `total`, `page`, `per_page` alongside `data`
 - Admin route prefix is configurable via `ADMIN_ROUTE_PREFIX` env var
 - `AdminAuth` middleware verifies the token and checks `token_version` for invalidation
 - `useAuth.js` composable handles client-side token management and auto-refresh
+
+## API call guard rule
+- If an API endpoint requires authentication (login) to be useful, the frontend **must** avoid calling it when the user is not logged in. Always check the authentication state before making such requests.
+
+## Icon library
+- **NEVER** use emoji for icons anywhere in the frontend
+- Primary icon library: `lucide-vue-next` (Lucide icons)
+- Install: `bun add lucide-vue-next`
+- Secondary/fallback icon library: `@tabler/icons-vue` (Tabler Icons) — use when a suitable icon is not found in `@lucide/vue`
+- Install: `bun add @tabler/icons-vue`
+- Usage example (Lucide):
+  ```vue
+  <script setup>
+  import { Settings, User, LogOut } from 'lucide-vue-next'
+  </script>
+  <template>
+    <Settings :size="20" />
+  </template>
+  ```
+- Usage example (Tabler, as fallback):
+  ```vue
+  <script setup>
+  import { IconBrandOauth } from '@tabler/icons-vue'
+  </script>
+  <template>
+    <IconBrandOauth :size="20" />
+  </template>
+  ```
 
 ## Language / i18n
 - Backend loads translations from `lang/` directory (JSON files, nested structure)

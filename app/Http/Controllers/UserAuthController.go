@@ -71,6 +71,11 @@ func (uc *UserAuthController) Register(req *core.Request, res *core.Response) er
 	// Save the refresh token in the database
 	core.DB().Model(&user).Update("refresh_token", refreshToken)
 
+	// Mark all previous sessions as not current
+	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
+	// Create a new session record
+	CreateSession(req.Ctx(), user.ID)
+
 	return res.Success(map[string]interface{}{
 		"token":         accessToken,
 		"refresh_token": refreshToken,
@@ -118,6 +123,11 @@ func (uc *UserAuthController) Login(req *core.Request, res *core.Response) error
 		"refresh_token": refreshToken,
 		"last_login_at": now,
 	})
+
+	// Mark all previous sessions as not current
+	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
+	// Create a new session record
+	CreateSession(req.Ctx(), user.ID)
 
 	return res.Success(map[string]interface{}{
 		"token":         accessToken,

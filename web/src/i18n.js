@@ -6,15 +6,14 @@ const messages = ref({})
 const isServer = typeof window === 'undefined'
 
 // 展平嵌套的 JSON 结构为 "group.key" 格式
-function flattenMessages(data) {
+function flattenMessages(data, prefix = '') {
   const flat = {}
-  for (const [group, obj] of Object.entries(data)) {
-    if (typeof obj === 'object') {
-      for (const [key, value] of Object.entries(obj)) {
-        flat[`${group}.${key}`] = value
-      }
+  for (const [key, value] of Object.entries(data)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key
+    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      Object.assign(flat, flattenMessages(value, fullKey))
     } else {
-      flat[group] = obj
+      flat[fullKey] = value
     }
   }
   return flat

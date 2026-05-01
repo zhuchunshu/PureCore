@@ -7,6 +7,7 @@ import (
 	providers "purecore/app/Providers"
 	"purecore/core"
 	_ "purecore/database/migrations"
+	"purecore/routes"
 
 	"github.com/spf13/cobra"
 )
@@ -28,10 +29,24 @@ func serveRun(cmd *cobra.Command, args []string) {
 	app := core.NewApplication().
 		AddProviders(&providers.RouteServiceProvider{})
 
-	if err := app.RunWithMiddleware(
-		middleware.Cors(),
-		middleware.Lang(),
-	); err != nil {
+	if err := app.Boot(); err != nil {
+		log.Fatalf("Failed to boot application: %v", err)
+	}
+
+	// Initialize OAuth providers (Goth)
+	core.InitOAuth(core.GetConfig().String("APP_URL", "http://localhost:9002"))
+
+	// Register session routes
+	routes.RegisterSessionRoutes(app.Router())
+
+	// Register OAuth routes
+	routes.RegisterOAuthRoutes(app.Router())
+
+	// Apply global middleware
+	app.App().Use(middleware.Cors(), middleware.Lang())
+
+	// Start server
+	if err := app.Run(); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }

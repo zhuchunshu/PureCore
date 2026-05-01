@@ -15,7 +15,15 @@
     "logout_success": "Logout successful",
     "token_invalid": "Invalid token",
     "token_expired": "Token expired",
-    "token_required": "Authentication token required"
+    "token_required": "Authentication token required",
+    "oauth": {
+      "github": "Login with GitHub",
+      "google": "Login with Google",
+      "discord": "Login with Discord",
+      "callback_error": "OAuth callback failed",
+      "provider_not_configured": "OAuth provider is not configured",
+      "provider_not_supported": "Unsupported OAuth provider"
+    }
   },
   "user": {
     "created": "User created successfully",
@@ -109,12 +117,34 @@
     "copied": "Copied!",
     "save_changes": "Save Changes",
     "sso_linked": "Linked Accounts",
+    "just_now": "Just now",
+    "in_hours": "in {n}h",
+    "in_days": "in {n}d",
     "sessions": "Active Sessions",
     "no_sessions": "No active sessions found",
     "sessions_description": "Manage your active login sessions",
     "current_session": "Current Session",
     "revoke": "Revoke",
-    "revoke_all": "Revoke All"
+    "revoke_all": "Revoke All",
+    "session_ip": "IP Address",
+    "session_device": "Device",
+    "session_browser": "Browser",
+    "session_os": "Operating System",
+    "session_last_active": "Last Active",
+    "session_unknown_device": "Unknown Device",
+    "session_unknown_browser": "Unknown Browser",
+    "session_unknown_os": "Unknown OS",
+    "session_loading": "Loading sessions...",
+    "session_revoke_confirm": "Are you sure you want to revoke this session?",
+    "session_revoke_success": "Session revoked successfully",
+    "session_revoke_failed": "Failed to revoke session",
+    "session_revoke_all_confirm": "Are you sure you want to revoke all other sessions?",
+    "session_revoke_all_success": "All other sessions revoked successfully",
+    "session_revoke_all_failed": "Failed to revoke sessions",
+    "session_expires": "Expires",
+    "desktop": "Desktop",
+    "mobile": "Mobile",
+    "tablet": "Tablet"
   },
   "db": {
     "connection_error": "Database connection failed",
@@ -263,7 +293,56 @@
     "create_failed": "Failed to create admin",
     "no_admin_redirect": "No admin account detected. Please register first.",
     "password_changed": "Password changed successfully. Please log in again.",
-    "brand": "PureCore Admin"
+    "brand": "PureCore Admin",
+    "oauth": {
+      "title": "OAuth Settings",
+      "description": "Configure third-party OAuth login providers for public users",
+      "github": {
+        "title": "GitHub OAuth",
+        "desc": "Allow users to sign in with their GitHub account",
+        "callback_url": "Callback URL",
+        "callback_url_hint": "Use this URL in your GitHub OAuth App settings",
+        "client_id": "Client ID",
+        "client_id_placeholder": "Enter your GitHub OAuth App Client ID",
+        "client_secret": "Client Secret",
+        "client_secret_placeholder": "Enter your GitHub OAuth App Client Secret",
+        "setup_guide": "How to set up GitHub OAuth:",
+        "setup_step1": "Go to GitHub Developer Settings",
+        "setup_step2": "Create a new OAuth App",
+        "setup_step3": "Set the Authorization callback URL to the URL shown above",
+        "setup_step4": "Copy the Client ID and Client Secret here"
+      },
+      "google": {
+        "title": "Google OAuth",
+        "desc": "Allow users to sign in with their Google account",
+        "callback_url": "Callback URL",
+        "callback_url_hint": "Use this URL in your Google Cloud Console under Authorized redirect URIs",
+        "client_id": "Client ID",
+        "client_id_placeholder": "Enter your Google OAuth Client ID",
+        "client_secret": "Client Secret",
+        "client_secret_placeholder": "Enter your Google OAuth Client Secret",
+        "setup_guide": "How to set up Google OAuth:",
+        "setup_step1": "Go to Google Cloud Console",
+        "setup_step2": "Create a project and enable the Google+ API",
+        "setup_step3": "Create OAuth 2.0 credentials and add the redirect URI shown above",
+        "setup_step4": "Copy the Client ID and Client Secret here"
+      },
+      "discord": {
+        "title": "Discord OAuth",
+        "desc": "Allow users to sign in with their Discord account",
+        "callback_url": "Callback URL",
+        "callback_url_hint": "Use this URL in your Discord Application OAuth2 redirects",
+        "client_id": "Client ID",
+        "client_id_placeholder": "Enter your Discord Application Client ID",
+        "client_secret": "Client Secret",
+        "client_secret_placeholder": "Enter your Discord Application Client Secret",
+        "setup_guide": "How to set up Discord OAuth:",
+        "setup_step1": "Go to Discord Developer Portal",
+        "setup_step2": "Create a new application",
+        "setup_step3": "Go to OAuth2 settings and add the redirect URL above",
+        "setup_step4": "Copy the Client ID and Client Secret here"
+      }
+    }
   },
   "backend": {
     "title": "Backend Service Unavailable",

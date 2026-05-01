@@ -15,7 +15,15 @@
     "logout_success": "登出成功",
     "token_invalid": "令牌无效",
     "token_expired": "令牌已过期",
-    "token_required": "需要提供认证令牌"
+    "token_required": "需要提供认证令牌",
+    "oauth": {
+      "github": "使用 GitHub 登录",
+      "google": "使用 Google 登录",
+      "discord": "使用 Discord 登录",
+      "callback_error": "OAuth 回调失败",
+      "provider_not_configured": "OAuth 提供者未配置",
+      "provider_not_supported": "不支持的 OAuth 提供者"
+    }
   },
   "user": {
     "created": "用户创建成功",
@@ -109,12 +117,34 @@
     "copied": "已复制！",
     "save_changes": "保存更改",
     "sso_linked": "关联账户",
+    "just_now": "刚刚",
+    "in_hours": "{n}小时后",
+    "in_days": "{n}天后",
     "sessions": "活跃会话",
     "no_sessions": "没有活跃的登录会话",
     "sessions_description": "管理您的活跃登录会话",
     "current_session": "当前会话",
     "revoke": "撤销",
-    "revoke_all": "全部撤销"
+    "revoke_all": "全部撤销",
+    "session_ip": "IP 地址",
+    "session_device": "设备",
+    "session_browser": "浏览器",
+    "session_os": "操作系统",
+    "session_last_active": "最近活跃",
+    "session_unknown_device": "未知设备",
+    "session_unknown_browser": "未知浏览器",
+    "session_unknown_os": "未知系统",
+    "session_loading": "加载会话中...",
+    "session_revoke_confirm": "确定要撤销此会话吗？",
+    "session_revoke_success": "会话已撤销",
+    "session_revoke_failed": "撤销会话失败",
+    "session_revoke_all_confirm": "确定要撤销所有其他会话吗？",
+    "session_revoke_all_success": "所有其他会话已撤销",
+    "session_revoke_all_failed": "撤销会话失败",
+    "session_expires": "过期时间",
+    "desktop": "桌面端",
+    "mobile": "手机端",
+    "tablet": "平板端"
   },
   "db": {
     "connection_error": "数据库连接失败",
@@ -263,7 +293,56 @@
     "create_failed": "创建管理员失败",
     "no_admin_redirect": "检测到系统中没有管理员账户，请先注册",
     "password_changed": "密码修改成功，请重新登录",
-    "brand": "PureCore 管理后台"
+    "brand": "PureCore 管理后台",
+    "oauth": {
+      "title": "OAuth 设置",
+      "description": "配置第三方 OAuth 登录提供者，供前台用户使用",
+      "github": {
+        "title": "GitHub OAuth",
+        "desc": "允许用户使用 GitHub 账户登录",
+        "callback_url": "回调地址",
+        "callback_url_hint": "在 GitHub OAuth App 设置中使用此地址",
+        "client_id": "Client ID",
+        "client_id_placeholder": "输入 GitHub OAuth App 的 Client ID",
+        "client_secret": "Client Secret",
+        "client_secret_placeholder": "输入 GitHub OAuth App 的 Client Secret",
+        "setup_guide": "如何设置 GitHub OAuth：",
+        "setup_step1": "前往 GitHub 开发者设置",
+        "setup_step2": "创建新的 OAuth App",
+        "setup_step3": "将 Authorization callback URL 设为上方显示的回调地址",
+        "setup_step4": "将 Client ID 和 Client Secret 复制到这里"
+      },
+      "google": {
+        "title": "Google OAuth",
+        "desc": "允许用户使用 Google 账户登录",
+        "callback_url": "回调地址",
+        "callback_url_hint": "在 Google Cloud Console 的已授权重定向 URI 中使用此地址",
+        "client_id": "Client ID",
+        "client_id_placeholder": "输入 Google OAuth Client ID",
+        "client_secret": "Client Secret",
+        "client_secret_placeholder": "输入 Google OAuth Client Secret",
+        "setup_guide": "如何设置 Google OAuth：",
+        "setup_step1": "前往 Google Cloud Console",
+        "setup_step2": "创建项目并启用 Google+ API",
+        "setup_step3": "创建 OAuth 2.0 凭据，添加上方显示的重定向 URI",
+        "setup_step4": "将 Client ID 和 Client Secret 复制到这里"
+      },
+      "discord": {
+        "title": "Discord OAuth",
+        "desc": "允许用户使用 Discord 账户登录",
+        "callback_url": "回调地址",
+        "callback_url_hint": "在 Discord 应用 OAuth2 重定向中使用此地址",
+        "client_id": "Client ID",
+        "client_id_placeholder": "输入 Discord 应用的 Client ID",
+        "client_secret": "Client Secret",
+        "client_secret_placeholder": "输入 Discord 应用的 Client Secret",
+        "setup_guide": "如何设置 Discord OAuth：",
+        "setup_step1": "前往 Discord 开发者门户",
+        "setup_step2": "创建新应用",
+        "setup_step3": "前往 OAuth2 设置，添加上方的回调地址",
+        "setup_step4": "将 Client ID 和 Client Secret 复制到这里"
+      }
+    }
   },
   "backend": {
     "title": "后端服务不可用",
