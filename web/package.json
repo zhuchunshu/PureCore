@@ -13,7 +13,7 @@
   "dependencies": {
     "@dicebear/collection": "^9.4.2",
     "@dicebear/core": "^9.4.2",
-    "@lucide/vue": "^1.14.0",
+    "lucide-vue-next": "^1.0.0",
     "@tabler/icons-vue": "^3.41.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "4.2.2",
