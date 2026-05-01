@@ -308,10 +308,7 @@ async function handleSave() {
           @click="handleSave"
           class="shadow-lg shadow-purple-500/20"
         >
-          <span v-if="saving" class="flex items-center gap-2">
-            <span class="loading loading-spinner loading-xs"></span>
-            {{ t('admin.settings_saving') }}
-          </span>
+          <span v-if="saving">{{ t('admin.settings_saving') }}</span>
           <span v-else class="flex items-center gap-2">💾 {{ t('admin.settings_save') }}</span>
         </GradientButton>
       </div>
