@@ -3,7 +3,6 @@ import { RouterLink } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import GradientButton from '../components/GradientButton.vue'
-import TechBackground from '../components/TechBackground.vue'
 
 const { t } = useI18n()
 useSEO({
@@ -13,13 +12,11 @@ useSEO({
 </script>
 
 <template>
-  <div class="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
-    <TechBackground variant="purple" />
-
-    <div class="relative z-10 text-center px-4">
+  <div class="relative min-h-[70vh] flex items-center justify-center overflow-hidden bg-base-100">
+    <div class="text-center px-4">
       <div class="max-w-md mx-auto">
         <h1 class="text-[10rem] md:text-[12rem] font-black leading-none bg-gradient-to-br from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">404</h1>
-        <h2 class="text-2xl md:text-3xl font-bold text-white mt-2">{{ t('notfound.title') }}</h2>
+        <h2 class="text-2xl md:text-3xl font-bold text-base-content/80 mt-2">{{ t('notfound.title') }}</h2>
         <p class="py-6 text-base-content/60 text-lg">{{ t('notfound.description') }}</p>
         <GradientButton to="/" variant="purple" size="lg">
           <template #icon>

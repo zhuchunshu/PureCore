@@ -69,7 +69,7 @@ async function login() {
 </script>
 
 <template>
-  <div class="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden bg-gradient-to-br from-base-100 via-base-200 to-base-100">
+  <div class="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden bg-base-200">
     <!-- Animated grid background -->
     <div class="absolute inset-0 opacity-10">
       <div class="absolute inset-0" style="background-image: radial-gradient(circle at 1px 1px, oklch(var(--p)/0.15) 1px, transparent 0); background-size: 40px 40px;"></div>

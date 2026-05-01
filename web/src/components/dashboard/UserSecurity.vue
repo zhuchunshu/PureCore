@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from '../../i18n'
 import { accessToken } from '../../composables/useUserAuth'
 import TechCard from '../TechCard.vue'
+import { Lock } from 'lucide-vue-next'
 
 const { t } = useI18n()
 
@@ -57,7 +58,10 @@ async function changePassword() {
 
 <template>
   <TechCard variant="blue" padded>
-    <h2 class="text-lg font-bold text-base-content/80 mb-5">🔒 {{ t('user.change_password') }}</h2>
+    <h2 class="text-lg font-bold text-base-content/80 mb-5 flex items-center gap-2">
+      <Lock :size="20" />
+      {{ t('user.change_password') }}
+    </h2>
     <div v-if="passwordMsg" :class="['p-3 rounded-xl mb-4 text-sm font-medium', passwordMsgType === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20']">
       {{ passwordMsg }}
     </div>
@@ -80,7 +84,7 @@ async function changePassword() {
       <div class="pt-2">
         <button type="submit" :disabled="passwordSaving" class="btn btn-primary rounded-xl">
           <span v-if="passwordSaving" class="loading loading-spinner loading-xs"></span>
-          <span v-else>🔒</span>
+          <Lock v-else :size="16" />
           {{ passwordSaving ? t('admin.settings_saving') : t('user.change_password') }}
         </button>
       </div>

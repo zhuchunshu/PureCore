@@ -4,6 +4,10 @@ import { useRouter } from 'vue-router'
 import { useI18n } from '../i18n'
 import { clearTokens } from '../composables/useAuth'
 import AdminNavbar from './AdminNavbar.vue'
+import {
+  LayoutDashboard, Users, Settings,
+  Link, Home, LogOut, X
+} from 'lucide-vue-next'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -39,18 +43,18 @@ const props = defineProps({
       <aside class="hidden lg:flex lg:flex-col fixed top-16 left-0 bottom-0 w-64 bg-base-100 border-r border-base-300/20 z-20">
         <div class="flex-1 overflow-y-auto">
           <ul class="menu menu-lg w-full p-3 gap-1">
-            <li><router-link :to="`/${adminPrefix}`" :class="{ active: $route.path === `/${adminPrefix}` }"><span>📊</span> {{ t('admin.dashboard') }}</router-link></li>
-            <li><router-link :to="`/${adminPrefix}/users`" :class="{ active: $route.path === `/${adminPrefix}/users` }"><span>👥</span> {{ t('admin.users_title') }}</router-link></li>
-            <li><router-link :to="`/${adminPrefix}/settings`" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><span>⚙️</span> {{ t('admin.settings') }}</router-link></li>
-            <li><router-link :to="`/${adminPrefix}/oauth`" :class="{ active: $route.path === `/${adminPrefix}/oauth` }"><span>🔗</span> OAuth</router-link></li>
+            <li><router-link :to="`/${adminPrefix}`" :class="{ active: $route.path === `/${adminPrefix}` }"><LayoutDashboard :size="20" /> {{ t('admin.dashboard') }}</router-link></li>
+            <li><router-link :to="`/${adminPrefix}/users`" :class="{ active: $route.path === `/${adminPrefix}/users` }"><Users :size="20" /> {{ t('admin.users_title') }}</router-link></li>
+            <li><router-link :to="`/${adminPrefix}/settings`" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><Settings :size="20" /> {{ t('admin.settings') }}</router-link></li>
+            <li><router-link :to="`/${adminPrefix}/oauth`" :class="{ active: $route.path === `/${adminPrefix}/oauth` }"><Link :size="20" /> OAuth</router-link></li>
           </ul>
         </div>
         <div class="p-4 border-t border-base-300/20">
           <ul class="menu menu-lg w-full gap-1">
             <li>
-              <a href="/" target="_blank"><span>🏠</span> {{ t('admin.view_site') }}</a>
+              <a href="/" target="_blank"><Home :size="20" /> {{ t('admin.view_site') }}</a>
             </li>
-            <li><button @click="logout"><span>🚪</span> {{ t('admin.logout') }}</button></li>
+            <li><button @click="logout"><LogOut :size="20" /> {{ t('admin.logout') }}</button></li>
           </ul>
         </div>
       </aside>
@@ -70,20 +74,18 @@ const props = defineProps({
             <div class="flex items-center justify-between p-4 border-b border-base-300/20">
               <span class="text-lg font-bold text-primary">PureCore</span>
               <button class="btn btn-ghost btn-sm" @click="closeSidebar">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
+                <X :size="18" />
               </button>
             </div>
             <ul class="menu menu-lg w-full p-3 gap-1">
-              <li><router-link :to="`/${adminPrefix}`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}` }"><span>📊</span> {{ t('admin.dashboard') }}</router-link></li>
-              <li><router-link :to="`/${adminPrefix}/users`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/users` }"><span>👥</span> {{ t('admin.users_title') }}</router-link></li>
-              <li><router-link :to="`/${adminPrefix}/settings`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><span>⚙️</span> {{ t('admin.settings') }}</router-link></li>
-              <li><router-link :to="`/${adminPrefix}/oauth`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/oauth` }"><span>🔗</span> OAuth</router-link></li>
+              <li><router-link :to="`/${adminPrefix}`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}` }"><LayoutDashboard :size="20" /> {{ t('admin.dashboard') }}</router-link></li>
+              <li><router-link :to="`/${adminPrefix}/users`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/users` }"><Users :size="20" /> {{ t('admin.users_title') }}</router-link></li>
+              <li><router-link :to="`/${adminPrefix}/settings`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><Settings :size="20" /> {{ t('admin.settings') }}</router-link></li>
+              <li><router-link :to="`/${adminPrefix}/oauth`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/oauth` }"><Link :size="20" /> OAuth</router-link></li>
               <li class="mt-auto pt-4 border-t border-base-300/20">
-                <a href="/" target="_blank"><span>🏠</span> {{ t('admin.view_site') }}</a>
+                <a href="/" target="_blank"><Home :size="20" /> {{ t('admin.view_site') }}</a>
               </li>
-              <li><button @click="logout"><span>🚪</span> {{ t('admin.logout') }}</button></li>
+              <li><button @click="logout"><LogOut :size="20" /> {{ t('admin.logout') }}</button></li>
             </ul>
           </aside>
         </div>

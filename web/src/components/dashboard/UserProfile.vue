@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useI18n } from '../../i18n'
 import { accessToken } from '../../composables/useUserAuth'
 import TechCard from '../TechCard.vue'
+import { User, Save } from 'lucide-vue-next'
 
 const props = defineProps({
   profile: { type: Object, default: null }
@@ -67,7 +68,10 @@ defineExpose({ initProfileForm })
 
 <template>
   <TechCard variant="blue" padded>
-    <h2 class="text-lg font-bold text-base-content/80 mb-5">👤 {{ t('user.profile') }}</h2>
+    <h2 class="text-lg font-bold text-base-content/80 mb-5 flex items-center gap-2">
+      <User :size="20" />
+      {{ t('user.profile') }}
+    </h2>
     <div v-if="profileMsg" :class="['p-3 rounded-xl mb-4 text-sm font-medium', profileMsgType === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20']">
       {{ profileMsg }}
     </div>
@@ -102,7 +106,7 @@ defineExpose({ initProfileForm })
       <div class="pt-2">
         <button type="submit" :disabled="profileSaving" class="btn btn-primary rounded-xl">
           <span v-if="profileSaving" class="loading loading-spinner loading-xs"></span>
-          <span v-else>💾</span>
+          <Save v-else :size="16" />
           {{ profileSaving ? t('admin.settings_saving') : t('user.save_changes') }}
         </button>
       </div>

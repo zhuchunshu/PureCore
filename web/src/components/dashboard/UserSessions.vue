@@ -4,6 +4,12 @@ import { useI18n } from '../../i18n'
 import { userAPI } from '../../services/api'
 import { useToast } from '../../composables/useToast'
 import TechCard from '../TechCard.vue'
+import {
+  Smartphone, Tablet, Monitor,
+  Globe, Compass,
+  Apple, Terminal,
+  Trash2, ShieldX
+} from 'lucide-vue-next'
 
 const { t } = useI18n()
 const { toastSuccess, toastError } = useToast()
@@ -16,39 +22,28 @@ const revokingAll = ref(false)
 // Icons for device type
 const deviceIcon = (type) => {
   switch (type) {
-    case 'mobile': return '📱'
-    case 'tablet': return '📋'
-    default: return '💻'
+    case 'mobile': return Smartphone
+    case 'tablet': return Tablet
+    default: return Monitor
   }
 }
 
-// Icons for browser
+// Icons for browser — most browsers map to Globe, Safari to Compass
 const browserIcon = (browser) => {
   switch (browser?.toLowerCase()) {
-    case 'chrome': return '🌐'
-    case 'firefox': return '🦊'
-    case 'safari': return '🧭'
-    case 'edge': return '🔷'
-    case 'opera': return '🔴'
-    case 'internet explorer': return '🔵'
-    default: return '🌍'
+    case 'safari': return Compass
+    default: return Globe
   }
 }
 
 // Icons for OS
 const osIcon = (os) => {
   switch (os?.toLowerCase()) {
-    case 'windows 10':
-    case 'windows 8.1':
-    case 'windows 8':
-    case 'windows 7':
-    case 'windows': return '🪟'
-    case 'macos': return '🍎'
-    case 'ios': return '📱'
-    case 'android': return '🤖'
-    case 'linux': return '🐧'
-    case 'chromeos': return '💻'
-    default: return '🖥'
+    case 'macos':
+    case 'ios': return Apple
+    case 'android': return Smartphone
+    case 'linux': return Terminal
+    default: return Monitor
   }
 }
 
@@ -179,7 +174,10 @@ onMounted(fetchSessions)
     <!-- Header -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
       <div>
-        <h2 class="text-lg font-bold text-base-content/80">📱 {{ t('user.sessions') }}</h2>
+        <h2 class="text-lg font-bold text-base-content/80 flex items-center gap-2">
+          <Smartphone :size="20" />
+          {{ t('user.sessions') }}
+        </h2>
         <p class="text-sm text-base-content/50 mt-0.5">{{ t('user.sessions_description') }}</p>
       </div>
       <button
@@ -188,6 +186,7 @@ onMounted(fetchSessions)
         @click="revokeAll"
       >
         <span v-if="revokingAll" class="loading loading-spinner loading-xs"></span>
+        <ShieldX v-else :size="14" class="mr-1" />
         {{ t('user.revoke_all') }}
       </button>
     </div>
@@ -200,7 +199,7 @@ onMounted(fetchSessions)
 
     <!-- Empty state -->
     <div v-else-if="sessions.length === 0" class="text-center py-10 text-base-content/40">
-      <span class="text-4xl block mb-2">📱</span>
+      <Smartphone :size="48" class="mx-auto mb-2 opacity-30" />
       <span class="text-sm">{{ t('user.no_sessions') }}</span>
     </div>
 
@@ -213,8 +212,8 @@ onMounted(fetchSessions)
         :class="{ 'ring-1 ring-primary/20': session.is_current }"
       >
         <!-- Device type icon -->
-        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-base-300/50 flex items-center justify-center text-xl">
-          {{ deviceIcon(session.device_type) }}
+        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-base-300/50 flex items-center justify-center">
+          <component :is="deviceIcon(session.device_type)" :size="20" class="text-base-content/50" />
         </div>
 
         <!-- Session details -->
@@ -237,19 +236,19 @@ onMounted(fetchSessions)
           <!-- Second row: IP, device model, browser, OS icons -->
           <div class="flex items-center gap-3 mt-1 text-xs text-base-content/40 flex-wrap">
             <span class="inline-flex items-center gap-1">
-              <span>🌍</span>
+              <Globe :size="12" />
               <code class="font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{{ session.ip_address }}</code>
             </span>
             <span class="inline-flex items-center gap-1">
-              <span>{{ deviceIcon(session.device_type) }}</span>
+              <component :is="deviceIcon(session.device_type)" :size="12" />
               <span>{{ deviceModelDisplay(session) }}</span>
             </span>
             <span class="inline-flex items-center gap-1">
-              <span>{{ browserIcon(session.browser) }}</span>
+              <component :is="browserIcon(session.browser)" :size="12" />
               <span>{{ browserDisplay(session) }}</span>
             </span>
             <span class="inline-flex items-center gap-1">
-              <span>{{ osIcon(session.os) }}</span>
+              <component :is="osIcon(session.os)" :size="12" />
               <span>{{ osDisplay(session) }}</span>
             </span>
           </div>
@@ -270,7 +269,8 @@ onMounted(fetchSessions)
           @click="revokeSession(session.id)"
         >
           <span v-if="revokingId === session.id" class="loading loading-spinner loading-xs"></span>
-          <span v-else>{{ t('user.revoke') }}</span>
+          <Trash2 v-else :size="14" />
+          <span class="ml-1">{{ t('user.revoke') }}</span>
         </button>
       </div>
     </div>

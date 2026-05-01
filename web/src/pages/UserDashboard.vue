@@ -5,6 +5,7 @@ import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import { accessToken, fetchProfile, clearTokens } from '../composables/useUserAuth'
 import { useOAuth } from '../composables/useOAuth'
+import { LayoutDashboard, User, Lock, Key, Smartphone } from 'lucide-vue-next'
 
 const { t } = useI18n()
 useSEO({ title: t('user.dashboard'), description: t('user.dashboard') })
@@ -16,11 +17,11 @@ const loading = ref(true)
 const error = ref('')
 
 const sidebarItems = [
-  { path: '/dashboard',          icon: '📊', label: 'user.overview', exact: true },
-  { path: '/dashboard/profile',  icon: '👤', label: 'user.profile' },
-  { path: '/dashboard/security', icon: '🔒', label: 'user.security' },
-  { path: '/dashboard/api-keys', icon: '🔑', label: 'user.api_keys' },
-  { path: '/dashboard/sessions', icon: '📱', label: 'user.sessions' },
+  { path: '/dashboard',          icon: LayoutDashboard, label: 'user.overview', exact: true },
+  { path: '/dashboard/profile',  icon: User, label: 'user.profile' },
+  { path: '/dashboard/security', icon: Lock, label: 'user.security' },
+  { path: '/dashboard/api-keys', icon: Key, label: 'user.api_keys' },
+  { path: '/dashboard/sessions', icon: Smartphone, label: 'user.sessions' },
 ]
 
 function isActive(item) {
@@ -73,41 +74,43 @@ onMounted(async () => {
     </div>
   </div>
 
-  <!-- Dashboard -->
-  <div v-else class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
-    <!-- Header -->
-    <div class="mb-6">
-      <h1 class="text-2xl md:text-3xl font-black tracking-tight">
-        <span class="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">{{ t('user.dashboard') }}</span>
-      </h1>
-      <p v-if="profile" class="text-base-content/50 mt-1 text-sm">
-        {{ t('user.welcome_back') }}<span v-if="profile.name" class="font-semibold text-base-content/80">, {{ profile.name }}</span>
-      </p>
-    </div>
+  <!-- Dashboard: full-width background layer -->
+  <div v-else class="min-h-[calc(100vh-4rem)] bg-base-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
+      <!-- Header -->
+      <div class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-black tracking-tight">
+          <span class="bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">{{ t('user.dashboard') }}</span>
+        </h1>
+        <p v-if="profile" class="text-base-content/50 mt-1 text-sm">
+          {{ t('user.welcome_back') }}<span v-if="profile.name" class="font-semibold text-base-content/80">, {{ profile.name }}</span>
+        </p>
+      </div>
 
-    <!-- Layout: Sidebar + Main -->
-    <div class="flex gap-6">
-      <!-- Left sidebar -->
-      <aside class="hidden md:flex flex-col w-56 shrink-0 space-y-1">
-        <router-link
-          v-for="item in sidebarItems"
-          :key="item.path"
-          :to="item.path"
-          :class="[
-            'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors',
-            isActive(item)
-              ? 'bg-primary/10 text-primary border border-primary/20'
-              : 'hover:bg-base-200/50 text-base-content/70 hover:text-base-content'
-          ]"
-        >
-          <span class="text-lg">{{ item.icon }}</span>
-          <span>{{ t(item.label) }}</span>
-        </router-link>
-      </aside>
+      <!-- Layout: Sidebar + Main -->
+      <div class="flex gap-6">
+        <!-- Left sidebar -->
+        <aside class="hidden md:flex flex-col w-56 shrink-0 space-y-1">
+          <router-link
+            v-for="item in sidebarItems"
+            :key="item.path"
+            :to="item.path"
+            :class="[
+              'flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors',
+              isActive(item)
+                ? 'bg-primary/10 text-primary border border-primary/20'
+                : 'hover:bg-base-200/50 text-base-content/70 hover:text-base-content'
+            ]"
+          >
+            <component :is="item.icon" :size="18" />
+            <span>{{ t(item.label) }}</span>
+          </router-link>
+        </aside>
 
-      <!-- Main content area -->
-      <div class="flex-1 min-w-0">
-        <router-view />
+        <!-- Main content area -->
+        <div class="flex-1 min-w-0">
+          <router-view />
+        </div>
       </div>
     </div>
   </div>

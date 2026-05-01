@@ -39,6 +39,18 @@ This file contains guidelines for developing on the **PureCore** project — a f
 - API calls: proxy `/api` to backend (port 9002) via Vite dev server or SSR server
 - Environment variables: `VITE_ADMIN_ROUTE_PREFIX` for admin route prefix
 
+## Page background color standard
+- **ALL non-homepage pages MUST use `bg-base-200` as the background color** for their main content area (excluding Navbar and Footer). This ensures a consistent, eye-friendly off-white/dark-gray background across all pages.
+- The DocsPage (`web/src/pages/DocsPage.vue`) uses `bg-base-200` — all other pages must match this exactly.
+- **Exceptions (NEVER modify these pages' backgrounds):**
+  - **HomePage** — exempt because it has its own hero section with CyberBackground.
+  - **NotFound (404 page)** — MUST keep `bg-base-100` (pure white / theme default). NEVER change this.
+- Examples of correct usage:
+  - `<div class="min-h-screen bg-base-200">` for standalone pages (LoginPage, RegisterPage, etc.)
+  - `<div class="flex-1 bg-base-200">` for pages wrapped in a layout (UserDashboard, Admin pages via AdminLayout, etc.)
+  - AdminLayout already uses `bg-base-200` as its wrapper background
+- Navbar and Footer should retain their own backgrounds (typically `bg-base-100`) and should NOT be affected by this rule.
+
 ## SSR safety rules (CRITICAL)
 - **NEVER** access `window`, `document`, `localStorage`, `navigator`, or any other browser-only API directly in Vue templates (`<template>`) or in `<script setup>` top-level scope. These do not exist during server-side rendering and will cause the component to crash, preventing hydration — the page will stay in an infinite loading state.
 - Always guard browser API access with `typeof window !== 'undefined'` check inside `onMounted()`, and store the result in a `ref()` for use in the template.
