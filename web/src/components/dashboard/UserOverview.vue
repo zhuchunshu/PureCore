@@ -1,6 +1,7 @@
 <script setup>
 import { useI18n } from '../../i18n'
 import TechCard from '../TechCard.vue'
+import AvatarInitials from '../AvatarInitials.vue'
 
 const props = defineProps({
   profile: { type: Object, default: null }
@@ -32,9 +33,7 @@ function percent(used, limit) {
     <!-- User profile card -->
     <TechCard variant="blue" :hover="true" padded>
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-        <div class="w-16 h-16 rounded-full bg-gradient-to-br from-blue-400 to-emerald-400 flex items-center justify-center text-2xl font-bold text-white shrink-0 shadow-lg shadow-blue-400/20">
-          {{ profile?.name?.charAt(0)?.toUpperCase() || '?' }}
-        </div>
+        <AvatarInitials :name="profile?.name" size="lg" />
         <div class="flex-1 min-w-0">
           <h2 class="text-lg font-bold text-base-content/80">{{ profile?.name || '—' }}</h2>
           <p class="text-sm text-base-content/50">{{ profile?.email || '—' }}</p>

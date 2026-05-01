@@ -11,6 +11,8 @@
     "preview": "NODE_ENV=production bun run server.js"
   },
   "dependencies": {
+    "@dicebear/collection": "^9.4.2",
+    "@dicebear/core": "^9.4.2",
     "@tailwindcss/typography": "^0.5.19",
     "@tailwindcss/vite": "4.2.2",
     "daisyui": "5.0.0",

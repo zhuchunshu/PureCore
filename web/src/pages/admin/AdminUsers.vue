@@ -6,6 +6,7 @@ import { useSEO } from '../../composables/useSEO'
 import { adminAPI } from '../../services/api'
 import { config } from '../../services/config'
 import { toastSuccess, toastError } from '../../composables/useToast'
+import AvatarInitials from '../../components/AvatarInitials.vue'
 import TechCard from '../../components/TechCard.vue'
 import GradientButton from '../../components/GradientButton.vue'
 
@@ -278,11 +279,7 @@ function formatDate(dateStr) {
                 <td class="font-mono text-xs text-base-content/40">#{{ user.id }}</td>
                 <td>
                   <div class="flex items-center gap-3">
-                    <div class="avatar placeholder">
-                      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center text-xs font-bold text-primary">
-                        {{ (user.name || 'U')[0].toUpperCase() }}
-                      </div>
-                    </div>
+                    <AvatarInitials :name="user.name" size="sm" />
                     <span class="font-medium text-sm">{{ user.name }}</span>
                   </div>
                 </td>
@@ -355,6 +352,10 @@ function formatDate(dateStr) {
           </div>
           <div>
             <label class="label"><span class="label-text font-medium">{{ t('admin.users_avatar') }}</span></label>
+            <div class="flex items-center gap-3 mb-2">
+              <AvatarInitials :name="userForm.name" size="md" />
+              <span class="text-xs text-base-content/40">输入 URL 设置自定义头像，留空则使用首字母头像</span>
+            </div>
             <input v-model="userForm.avatar" type="text" placeholder="https://..." class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
           </div>
           <div>

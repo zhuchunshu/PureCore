@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from '../i18n'
 import { clearTokens } from '../composables/useAuth'
 import LanguageSwitcher from './LanguageSwitcher.vue'
+import AvatarInitials from './AvatarInitials.vue'
 import ThemeSwitcher from './ThemeSwitcher.vue'
 
 const { t } = useI18n()
@@ -52,9 +53,7 @@ defineProps({
           <LanguageSwitcher />
           <div v-if="profile" class="dropdown dropdown-end">
             <label tabindex="0" class="btn btn-ghost btn-sm gap-2">
-              <div class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold text-white shadow-sm">
-                {{ (profile.name || 'A')[0].toUpperCase() }}
-              </div>
+              <AvatarInitials :name="profile.name" size="xs" />
               <span class="hidden sm:inline text-sm">{{ profile.name }}</span>
               <span class="badge badge-xs bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{{ profile.role }}</span>
             </label>
