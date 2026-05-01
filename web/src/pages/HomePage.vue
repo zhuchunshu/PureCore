@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, inject } from 'vue'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
-import ParticleBackground from '../components/ParticleBackground.vue'
+import CyberBackground from '../components/CyberBackground.vue'
 import GridOverlay from '../components/GridOverlay.vue'
 import GradientButton from '../components/GradientButton.vue'
 
@@ -75,17 +75,6 @@ onMounted(async () => {
     loading.value = false
   }
 })
-const themeParticleColor = computed(() => {
-  // Shooting stars look better with a bright, ethereal color
-  // Bright blue-white for dark themes, darker blue-gray for light themes
-  if (typeof window !== 'undefined') {
-    const isDark = document.documentElement.getAttribute('data-theme')?.includes('dark') ||
-      window.matchMedia('(prefers-color-scheme: dark)').matches
-    return isDark ? '147, 197, 253' : '59, 130, 246' // sky-300 for dark, blue-500 for light
-  }
-  return '59, 130, 246'
-})
-
 </script>
 
 <template>
@@ -93,7 +82,7 @@ const themeParticleColor = computed(() => {
     <!-- Hero -->
     <div class="relative hero min-h-[90vh] bg-base-100 overflow-hidden">
       <GridOverlay :opacity="0.04" />
-      <ParticleBackground :particle-color="themeParticleColor" :particle-count="80" :speed="1.0" />
+      <CyberBackground intensity="medium" />
       <div class="hero-content text-center relative z-10">
         <div class="max-w-2xl">
           <div class="flex flex-wrap gap-2 justify-center mb-8">

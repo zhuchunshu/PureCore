@@ -111,8 +111,7 @@ Paginated responses include: `total`, `page`, `per_page` alongside `data`
 - **NEVER** use emoji for icons anywhere in the frontend
 - Primary icon library: `lucide-vue-next` (Lucide icons)
 - Install: `bun add lucide-vue-next`
-- Secondary/fallback icon library: `@tabler/icons-vue` (Tabler Icons) — use when a suitable icon is not found in `@lucide/vue`
-- Install: `bun add @tabler/icons-vue`
+
 - Usage example (Lucide):
   ```vue
   <script setup>
@@ -120,15 +119,6 @@ Paginated responses include: `total`, `page`, `per_page` alongside `data`
   </script>
   <template>
     <Settings :size="20" />
-  </template>
-  ```
-- Usage example (Tabler, as fallback):
-  ```vue
-  <script setup>
-  import { IconBrandOauth } from '@tabler/icons-vue'
-  </script>
-  <template>
-    <IconBrandOauth :size="20" />
   </template>
   ```
 
