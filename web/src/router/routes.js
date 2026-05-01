@@ -8,6 +8,7 @@ import AdminLogin from '../pages/admin/AdminLogin.vue'
 import AdminRegister from '../pages/admin/AdminRegister.vue'
 import AdminDashboard from '../pages/admin/AdminDashboard.vue'
 import AdminSettings from '../pages/admin/AdminSettings.vue'
+import AdminUsers from '../pages/admin/AdminUsers.vue'
 
 // Admin route prefix from .env (default: control-panel)
 const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
@@ -68,6 +69,11 @@ export const routes = [
     path: `/${adminPrefix}/settings`,
     name: 'AdminSettings',
     component: AdminSettings,
+  },
+  {
+    path: `/${adminPrefix}/users`,
+    name: 'AdminUsers',
+    component: AdminUsers,
   },
   {
     path: '/:pathMatch(.*)*',

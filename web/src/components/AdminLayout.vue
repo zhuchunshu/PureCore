@@ -40,6 +40,7 @@ const props = defineProps({
         <div class="flex-1 overflow-y-auto">
           <ul class="menu menu-lg w-full p-3 gap-1">
             <li><router-link :to="`/${adminPrefix}`" :class="{ active: $route.path === `/${adminPrefix}` }"><span>📊</span> {{ t('admin.dashboard') }}</router-link></li>
+            <li><router-link :to="`/${adminPrefix}/users`" :class="{ active: $route.path === `/${adminPrefix}/users` }"><span>👥</span> {{ t('admin.users_title') }}</router-link></li>
             <li><router-link :to="`/${adminPrefix}/settings`" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><span>⚙️</span> {{ t('admin.settings') }}</router-link></li>
           </ul>
         </div>
@@ -75,6 +76,7 @@ const props = defineProps({
             </div>
             <ul class="menu menu-lg w-full p-3 gap-1">
               <li><router-link :to="`/${adminPrefix}`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}` }"><span>📊</span> {{ t('admin.dashboard') }}</router-link></li>
+              <li><router-link :to="`/${adminPrefix}/users`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/users` }"><span>👥</span> {{ t('admin.users_title') }}</router-link></li>
               <li><router-link :to="`/${adminPrefix}/settings`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><span>⚙️</span> {{ t('admin.settings') }}</router-link></li>
               <li class="mt-auto pt-4 border-t border-base-300/20">
                 <a href="/" target="_blank"><span>🏠</span> {{ t('admin.view_site') }}</a>

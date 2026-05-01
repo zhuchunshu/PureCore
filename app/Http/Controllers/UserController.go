@@ -45,3 +45,78 @@ func (uc *UserController) Show(req *core.Request, res *core.Response) error {
 	}
 	return res.Success(user)
 }
+
+type UpdateUserRequest struct {
+	Name   string `json:"name" validate:"omitempty,min=2"`
+	Email  string `json:"email" validate:"omitempty,email"`
+	Avatar string `json:"avatar"`
+	Bio    string `json:"bio"`
+	Status string `json:"status" validate:"omitempty,oneof=active banned inactive"`
+}
+
+func (uc *UserController) Update(req *core.Request, res *core.Response) error {
+	id := req.Input("id")
+	if id == "" {
+		return res.NotFound(core.GetLang().Trans("user.not_found"))
+	}
+
+	var user models.User
+	if err := core.DB().First(&user, id).Error; err != nil {
+		return res.NotFound(core.GetLang().Trans("user.not_found"))
+	}
+
+	var body UpdateUserRequest
+	if err := req.Validate(&body); err != nil {
+		return res.Error(err.Error())
+	}
+
+	updates := map[string]interface{}{}
+	if body.Name != "" {
+		updates["name"] = body.Name
+	}
+	if body.Email != "" {
+		updates["email"] = body.Email
+	}
+	if body.Avatar != "" {
+		updates["avatar"] = body.Avatar
+	}
+	if body.Bio != "" {
+		updates["bio"] = body.Bio
+	}
+	if body.Status != "" {
+		updates["status"] = body.Status
+	}
+
+	if len(updates) == 0 {
+		return res.Success(user)
+	}
+
+	if err := core.DB().Model(&user).Updates(updates).Error; err != nil {
+		return res.Error(err.Error(), 500)
+	}
+
+	// Refresh user data after update
+	if err := core.DB().First(&user, id).Error; err != nil {
+		return res.Error(err.Error(), 500)
+	}
+
+	return res.Success(user)
+}
+
+func (uc *UserController) Destroy(req *core.Request, res *core.Response) error {
+	id := req.Input("id")
+	if id == "" {
+		return res.NotFound(core.GetLang().Trans("user.not_found"))
+	}
+
+	var user models.User
+	if err := core.DB().First(&user, id).Error; err != nil {
+		return res.NotFound(core.GetLang().Trans("user.not_found"))
+	}
+
+	if err := core.DB().Delete(&user).Error; err != nil {
+		return res.Error(err.Error(), 500)
+	}
+
+	return res.Success(core.GetLang().Trans("user.deleted"))
+}
