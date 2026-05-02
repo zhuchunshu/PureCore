@@ -133,10 +133,28 @@ async function handleSave() {
 
 <template>
   <div class="space-y-8">
-    <!-- Loading spinner -->
-    <div v-if="loading" class="flex items-center justify-center py-20">
-      <span class="loading loading-spinner loading-lg text-primary"></span>
-    </div>
+    <!-- Loading skeleton -->
+    <template v-if="loading">
+      <!-- Header skeleton -->
+      <div class="skeleton h-28 rounded-2xl"></div>
+      <!-- Tabs skeleton -->
+      <div class="flex gap-2 p-1.5">
+        <div class="skeleton h-10 w-32 rounded-xl"></div>
+        <div class="skeleton h-10 w-32 rounded-xl"></div>
+      </div>
+      <!-- Form cards skeleton -->
+      <div class="grid gap-5 sm:grid-cols-2">
+        <div class="skeleton h-44 rounded-2xl"></div>
+        <div class="skeleton h-44 rounded-2xl"></div>
+        <div class="skeleton h-44 rounded-2xl sm:col-span-2"></div>
+        <div class="skeleton h-44 rounded-2xl"></div>
+        <div class="skeleton h-44 rounded-2xl sm:col-span-2"></div>
+      </div>
+      <!-- Save button skeleton -->
+      <div class="flex justify-end pt-2">
+        <div class="skeleton h-12 w-36 rounded-xl"></div>
+      </div>
+    </template>
 
     <!-- Error state -->
     <div v-else-if="error" class="flex items-center justify-center py-20">

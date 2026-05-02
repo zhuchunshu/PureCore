@@ -61,9 +61,32 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- Loading -->
-  <div v-if="loading" class="flex items-center justify-center py-20">
-    <span class="loading loading-spinner loading-lg text-primary"></span>
+  <!-- Loading skeleton -->
+  <div v-if="loading" class="min-h-[calc(100vh-4rem)] bg-base-200">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
+      <!-- Header skeleton -->
+      <div class="mb-6">
+        <div class="skeleton h-8 w-48 rounded-lg mb-2"></div>
+        <div class="skeleton h-4 w-72 rounded"></div>
+      </div>
+      <!-- Sidebar + Main -->
+      <div class="flex gap-6">
+        <!-- Sidebar skeleton -->
+        <div class="hidden md:flex flex-col w-56 shrink-0 space-y-2">
+          <div class="skeleton h-10 rounded-xl"></div>
+          <div class="skeleton h-10 rounded-xl"></div>
+          <div class="skeleton h-10 rounded-xl"></div>
+          <div class="skeleton h-10 rounded-xl"></div>
+          <div class="skeleton h-10 rounded-xl"></div>
+        </div>
+        <!-- Main content skeleton -->
+        <div class="flex-1 min-w-0 space-y-4">
+          <div class="skeleton h-36 rounded-2xl"></div>
+          <div class="skeleton h-28 rounded-2xl"></div>
+          <div class="skeleton h-20 rounded-2xl"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Error -->

@@ -216,6 +216,23 @@ func (usc *UserSessionController) RevokeAll(req *core.Request, res *core.Respons
 
 // CreateSession creates a new session record (called during login/register)
 func CreateSession(c fiber.Ctx, userID uint) (*models.UserSession, error) {
+	const maxSessions = 6
+
+	// Check count of active (non-expired) sessions for this user
+	var count int64
+	core.DB().Model(&models.UserSession{}).Where("user_id = ? AND expires_at > ?", userID, time.Now()).Count(&count)
+
+	// If we are at or over the limit, delete the oldest sessions to make room
+	if count >= maxSessions {
+		excess := count - maxSessions + 1 // +1 because we will insert a new one
+		var oldest []models.UserSession
+		core.DB().Where("user_id = ? AND expires_at > ?", userID, time.Now()).
+			Order("created_at ASC").Limit(int(excess)).Find(&oldest)
+		for _, s := range oldest {
+			core.DB().Delete(&s)
+		}
+	}
+
 	ua := c.Get("User-Agent")
 	ip := c.IP()
 

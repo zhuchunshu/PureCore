@@ -138,10 +138,19 @@ const providerIcons = {
 
 <template>
   <div class="space-y-8">
-    <!-- Loading spinner -->
-    <div v-if="loading" class="flex items-center justify-center py-20">
-      <span class="loading loading-spinner loading-lg text-primary"></span>
-    </div>
+    <!-- Loading skeleton -->
+    <template v-if="loading">
+      <!-- Header skeleton -->
+      <div class="skeleton h-28 rounded-2xl"></div>
+      <!-- Tabs skeleton -->
+      <div class="flex gap-2 p-1.5">
+        <div class="skeleton h-10 w-32 rounded-xl"></div>
+        <div class="skeleton h-10 w-32 rounded-xl"></div>
+        <div class="skeleton h-10 w-32 rounded-xl"></div>
+      </div>
+      <!-- Form card skeleton -->
+      <div class="skeleton h-96 rounded-2xl"></div>
+    </template>
 
     <!-- Error state -->
     <div v-else-if="error" class="flex items-center justify-center py-20">

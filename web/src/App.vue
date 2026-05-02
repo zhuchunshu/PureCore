@@ -24,8 +24,28 @@ const showBackendError = computed(() => !isHomePage.value && hasChecked.value &&
   <div class="flex flex-col min-h-screen">
     <!-- Loading spinner while checking backend health on non-home routes -->
     <template v-if="showSpinner">
-      <div class="min-h-screen flex items-center justify-center bg-base-200">
-        <span class="loading loading-spinner loading-lg text-primary"></span>
+      <div class="min-h-screen bg-base-200">
+        <!-- Navbar skeleton -->
+        <div class="h-16 bg-base-100 border-b border-base-300/20 flex items-center px-6">
+          <div class="skeleton h-8 w-32 rounded-lg"></div>
+          <div class="hidden sm:flex gap-4 ml-auto">
+            <div class="skeleton h-6 w-16 rounded-lg"></div>
+            <div class="skeleton h-6 w-16 rounded-lg"></div>
+            <div class="skeleton h-6 w-16 rounded-lg"></div>
+            <div class="skeleton h-6 w-16 rounded-lg"></div>
+          </div>
+        </div>
+        <!-- Content skeleton -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <div class="skeleton h-8 w-64 mb-4 rounded-lg"></div>
+          <div class="skeleton h-4 w-full max-w-2xl mb-2 rounded"></div>
+          <div class="skeleton h-4 w-3/4 max-w-xl mb-8 rounded"></div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="skeleton h-48 rounded-2xl"></div>
+            <div class="skeleton h-48 rounded-2xl"></div>
+            <div class="skeleton h-48 rounded-2xl"></div>
+          </div>
+        </div>
       </div>
     </template>
     <!-- Backend is unreachable: show error page -->

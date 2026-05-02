@@ -198,10 +198,50 @@ function formatDate(dateStr) {
 
 <template>
   <div class="space-y-8">
-    <!-- Loading spinner -->
-    <div v-if="loading" class="flex items-center justify-center py-20">
-      <span class="loading loading-spinner loading-lg text-primary"></span>
-    </div>
+    <!-- Loading skeleton -->
+    <template v-if="loading">
+      <!-- Header skeleton -->
+      <div class="skeleton h-28 rounded-2xl"></div>
+      <!-- Search bar skeleton -->
+      <div class="skeleton h-12 w-full max-w-md rounded-xl"></div>
+      <!-- Table skeleton -->
+      <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="table w-full">
+            <thead>
+              <tr class="bg-base-200/50">
+                <th class="w-16"><div class="skeleton h-4 w-8 rounded"></div></th>
+                <th><div class="skeleton h-4 w-16 rounded"></div></th>
+                <th><div class="skeleton h-4 w-24 rounded"></div></th>
+                <th><div class="skeleton h-4 w-16 rounded"></div></th>
+                <th><div class="skeleton h-4 w-20 rounded"></div></th>
+                <th><div class="skeleton h-4 w-16 rounded"></div></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="i in 5" :key="i">
+                <td><div class="skeleton h-4 w-8 rounded"></div></td>
+                <td>
+                  <div class="flex items-center gap-3">
+                    <div class="skeleton w-8 h-8 rounded-full"></div>
+                    <div class="skeleton h-4 w-20 rounded"></div>
+                  </div>
+                </td>
+                <td><div class="skeleton h-4 w-36 rounded"></div></td>
+                <td><div class="skeleton h-6 w-16 rounded-full"></div></td>
+                <td><div class="skeleton h-4 w-28 rounded"></div></td>
+                <td>
+                  <div class="flex items-center gap-1">
+                    <div class="skeleton h-8 w-8 rounded-lg"></div>
+                    <div class="skeleton h-8 w-8 rounded-lg"></div>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </template>
 
     <!-- Error state -->
     <div v-else-if="error" class="flex items-center justify-center py-20">

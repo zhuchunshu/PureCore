@@ -128,7 +128,7 @@ defineExpose({ reset, getToken, verified, isEnabled })
 
 <template>
   <div v-if="loading" class="flex justify-center py-4">
-    <span class="loading loading-spinner loading-sm text-primary"></span>
+    <div class="skeleton h-16 w-72 rounded-xl"></div>
   </div>
 
   <div v-else-if="verified" class="py-4">

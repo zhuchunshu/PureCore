@@ -247,10 +247,28 @@ const currentPageTitle = computed(() => {
       <!-- Main content -->
       <main class="flex-1 min-w-0">
         <div class="px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
-          <!-- Loading state -->
-          <div v-if="loading" class="flex flex-col items-center justify-center py-32">
-            <span class="loading loading-spinner loading-lg text-primary mb-4"></span>
-            <p class="text-sm text-base-content/50">Loading documentation...</p>
+          <!-- Loading skeleton -->
+          <div v-if="loading" class="space-y-6">
+            <!-- Breadcrumb skeleton -->
+            <div class="flex items-center gap-2 mb-4">
+              <div class="skeleton h-4 w-20 rounded"></div>
+              <div class="skeleton h-4 w-4 rounded"></div>
+              <div class="skeleton h-4 w-32 rounded"></div>
+            </div>
+            <!-- Article skeleton -->
+            <div class="bg-base-100 rounded-2xl border border-base-300/20 p-6 sm:p-8 lg:p-10 space-y-4">
+              <div class="skeleton h-8 w-3/4 rounded-lg"></div>
+              <div class="skeleton h-4 w-full rounded"></div>
+              <div class="skeleton h-4 w-full rounded"></div>
+              <div class="skeleton h-4 w-2/3 rounded"></div>
+              <div class="skeleton h-4 w-full rounded mt-4"></div>
+              <div class="skeleton h-4 w-full rounded"></div>
+              <div class="skeleton h-4 w-5/6 rounded"></div>
+              <div class="skeleton h-4 w-full rounded mt-4"></div>
+              <div class="skeleton h-4 w-4/5 rounded"></div>
+              <div class="skeleton h-4 w-1/2 rounded"></div>
+              <div class="skeleton h-64 rounded-xl mt-4"></div>
+            </div>
           </div>
 
       <!-- Error state -->

@@ -191,10 +191,24 @@ onMounted(fetchSessions)
       </button>
     </div>
 
-    <!-- Loading state -->
-    <div v-if="loading" class="text-center py-10 text-base-content/40">
-      <span class="loading loading-spinner loading-md mb-2"></span>
-      <span class="text-sm block">{{ t('user.session_loading') }}</span>
+    <!-- Loading skeleton -->
+    <div v-if="loading" class="space-y-3 py-2">
+      <div v-for="i in 4" :key="i" class="flex items-center gap-3 p-3 rounded-xl bg-base-200/50">
+        <div class="skeleton w-10 h-10 rounded-lg shrink-0"></div>
+        <div class="flex-1 space-y-2">
+          <div class="skeleton h-4 w-3/5 rounded"></div>
+          <div class="flex gap-3">
+            <div class="skeleton h-3 w-20 rounded"></div>
+            <div class="skeleton h-3 w-24 rounded"></div>
+            <div class="skeleton h-3 w-16 rounded"></div>
+          </div>
+          <div class="flex gap-2">
+            <div class="skeleton h-3 w-16 rounded"></div>
+            <div class="skeleton h-3 w-24 rounded"></div>
+          </div>
+        </div>
+        <div class="skeleton h-8 w-8 rounded-lg shrink-0"></div>
+      </div>
     </div>
 
     <!-- Empty state -->

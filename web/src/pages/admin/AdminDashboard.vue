@@ -43,9 +43,22 @@ onMounted(async () => {
 </script>
 
 <template>
-  <!-- Full-page loading spinner -->
-  <div v-if="loading" class="flex items-center justify-center py-20">
-    <span class="loading loading-spinner loading-lg text-primary"></span>
+  <!-- Loading skeleton -->
+  <div v-if="loading" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-8">
+    <!-- Welcome header skeleton -->
+    <div class="mb-6">
+      <div class="skeleton h-8 w-56 rounded-lg mb-2"></div>
+      <div class="skeleton h-4 w-72 rounded"></div>
+    </div>
+    <!-- Stats grid skeleton -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div class="skeleton h-24 rounded-2xl"></div>
+      <div class="skeleton h-24 rounded-2xl"></div>
+      <div class="skeleton h-24 rounded-2xl"></div>
+      <div class="skeleton h-24 rounded-2xl"></div>
+    </div>
+    <!-- Quick actions skeleton -->
+    <div class="skeleton h-32 rounded-2xl"></div>
   </div>
 
   <!-- Error state -->
