@@ -35,6 +35,7 @@ const generalForm = reactive({
   site_keywords: '',
   site_logo: '',
   footer_text: '',
+  app_url: '',
 })
 
 const generalFields = [
@@ -43,6 +44,7 @@ const generalFields = [
   { key: 'site_keywords', label: t('admin.settings_site_keywords'), placeholder: t('admin.settings_site_keywords_placeholder'), type: 'text', icon: '🔑', desc: t('admin.settings_site_keywords_desc') },
   { key: 'site_logo', label: t('admin.settings_site_logo'), placeholder: t('admin.settings_site_logo_placeholder'), type: 'text', icon: '🖼️', desc: t('admin.settings_site_logo_desc') },
   { key: 'footer_text', label: t('admin.settings_footer_text'), placeholder: t('admin.settings_footer_text_placeholder'), type: 'textarea', icon: '📄', desc: t('admin.settings_footer_text_desc') },
+  { key: 'app_url', label: t('admin.settings_app_url'), placeholder: t('admin.settings_app_url_placeholder'), type: 'text', icon: '🌐', desc: t('admin.settings_app_url_desc') },
 ]
 
 // ===== Captcha settings =====
@@ -77,6 +79,7 @@ onMounted(async () => {
     generalForm.site_keywords = await adminOption('site_keywords', '')
     generalForm.site_logo = await adminOption('site_logo', '')
     generalForm.footer_text = await adminOption('footer_text', '')
+    generalForm.app_url = await adminOption('app_url', '')
 
     captchaForm.turnstile_site_key = await adminOption('turnstile_site_key', '')
     captchaForm.turnstile_secret_key = await adminOption('turnstile_secret_key', '')

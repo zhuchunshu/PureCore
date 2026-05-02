@@ -88,12 +88,14 @@ export async function refreshOptions() {
 export async function adminOptionSet(key, value) {
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('admin_token') : null
   if (!token) {
-    console.warn('Cannot set option: not authenticated')
-    return false
+    const msg = 'Cannot set option: not authenticated'
+    console.error(msg)
+    throw new Error(msg)
   }
 
+  let resp
   try {
-    const resp = await fetch(`/api/v1/${adminPrefix}/options`, {
+    resp = await fetch(`/api/v1/${adminPrefix}/options`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -101,16 +103,25 @@ export async function adminOptionSet(key, value) {
       },
       body: JSON.stringify({ name: key, value }),
     })
-    const json = await resp.json()
-    if (json.code === 0) {
-      // Update local cache
-      cache.value = { ...cache.value, [key]: value }
-      return true
-    }
   } catch (err) {
     console.error('Failed to set option:', err)
+    throw new Error(`Network error while saving "${key}": ${err.message}`)
   }
-  return false
+
+  let json
+  try {
+    json = await resp.json()
+  } catch (err) {
+    throw new Error(`Invalid response while saving "${key}" (HTTP ${resp.status})`)
+  }
+
+  if (json.code !== 0) {
+    throw new Error(`Failed to save "${key}": ${json.message || `HTTP ${resp.status}`}`)
+  }
+
+  // Update local cache on success
+  cache.value = { ...cache.value, [key]: value }
+  return true
 }
 
 /**

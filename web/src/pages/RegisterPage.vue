@@ -5,7 +5,6 @@ import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import { setTokens, accessToken } from '../composables/useUserAuth'
 import TurnstileWidget from '../components/TurnstileWidget.vue'
-import OAuthButtons from '../components/OAuthButtons.vue'
 
 const { t } = useI18n()
 useSEO({
@@ -203,8 +202,6 @@ async function register() {
                 <span v-else>{{ t('user.register_button') }}</span>
               </button>
             </form>
-
-            <OAuthButtons mode="register" />
 
             <div class="mt-6 text-center lg:text-left space-y-4">
               <p class="text-sm text-base-content/40">

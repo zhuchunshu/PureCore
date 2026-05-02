@@ -33,14 +33,8 @@ func serveRun(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to boot application: %v", err)
 	}
 
-	// Initialize OAuth providers (Goth)
-	core.InitOAuth(core.GetConfig().String("APP_URL", "http://localhost:9002"))
-
 	// Register session routes
 	routes.RegisterSessionRoutes(app.Router())
-
-	// Register OAuth routes
-	routes.RegisterOAuthRoutes(app.Router())
 
 	// Apply global middleware
 	app.App().Use(middleware.Cors(), middleware.Lang())

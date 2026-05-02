@@ -4,7 +4,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import { accessToken, fetchProfile, clearTokens } from '../composables/useUserAuth'
-import { useOAuth } from '../composables/useOAuth'
 import { LayoutDashboard, User, Lock, Key, Smartphone } from 'lucide-vue-next'
 
 const { t } = useI18n()
@@ -30,16 +29,6 @@ function isActive(item) {
 }
 
 onMounted(async () => {
-  // Handle OAuth callback (tokens passed via URL query params)
-  const { handleOAuthCallback } = useOAuth()
-  if (handleOAuthCallback()) {
-    // OAuth login successful — refresh the page to clean up and load fresh state
-    // The handleOAuthCallback already sets tokens and cleans the URL
-    // We reload to ensure proper state initialization
-    window.location.href = '/dashboard'
-    return
-  }
-
   if (!accessToken.value) {
     router.push('/login')
     return
