@@ -19,8 +19,10 @@
     "oauth": {
       "github": "Login with GitHub",
       "google": "Login with Google",
-      "discord": "Login with Discord",
-      "callback_error": "OAuth callback failed",
+        "discord": "Login with Discord",
+        "apple": "Login with Apple",
+        "telegram": "Login with Telegram",
+        "callback_error": "OAuth callback failed",
       "provider_not_configured": "OAuth provider is not configured",
       "provider_not_supported": "Unsupported OAuth provider"
     }
@@ -341,6 +343,41 @@
         "setup_step2": "Create a new application",
         "setup_step3": "Go to OAuth2 settings and add the redirect URL above",
         "setup_step4": "Copy the Client ID and Client Secret here"
+      },
+      "allow_login": "Allow Login",
+      "allow_login_hint": "When enabled, users can sign in with this provider",
+      "allow_register": "Allow Register",
+      "allow_register_hint": "When enabled, new users can register using this provider. If disabled, only existing linked accounts can sign in.",
+      "callback_url": "Callback URL",
+      "callback_url_hint": "Default callback URL if left empty:",
+      "apple": {
+        "title": "Apple OAuth",
+        "desc": "Allow users to sign in with their Apple ID",
+        "client_id": "Client ID (Service ID)",
+        "client_id_placeholder": "Enter your Apple Service ID",
+        "team_id": "Team ID",
+        "team_id_placeholder": "Enter your Apple Team ID",
+        "key_id": "Key ID",
+        "key_id_placeholder": "Enter your Apple Key ID",
+        "private_key": "Private Key (PEM)",
+        "private_key_placeholder": "Paste your private key here",
+        "setup_guide": "How to set up Apple OAuth:",
+        "setup_step1": "Go to Apple Developer Console",
+        "setup_step2": "Create an App ID and enable Sign in with Apple",
+        "setup_step3": "Create a Service ID and add the redirect URL above",
+        "setup_step4": "Generate a private key and copy Key ID, Team ID, Service ID here"
+      },
+      "telegram": {
+        "title": "Telegram OAuth",
+        "desc": "Allow users to sign in with their Telegram account",
+        "bot_token": "Bot Token",
+        "bot_token_placeholder": "Enter your Telegram Bot Token",
+        "bot_token_hint": "Create a bot via @BotFather and set the bot's domain to this site",
+        "setup_guide": "How to set up Telegram Login Widget:",
+        "setup_step1": "Create a bot with @BotFather on Telegram",
+        "setup_step2": "Set the bot's domain to your site's base URL",
+        "setup_step3": "Copy the bot token here",
+        "setup_step4": "Enable login and register toggles above"
       }
     }
   },

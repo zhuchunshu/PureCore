@@ -19,8 +19,10 @@
     "oauth": {
       "github": "使用 GitHub 登录",
       "google": "使用 Google 登录",
-      "discord": "使用 Discord 登录",
-      "callback_error": "OAuth 回调失败",
+        "discord": "使用 Discord 登录",
+        "apple": "使用 Apple 登录",
+        "telegram": "使用 Telegram 登录",
+        "callback_error": "OAuth 回调失败",
       "provider_not_configured": "OAuth 提供者未配置",
       "provider_not_supported": "不支持的 OAuth 提供者"
     }
@@ -341,6 +343,41 @@
         "setup_step2": "创建新应用",
         "setup_step3": "前往 OAuth2 设置，添加上方的回调地址",
         "setup_step4": "将 Client ID 和 Client Secret 复制到这里"
+      },
+      "allow_login": "允许登录",
+      "allow_login_hint": "开启后，用户可以使用此提供商登录",
+      "allow_register": "允许注册",
+      "allow_register_hint": "开启后，新用户可以使用此提供商注册。关闭后仅已有绑定账户可以登录。",
+      "callback_url": "回调地址",
+      "callback_url_hint": "留空时使用默认回调地址：",
+      "apple": {
+        "title": "Apple OAuth",
+        "desc": "允许用户使用 Apple ID 登录",
+        "client_id": "Client ID（服务 ID）",
+        "client_id_placeholder": "输入您的 Apple 服务 ID",
+        "team_id": "Team ID",
+        "team_id_placeholder": "输入您的 Apple Team ID",
+        "key_id": "Key ID",
+        "key_id_placeholder": "输入您的 Apple Key ID",
+        "private_key": "私钥 (PEM)",
+        "private_key_placeholder": "在此粘贴您的私钥",
+        "setup_guide": "如何设置 Apple OAuth：",
+        "setup_step1": "前往 Apple 开发者控制台",
+        "setup_step2": "创建 App ID 并启用 Sign in with Apple",
+        "setup_step3": "创建 Service ID 并添加上方的回调地址",
+        "setup_step4": "生成私钥，将 Key ID、Team ID 和 Service ID 复制到这里"
+      },
+      "telegram": {
+        "title": "Telegram OAuth",
+        "desc": "允许用户使用 Telegram 账户登录",
+        "bot_token": "Bot Token",
+        "bot_token_placeholder": "输入您的 Telegram Bot Token",
+        "bot_token_hint": "通过 @BotFather 创建机器人，并将机器人域名设置为此站点",
+        "setup_guide": "如何设置 Telegram 登录挂件：",
+        "setup_step1": "在 Telegram 上通过 @BotFather 创建机器人",
+        "setup_step2": "将机器人的域名设置为您站点的根 URL",
+        "setup_step3": "将 Bot Token 复制到这里",
+        "setup_step4": "开启上方的登录和注册开关"
       }
     }
   },

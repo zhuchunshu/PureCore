@@ -24,6 +24,12 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: parseInt(env.FRONTEND_PORT) || 9001,
+      allowedHosts: (() => {
+        const defaultHosts = ['localhost', '.localhost', '127.0.0.1']
+        const extraStr = env.VITE_ALLOWED_HOSTS || process.env.VITE_ALLOWED_HOSTS
+        const extraHosts = extraStr ? extraStr.split(',').map(h => h.trim()).filter(Boolean) : []
+        return [...new Set([...defaultHosts, ...extraHosts])]
+      })(),
       proxy: {
         '/api': {
           target: apiTarget,

@@ -32,9 +32,9 @@ func (oc *OAuthController) Redirect(req *core.Request, res *core.Response) error
 		return res.Error("Unsupported OAuth provider: "+provider, 400)
 	}
 
-	// Check if provider has valid credentials
-	if !oc.isProviderEnabled(provider) {
-		return res.Error("OAuth provider is not configured: "+provider, 400)
+	// Verify login is allowed for this provider
+	if !core.OAuthAllowLogin(provider) {
+		return res.Error("OAuth login is not enabled for "+provider, 403)
 	}
 
 	// Generate random state for CSRF protection
@@ -73,6 +73,24 @@ func (oc *OAuthController) Callback(req *core.Request, res *core.Response) error
 	code := req.Ctx().Query("code")
 	state := req.Ctx().Query("state")
 
+	prov, err := goth.GetProvider(provider)
+	if err != nil {
+		return res.Error("Unsupported OAuth provider: "+provider, 400)
+	}
+
+	// Verify login is still allowed (could have been disabled mid-flow)
+	if !core.OAuthAllowLogin(provider) {
+		return res.Error("OAuth login is not enabled for "+provider, 403)
+	}
+
+	// For Telegram, the authentication data is sent as query parameters without a code.
+	// Standard OAuth2 providers use code + state.
+	if provider == "telegram" {
+		return oc.handleTelegramCallback(req, res, prov)
+	}
+
+	// ----- Standard OAuth2 flow (GitHub, Google, Discord, Apple) -----
+
 	// Verify state to prevent CSRF
 	cookieState := req.Ctx().Cookies("oauth_state")
 	if cookieState == "" || state == "" || state != cookieState {
@@ -87,11 +105,6 @@ func (oc *OAuthController) Callback(req *core.Request, res *core.Response) error
 		HTTPOnly: true,
 	})
 
-	prov, err := goth.GetProvider(provider)
-	if err != nil {
-		return res.Error("Unsupported OAuth provider: "+provider, 400)
-	}
-
 	// Complete the OAuth flow via Goth
 	sess, err := prov.BeginAuth(state)
 	if err != nil {
@@ -104,9 +117,38 @@ func (oc *OAuthController) Callback(req *core.Request, res *core.Response) error
 		return res.Error("Failed to authorize: "+err.Error(), 500)
 	}
 
+	return oc.completeLogin(req.Ctx(), prov, sess, provider)
+}
+
+// handleTelegramCallback processes the Telegram OAuth callback which uses query parameters
+// instead of the OAuth2 authorization code flow.
+func (oc *OAuthController) handleTelegramCallback(req *core.Request, res *core.Response, prov goth.Provider) error {
+	// Telegram doesn't use a code; the auth data is in the query string
+	// We create a session and pass the query params directly to Authorize.
+	sess, err := prov.BeginAuth("") // State not used for Telegram
+	if err != nil {
+		return res.Error("Failed to create telegram session: "+err.Error(), 500)
+	}
+
+	// Convert all query parameters into goth.Params (which is url.Values)
+	queryMap := req.Ctx().Queries()
+	params := url.Values{}
+	for k, v := range queryMap {
+		params.Add(k, v)
+	}
+	_, err = sess.Authorize(prov, params)
+	if err != nil {
+		return res.Error("Failed to authorize Telegram: "+err.Error(), 500)
+	}
+
+	return oc.completeLogin(req.Ctx(), prov, sess, "telegram")
+}
+
+// completeLogin fetches the Goth user, finds or creates a local user, and issues JWT tokens.
+func (oc *OAuthController) completeLogin(c fiber.Ctx, prov goth.Provider, sess goth.Session, provider string) error {
 	gothUser, err := prov.FetchUser(sess)
 	if err != nil {
-		return res.Error("Failed to fetch user: "+err.Error(), 500)
+		return c.Status(500).JSON(fiber.Map{"code": 500, "message": "Failed to fetch user: " + err.Error()})
 	}
 
 	// Determine email and name from Goth user
@@ -128,7 +170,12 @@ func (oc *OAuthController) Callback(req *core.Request, res *core.Response) error
 	// Find or create user
 	user, isNew, err := oc.findOrCreateUser(provider, gothUser.UserID, email, name, gothUser.AvatarURL)
 	if err != nil {
-		return res.Error("Failed to find or create user: "+err.Error(), 500)
+		return c.Status(500).JSON(fiber.Map{"code": 500, "message": "Failed to find or create user: " + err.Error()})
+	}
+
+	// If trying to register a new account but registration is disabled, reject
+	if isNew && !core.OAuthAllowRegister(provider) {
+		return c.Status(403).JSON(fiber.Map{"code": 403, "message": "OAuth registration is disabled for " + provider})
 	}
 
 	// Save/update the OAuth provider binding
@@ -139,12 +186,12 @@ func (oc *OAuthController) Callback(req *core.Request, res *core.Response) error
 	// Generate JWT tokens
 	accessTokenJWT, err := middleware.GenerateUserToken(user.ID, user.Name)
 	if err != nil {
-		return res.Error("Failed to generate token", 500)
+		return c.Status(500).JSON(fiber.Map{"code": 500, "message": "Failed to generate token: " + err.Error()})
 	}
 
 	refreshToken, err := middleware.GenerateRefreshToken()
 	if err != nil {
-		return res.Error("Failed to generate refresh token", 500)
+		return c.Status(500).JSON(fiber.Map{"code": 500, "message": "Failed to generate refresh token: " + err.Error()})
 	}
 
 	// Save refresh token and update last login
@@ -160,7 +207,7 @@ func (oc *OAuthController) Callback(req *core.Request, res *core.Response) error
 	}
 
 	// Create session
-	CreateSession(req.Ctx(), user.ID)
+	CreateSession(c, user.ID)
 
 	// Build frontend redirect URL with tokens
 	frontendURL := core.GetConfig().String("APP_URL", "http://localhost:3000")
@@ -175,20 +222,13 @@ func (oc *OAuthController) Callback(req *core.Request, res *core.Response) error
 		url.QueryEscape(user.Email),
 	)
 
-	return req.Ctx().Redirect().To(redirectURL)
+	return c.Redirect().To(redirectURL)
 }
 
 // EnabledProviders returns which OAuth providers are configured and active
 func (oc *OAuthController) EnabledProviders(req *core.Request, res *core.Response) error {
 	providers := core.EnabledOAuthProviders()
 	return res.Success(providers)
-}
-
-// isProviderEnabled checks if the provider has valid credentials configured
-func (oc *OAuthController) isProviderEnabled(provider string) bool {
-	return core.AdminOption("oauth_"+provider+"_enabled") == "1" &&
-		core.AdminOption("oauth_"+provider+"_client_id") != "" &&
-		core.AdminOption("oauth_"+provider+"_client_secret") != ""
 }
 
 // findOrCreateUser finds an existing user by their OAuth binding or email,

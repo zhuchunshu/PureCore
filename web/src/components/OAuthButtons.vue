@@ -2,7 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useOAuth } from '../composables/useOAuth'
 import { useI18n } from '../i18n'
-import { IconBrandGithub, IconBrandGoogle, IconBrandDiscord } from '@tabler/icons-vue'
+import { IconBrandGithub, IconBrandGoogle, IconBrandDiscord, IconBrandApple, IconBrandTelegram } from '@tabler/icons-vue'
 
 const props = defineProps({
   mode: {
@@ -27,6 +27,8 @@ function getProviderLabel(providerKey) {
     github: 'auth.oauth.github',
     google: 'auth.oauth.google',
     discord: 'auth.oauth.discord',
+    apple: 'auth.oauth.apple',
+    telegram: 'auth.oauth.telegram',
   }
   if (keyMap[providerKey]) return t(keyMap[providerKey])
   return providerKey
@@ -36,6 +38,8 @@ const providerIcons = {
   github: IconBrandGithub,
   google: IconBrandGoogle,
   discord: IconBrandDiscord,
+  apple: IconBrandApple,
+  telegram: IconBrandTelegram,
 }
 
 function getButtonClass(providerKey) {
@@ -43,6 +47,8 @@ function getButtonClass(providerKey) {
     github: 'bg-neutral-800 hover:bg-neutral-700 text-white border-neutral-700',
     google: 'bg-white hover:bg-gray-100 text-gray-700 border-gray-300',
     discord: 'bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500',
+    apple: 'bg-black hover:bg-gray-900 text-white border-gray-800',
+    telegram: 'bg-sky-500 hover:bg-sky-400 text-white border-sky-400',
   }
   if (classMap[providerKey]) return classMap[providerKey]
   return 'bg-base-100 hover:bg-base-200 text-base-content border-base-content/20'

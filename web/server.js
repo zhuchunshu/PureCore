@@ -10,7 +10,7 @@ const isProduction = process.env.NODE_ENV === 'production'
 
 // Load .env file if present (fallback for standalone SSR usage)
 try {
-  const envPath = join(dirname(__dirname), '..', '.env')
+  const envPath = join(dirname(__dirname), '.env')
   if (existsSync(envPath)) {
     const envContent = readFileSync(envPath, 'utf-8')
     for (const line of envContent.split('\n')) {
@@ -334,7 +334,7 @@ if (isProduction) {
 // ===== DEVELOPMENT MODE =====
 } else {
   const vite = await createViteServer({
-    server: { middlewareMode: true },
+    server: { middlewareMode: true, allowedHosts: true },
     appType: 'custom',
   })
 
