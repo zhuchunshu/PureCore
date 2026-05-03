@@ -288,7 +288,27 @@
     "create_failed": "Failed to create admin",
     "no_admin_redirect": "No admin account detected. Please register first.",
     "password_changed": "Password changed successfully. Please log in again.",
-    "brand": "PureCore Admin"
+    "brand": "PureCore Admin",
+    "oauth_settings": "OAuth Settings",
+    "oauth_settings_desc": "Configure third-party OAuth providers for user login and registration.",
+    "oauth_no_providers": "No OAuth providers registered",
+    "oauth_no_providers_desc": "No third-party authentication providers have been configured yet. Register providers in the backend code and they will appear here.",
+    "oauth_toggle_section": "Feature Toggles",
+    "oauth_toggle_section_desc": "Enable or disable this provider and control where it appears.",
+    "oauth_enabled": "Enable Provider",
+    "oauth_enabled_desc": "When disabled, this provider will not be available for authentication.",
+    "oauth_login_enabled": "Allow Login",
+    "oauth_login_enabled_desc": "Show this provider as a login option on the sign-in page.",
+    "oauth_register_enabled": "Allow Registration",
+    "oauth_register_enabled_desc": "Show this provider as a registration option on the sign-up page.",
+    "oauth_client_id": "Client ID",
+    "oauth_client_id_placeholder": "Enter the OAuth app client ID",
+    "oauth_client_secret": "Client Secret",
+    "oauth_client_secret_placeholder": "Enter the OAuth app client secret",
+    "oauth_redirect_url": "Redirect URL",
+    "oauth_redirect_url_desc": "The callback URL that the provider will redirect to after authentication.",
+    "oauth_redirect_url_placeholder": "https://your-domain.com/oauth/callback",
+    "oauth_redirect_url_hint": "Make sure this matches exactly what you configure in your {provider} OAuth app settings."
   },
   "backend": {
     "title": "Backend Service Unavailable",
@@ -315,5 +335,18 @@
     "stable": "Stable",
     "loading": "Loading...",
     "unknown": "Unknown Version"
+  },
+  "oauth": {
+    "or_continue_with": "Or continue with",
+    "or_signup_with": "Or sign up with",
+    "login_with": "Login with {provider}",
+    "callback_title": "OAuth Callback",
+    "callback_processing": "Processing authentication…",
+    "callback_error": "OAuth authentication failed. Please try again.",
+    "bind_title": "Link Account",
+    "bind_register_prompt": "It looks like you don't have an account yet. Would you like to register using your {provider} account or sign in first?",
+    "bind_register_option": "Register with {provider}",
+    "bind_login_option": "I already have an account, sign in to link",
+    "bind_success": "Account linked successfully"
   }
 }

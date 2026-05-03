@@ -6,6 +6,7 @@ import (
 	middleware "purecore/app/Http/Middleware"
 	providers "purecore/app/Providers"
 	"purecore/core"
+	"purecore/core/oauth"
 	_ "purecore/database/migrations"
 	"purecore/routes"
 
@@ -33,8 +34,18 @@ func serveRun(cmd *cobra.Command, args []string) {
 		log.Fatalf("Failed to boot application: %v", err)
 	}
 
+	// Set OAuth state signing secret (same as JWT secret)
+	oauthSecret := core.GetConfig().String("JWT_SECRET")
+	if oauthSecret == "" {
+		oauthSecret = "purecore-admin-secret-change-in-production"
+	}
+	oauth.SetSecret(oauthSecret)
+
 	// Register session routes
 	routes.RegisterSessionRoutes(app.Router())
+
+	// Register OAuth routes
+	routes.RegisterOAuthRoutes(app.Router())
 
 	// Apply global middleware
 	app.App().Use(middleware.Cors(), middleware.Lang())

@@ -5,7 +5,7 @@ import { useI18n } from '../i18n'
 import { clearTokens } from '../composables/useAuth'
 import AdminNavbar from './AdminNavbar.vue'
 import {
-  LayoutDashboard, Users, Settings,
+  LayoutDashboard, Users, Settings, Link,
   Home, LogOut, X
 } from 'lucide-vue-next'
 
@@ -46,6 +46,7 @@ const props = defineProps({
             <li><router-link :to="`/${adminPrefix}`" :class="{ active: $route.path === `/${adminPrefix}` }"><LayoutDashboard :size="20" /> {{ t('admin.dashboard') }}</router-link></li>
             <li><router-link :to="`/${adminPrefix}/users`" :class="{ active: $route.path === `/${adminPrefix}/users` }"><Users :size="20" /> {{ t('admin.users_title') }}</router-link></li>
             <li><router-link :to="`/${adminPrefix}/settings`" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><Settings :size="20" /> {{ t('admin.settings') }}</router-link></li>
+            <li><router-link :to="`/${adminPrefix}/oauth`" :class="{ active: $route.path === `/${adminPrefix}/oauth` }"><Link :size="20" /> {{ t('admin.oauth_settings') }}</router-link></li>
           </ul>
         </div>
         <div class="p-4 border-t border-base-300/20">
@@ -80,6 +81,7 @@ const props = defineProps({
               <li><router-link :to="`/${adminPrefix}`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}` }"><LayoutDashboard :size="20" /> {{ t('admin.dashboard') }}</router-link></li>
               <li><router-link :to="`/${adminPrefix}/users`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/users` }"><Users :size="20" /> {{ t('admin.users_title') }}</router-link></li>
               <li><router-link :to="`/${adminPrefix}/settings`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/settings` }"><Settings :size="20" /> {{ t('admin.settings') }}</router-link></li>
+              <li><router-link :to="`/${adminPrefix}/oauth`" @click="closeSidebar" :class="{ active: $route.path === `/${adminPrefix}/oauth` }"><Link :size="20" /> {{ t('admin.oauth_settings') }}</router-link></li>
               <li class="mt-auto pt-4 border-t border-base-300/20">
                 <a href="/" target="_blank"><Home :size="20" /> {{ t('admin.view_site') }}</a>
               </li>

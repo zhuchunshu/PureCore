@@ -222,6 +222,26 @@ Paginated responses include: `total`, `page`, `per_page` alongside `data`
 ## API call guard rule
 - If an API endpoint requires authentication (login) to be useful, the frontend **must** avoid calling it when the user is not logged in. Always check the authentication state before making such requests.
 
+## API service usage rule (CRITICAL — do NOT use raw fetch for authenticated requests)
+- **NEVER use bare `fetch()`** to call any backend API endpoint that requires authentication (admin routes, user routes, any endpoint protected by `AdminAuth` or `Auth` middleware). Always use the pre-built API services from `web/src/services/api.js`:
+  - `adminAPI.get()`, `adminAPI.post()`, `adminAPI.put()`, `adminAPI.delete()` — for admin-authenticated requests. Automatically injects `Authorization: Bearer <token>`, handles token refresh, and redirects to login on 401.
+  - `userAPI.get()`, `userAPI.post()`, etc. — for user-authenticated requests.
+- Using raw `fetch()` without the `Authorization` header will cause **401 Unauthorized** errors because the backend middleware rejects requests without a valid JWT.
+- The ONLY exception: **public endpoints** that do NOT require authentication (e.g., `/api/v1/system/info`, `/api/v1/oauth/providers`, login/register endpoints). For these, raw `fetch()` is acceptable.
+- **Every new page or component that calls an authenticated API MUST import and use `adminAPI` or `userAPI`** — this is non-negotiable. Review all `fetch()` calls in new code to ensure they go through the proper API service when the endpoint requires auth.
+- Example (correct):
+  ```js
+  import { adminAPI } from '../../services/api'
+  // ...
+  const resp = await adminAPI.get(`/api/v1/${adminPrefix}/oauth/settings`)
+  const json = await resp.json()
+  ```
+- Example (WRONG — will cause 401):
+  ```js
+  // NEVER do this for authenticated endpoints:
+  const resp = await fetch(`/api/v1/${adminPrefix}/oauth/settings`)
+  ```
+
 ## Icon library
 - **NEVER** use emoji for icons anywhere in the frontend
 - Primary icon library: `lucide-vue-next` (Lucide icons)
@@ -253,3 +273,25 @@ Paginated responses include: `total`, `page`, `per_page` alongside `data`
 - Frontend i18n module loads translations via `/lang/{locale}.json` (proxied from `web/public/lang/`)
 - Cookie `purecore-locale` persists user language choice across requests
 - Both sides flatten nested JSON to `"group.key"` format
+
+## OAuth / Third-Party Login (Strategy Pattern)
+- OAuth providers implement the `core/oauth.Provider` interface defined in `core/oauth/base.go`
+- **Adding a new provider requires ONLY one new file**: `core/oauth/{provider}.go` that calls `oauth.Register()` in `init()`. No changes to routes, controllers, or frontend needed.
+- Global registry at `core/oauth/registry.go` — providers self-register, admin settings page and login/register buttons auto-detect them
+- State tokens use HMAC-SHA256 signing with 10-minute expiry (CSRF protection) in `core/oauth/state.go`
+- Database: `oauth_accounts` table maps `(provider, provider_user_id)` → `user_id` via `app/Models/OAuthAccount.go`
+- Backend controller at `app/Http/Controllers/OAuthController.go` handles: redirect, callback, bind, unbind, list accounts
+- Routes defined in `routes/oauth.go`, registered from `cmd/serve.go`
+- Frontend:
+  - `web/src/composables/useOAuth.js` — fetches available providers, builds redirect URLs
+  - `web/src/components/auth/OAuthButton.vue` — reusable button component for any provider
+  - `web/src/pages/auth/OAuthCallback.vue` — callback handler with bind/register UX
+  - `web/src/pages/admin/AdminOAuthSettings.vue` — tabbed admin panel to configure each provider (enabled, login/register toggles, client_id, client_secret, redirect_url)
+- Admin settings keys follow pattern: `oauth_{provider}_enabled`, `oauth_{provider}_login_enabled`, `oauth_{provider}_register_enabled`, `oauth_{provider}_client_id`, `oauth_{provider}_client_secret`, `oauth_{provider}_redirect_url`
+- Bind flow: when OAuth user doesn't exist, show two options: (1) register with pre-filled info, (2) login first then bind
+- Documentation: `docs/en/OAUTH.md` and `docs/zh/OAUTH.md`
+- Translation keys under `admin.oauth_*` (admin panel) and `oauth.*` (public-facing auth pages)
+
+## Admin settings sidebar entry rule
+- When creating a new admin settings page (or any new page under the admin route prefix), after writing the page component, adding its route in `web/src/router/routes.js`, and completing translations, **ALWAYS ask the user** whether they want to add a sidebar link in `web/src/components/AdminLayout.vue`. Do NOT automatically add sidebar entries without explicit user confirmation.
+- The sidebar is managed in `web/src/components/AdminLayout.vue` and must be updated in both the desktop sidebar (`.hidden.lg:flex`) and mobile sidebar (`@click="closeSidebar"` sections) for consistency.

@@ -5,6 +5,8 @@ import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import { setTokens, accessToken } from '../composables/useUserAuth'
 import TurnstileWidget from '../components/TurnstileWidget.vue'
+import OAuthButton from '../components/auth/OAuthButton.vue'
+import { useOAuth } from '../composables/useOAuth'
 
 const { t } = useI18n()
 useSEO({
@@ -21,10 +23,18 @@ const turnstileToken = ref('')
 const turnstileRef = ref(null)
 const eyeClosed = ref(false)
 
-onMounted(() => {
+// OAuth providers for social login buttons
+const { providers, fetchProviders } = useOAuth()
+
+onMounted(async () => {
   if (accessToken.value) {
     router.push(route.query.redirect || '/')
+    return
   }
+  // Fetch available OAuth providers for login buttons
+  try {
+    await fetchProviders()
+  } catch (_) { /* silently ignore — OAuth buttons simply won't show */ }
 })
 
 function onPasswordFocus() {
@@ -159,6 +169,26 @@ async function login() {
                 <span v-else>{{ t('user.sign_in') }}</span>
               </button>
             </form>
+
+            <!-- OAuth login buttons -->
+            <div v-if="providers.length > 0" class="mt-6">
+              <div class="relative mb-4">
+                <div class="absolute inset-0 flex items-center">
+                  <div class="w-full border-t border-base-content/10"></div>
+                </div>
+                <div class="relative flex justify-center text-xs">
+                  <span class="px-3 bg-base-200/40 text-base-content/40">{{ t('oauth.or_continue_with') }}</span>
+                </div>
+              </div>
+              <div class="space-y-2">
+                <OAuthButton
+                  v-for="provider in providers"
+                  :key="provider.name"
+                  :provider="provider"
+                  :redirect="route.query.redirect || '/'"
+                />
+              </div>
+            </div>
 
             <div class="mt-6 text-center lg:text-left space-y-4">
               <p class="text-sm text-base-content/40">

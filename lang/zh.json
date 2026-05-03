@@ -288,7 +288,27 @@
     "create_failed": "创建管理员失败",
     "no_admin_redirect": "检测到系统中没有管理员账户，请先注册",
     "password_changed": "密码修改成功，请重新登录",
-    "brand": "PureCore 管理后台"
+    "brand": "PureCore 管理后台",
+    "oauth_settings": "OAuth 设置",
+    "oauth_settings_desc": "配置第三方 OAuth 提供商以实现用户登录和注册。",
+    "oauth_no_providers": "暂无注册的 OAuth 提供商",
+    "oauth_no_providers_desc": "尚未配置任何第三方身份验证提供商。在后端代码中注册提供商后，它们将显示在这里。",
+    "oauth_toggle_section": "功能开关",
+    "oauth_toggle_section_desc": "启用或禁用此提供商并控制其出现位置。",
+    "oauth_enabled": "启用提供商",
+    "oauth_enabled_desc": "禁用后，此提供商将不可用于身份验证。",
+    "oauth_login_enabled": "允许登录",
+    "oauth_login_enabled_desc": "在登录页面显示此提供商作为登录选项。",
+    "oauth_register_enabled": "允许注册",
+    "oauth_register_enabled_desc": "在注册页面显示此提供商作为注册选项。",
+    "oauth_client_id": "Client ID",
+    "oauth_client_id_placeholder": "输入 OAuth 应用的 Client ID",
+    "oauth_client_secret": "Client Secret",
+    "oauth_client_secret_placeholder": "输入 OAuth 应用的 Client Secret",
+    "oauth_redirect_url": "回调 URL",
+    "oauth_redirect_url_desc": "提供商认证后将重定向到该回调 URL。",
+    "oauth_redirect_url_placeholder": "https://your-domain.com/oauth/callback",
+    "oauth_redirect_url_hint": "确保此地址与您在 {provider} OAuth 应用设置中配置的完全一致。"
   },
   "backend": {
     "title": "后端服务不可用",
@@ -315,5 +335,18 @@
     "stable": "正式版",
     "loading": "加载中...",
     "unknown": "未知版本"
+  },
+  "oauth": {
+    "or_continue_with": "或使用第三方账号登录",
+    "or_signup_with": "或使用第三方账号注册",
+    "login_with": "使用 {provider} 登录",
+    "callback_title": "OAuth 回调",
+    "callback_processing": "正在处理认证信息…",
+    "callback_error": "OAuth 认证失败，请重试。",
+    "bind_title": "关联账号",
+    "bind_register_prompt": "您尚未注册账号。是否使用 {provider} 账号快速注册，还是先登录已有账号再绑定？",
+    "bind_register_option": "使用 {provider} 注册",
+    "bind_login_option": "已有账号，登录后绑定",
+    "bind_success": "账号关联成功"
   }
 }

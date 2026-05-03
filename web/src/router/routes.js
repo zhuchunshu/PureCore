@@ -14,6 +14,8 @@ import AdminRegister from '../pages/admin/AdminRegister.vue'
 import AdminDashboard from '../pages/admin/AdminDashboard.vue'
 import AdminSettings from '../pages/admin/AdminSettings.vue'
 import AdminUsers from '../pages/admin/AdminUsers.vue'
+import OAuthCallback from '../pages/auth/OAuthCallback.vue'
+import AdminOAuthSettings from '../pages/admin/AdminOAuthSettings.vue'
 
 // Admin route prefix from .env (default: control-panel)
 const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
@@ -109,6 +111,17 @@ export const routes = [
     name: 'AdminUsers',
     component: AdminUsers,
     meta: { requiresAuth: true, authType: 'admin' },
+  },
+  {
+    path: `/${adminPrefix}/oauth`,
+    name: 'AdminOAuthSettings',
+    component: AdminOAuthSettings,
+    meta: { requiresAuth: true, authType: 'admin' },
+  },
+  {
+    path: '/oauth/callback',
+    name: 'OAuthCallback',
+    component: OAuthCallback,
   },
   {
     path: '/:pathMatch(.*)*',
