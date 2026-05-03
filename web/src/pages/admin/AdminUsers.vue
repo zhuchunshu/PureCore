@@ -1,6 +1,5 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { adminAPI } from '../../services/api'
@@ -16,7 +15,6 @@ useSEO({
   description: t('admin.users_description'),
 })
 
-const router = useRouter()
 const adminPrefix = config.adminRoutePrefix
 
 const loading = ref(true)
@@ -60,10 +58,6 @@ const filteredUsers = computed(() => {
 })
 
 onMounted(async () => {
-  if (!adminAPI.isLoggedIn()) {
-    router.push(`/${adminPrefix}/login`)
-    return
-  }
   await fetchUsers()
 })
 

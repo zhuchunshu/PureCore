@@ -2,6 +2,7 @@ package core
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -48,20 +49,13 @@ func InitLang(langDir string) error {
 		if err != nil {
 			continue
 		}
-		var flat map[string]string
-		if err := json.Unmarshal(data, &flat); err != nil {
-			// 尝试解析嵌套结构
-			var nested map[string]map[string]string
-			if err2 := json.Unmarshal(data, &nested); err2 != nil {
-				continue
-			}
-			flat = make(map[string]string)
-			for group, msgs := range nested {
-				for key, val := range msgs {
-					flat[group+"."+key] = val
-				}
-			}
+		var raw interface{}
+		if err := json.Unmarshal(data, &raw); err != nil {
+			fmt.Printf("[Lang] Failed to parse %s: %v\n", entry.Name(), err)
+			continue
 		}
+		flat := make(map[string]string)
+		flattenJSON(raw, "", flat)
 		l.mu.Lock()
 		l.translations[locale] = flat
 		l.mu.Unlock()
@@ -109,4 +103,35 @@ func (l *Lang) getMsg(locale, key string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// flattenJSON recursively flattens a parsed JSON structure into a flat map
+// with dot-separated keys, similar to the frontend's flattenMessages.
+func flattenJSON(data interface{}, prefix string, out map[string]string) {
+	switch v := data.(type) {
+	case map[string]interface{}:
+		for key, val := range v {
+			fullKey := key
+			if prefix != "" {
+				fullKey = prefix + "." + key
+			}
+			flattenJSON(val, fullKey, out)
+		}
+	default:
+		if prefix != "" {
+			// Convert non-string values to string representation
+			switch val := data.(type) {
+			case string:
+				out[prefix] = val
+			case float64:
+				out[prefix] = fmt.Sprint(val)
+			case bool:
+				out[prefix] = fmt.Sprint(val)
+			case nil:
+				out[prefix] = ""
+			default:
+				out[prefix] = fmt.Sprint(val)
+			}
+		}
+	}
 }

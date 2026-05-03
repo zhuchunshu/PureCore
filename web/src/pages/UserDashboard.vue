@@ -1,14 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
-import { accessToken, fetchProfile, clearTokens } from '../composables/useUserAuth'
+import { fetchProfile } from '../composables/useUserAuth'
 import { LayoutDashboard, User, Lock, Key, Smartphone } from 'lucide-vue-next'
 
 const { t } = useI18n()
 useSEO({ title: t('user.dashboard'), description: t('user.dashboard') })
-const router = useRouter()
 const route = useRoute()
 
 const profile = ref(null)
@@ -29,17 +28,10 @@ function isActive(item) {
 }
 
 onMounted(async () => {
-  if (!accessToken.value) {
-    router.push('/login')
-    return
-  }
   try {
     const data = await fetchProfile()
     if (data) {
       profile.value = data
-    } else {
-      clearTokens()
-      router.push('/login')
     }
   } catch {
     error.value = t('user.network_error')

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import { setTokens, accessToken } from '../composables/useUserAuth'
@@ -12,6 +12,7 @@ useSEO({
   description: t('user.login_title'),
 })
 const router = useRouter()
+const route = useRoute()
 const email = ref('')
 const password = ref('')
 const errMsg = ref('')
@@ -22,7 +23,7 @@ const eyeClosed = ref(false)
 
 onMounted(() => {
   if (accessToken.value) {
-    router.push('/')
+    router.push(route.query.redirect || '/')
   }
 })
 
@@ -55,7 +56,7 @@ async function login() {
     if (json.code === 0) {
       setTokens(json.data.token, json.data.refresh_token)
       localStorage.setItem('user_profile', JSON.stringify({ name: json.data.name, email: json.data.email }))
-      router.push('/')
+      router.push(route.query.redirect || '/')
     } else {
       errMsg.value = json.message || t('user.login_failed')
     }

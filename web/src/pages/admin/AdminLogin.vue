@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { setTokens, accessToken } from '../../composables/useAuth'
@@ -15,6 +15,7 @@ useSEO({
   description: t('admin.title'),
 })
 const router = useRouter()
+const route = useRoute()
 const username = ref('')
 const password = ref('')
 const errMsg = ref('')
@@ -26,7 +27,7 @@ const turnstileRef = ref(null)
 
 onMounted(async () => {
   if (accessToken.value) {
-    router.push(`/${adminPrefix}`)
+    router.push(route.query.redirect || `/${adminPrefix}`)
     return
   }
 
@@ -65,7 +66,7 @@ async function login() {
     if (json.code === 0) {
       setTokens(json.data.token, json.data.refresh_token)
       localStorage.setItem('admin_user', JSON.stringify(json.data))
-      router.push(`/${adminPrefix}`)
+      router.push(route.query.redirect || `/${adminPrefix}`)
     } else {
       errMsg.value = json.message || t('admin.login_failed')
     }

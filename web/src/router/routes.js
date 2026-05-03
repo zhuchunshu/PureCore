@@ -37,6 +37,7 @@ export const routes = [
   {
     path: '/dashboard',
     component: UserDashboard,
+    meta: { requiresAuth: true, authType: 'user' },
     children: [
       {
         path: '',
@@ -95,16 +96,19 @@ export const routes = [
     path: `/${adminPrefix}`,
     name: 'AdminDashboard',
     component: AdminDashboard,
+    meta: { requiresAuth: true, authType: 'admin' },
   },
   {
     path: `/${adminPrefix}/settings`,
     name: 'AdminSettings',
     component: AdminSettings,
+    meta: { requiresAuth: true, authType: 'admin' },
   },
   {
     path: `/${adminPrefix}/users`,
     name: 'AdminUsers',
     component: AdminUsers,
+    meta: { requiresAuth: true, authType: 'admin' },
   },
   {
     path: '/:pathMatch(.*)*',

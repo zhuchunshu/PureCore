@@ -141,12 +141,16 @@ export function createApiService({ type = 'admin' } = {}) {
       } catch (err) {
         console.error(`[api:${type}] Token refresh failed:`, err)
       }
-      // Refresh failed — clear everything and redirect
+      // Refresh failed — clear everything and redirect with return URL
       if (!isRedirecting) {
         isRedirecting = true
         clearTokens()
         const router = useRouter()
-        router.push(loginPath)
+        const currentPath = router.currentRoute.value.fullPath
+        router.push({
+          path: loginPath,
+          query: currentPath !== loginPath ? { redirect: currentPath } : {}
+        })
       }
       return null
     })().finally(() => {

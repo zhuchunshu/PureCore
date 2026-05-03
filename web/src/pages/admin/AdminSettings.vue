@@ -1,9 +1,7 @@
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
-import { clearTokens, accessToken } from '../../composables/useAuth'
 import { adminOption, adminOptionSetMany, refreshOptions } from '../../composables/useAdminOption'
 import { toastSuccess } from '../../composables/useToast'
 import TechCard from '../../components/TechCard.vue'
@@ -14,7 +12,6 @@ useSEO({
   title: t('admin.settings'),
   description: t('admin.settings_description'),
 })
-const router = useRouter()
 const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
 
 const loading = ref(true)
@@ -68,11 +65,6 @@ const captchaToggles = [
 ]
 
 onMounted(async () => {
-  if (!accessToken.value) {
-    router.push(`/${adminPrefix}/login`)
-    return
-  }
-
   try {
     generalForm.site_name = await adminOption('site_name', 'PureCore')
     generalForm.site_description = await adminOption('site_description', '')
