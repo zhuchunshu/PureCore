@@ -48,7 +48,10 @@ async function loadOptions() {
 export async function adminOption(key, defaultVal = '') {
   await loadOptions()
   const val = cache.value[key]
-  return val !== undefined ? val : defaultVal
+  if (val !== undefined && val !== '') {
+    return val
+  }
+  return defaultVal
 }
 
 /**
@@ -65,7 +68,10 @@ export function adminOptionSync(key, defaultVal = '') {
     loadOptions()
   }
   const val = cache.value[key]
-  return val !== undefined ? val : defaultVal
+  if (val !== undefined && val !== '') {
+    return val
+  }
+  return defaultVal
 }
 
 /**
@@ -125,6 +131,52 @@ export async function adminOptionSet(key, value) {
 }
 
 /**
+ * Batch-set multiple options in a single request (requires authentication).
+ * Updates the local cache on success.
+ *
+ * @param {Record<string, string>} optionsMap - Key-value pairs to save
+ * @returns {Promise<boolean>} Whether the operation succeeded
+ */
+export async function adminOptionSetMany(optionsMap) {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('admin_token') : null
+  if (!token) {
+    const msg = 'Cannot batch-set options: not authenticated'
+    console.error(msg)
+    throw new Error(msg)
+  }
+
+  let resp
+  try {
+    resp = await fetch(`/api/v1/${adminPrefix}/options/batch`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({ options: optionsMap }),
+    })
+  } catch (err) {
+    console.error('Failed to batch-set options:', err)
+    throw new Error(`Network error while batch-saving options: ${err.message}`)
+  }
+
+  let json
+  try {
+    json = await resp.json()
+  } catch (err) {
+    throw new Error(`Invalid response while batch-saving options (HTTP ${resp.status})`)
+  }
+
+  if (json.code !== 0) {
+    throw new Error(`Failed to batch-save options: ${json.message || `HTTP ${resp.status}`}`)
+  }
+
+  // Update local cache with all saved values
+  cache.value = { ...cache.value, ...optionsMap }
+  return true
+}
+
+/**
  * Check if options have been loaded
  */
 export function isOptionsLoaded() {
@@ -139,6 +191,7 @@ export function useAdminOption() {
     adminOption,
     adminOptionSync,
     adminOptionSet,
+    adminOptionSetMany,
     refreshOptions,
     isOptionsLoaded,
     options: cache,

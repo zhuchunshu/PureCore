@@ -72,6 +72,34 @@ func (o *Option) Set(key, value string) error {
 	return nil
 }
 
+// SetMany batch-upserts multiple key-value pairs in a single transaction,
+// then refreshes the cache only once — avoiding repeated queries on bulk saves.
+func (o *Option) SetMany(options map[string]string) error {
+	if len(options) == 0 {
+		return nil
+	}
+	db := DB()
+	tx := db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+	for key, value := range options {
+		result := tx.Exec(
+			"INSERT INTO web_options (name, value, created_at, updated_at) VALUES (?, ?, NOW(), NOW()) ON CONFLICT (name) DO UPDATE SET value = ?, updated_at = NOW()",
+			key, value, value,
+		)
+		if result.Error != nil {
+			tx.Rollback()
+			return result.Error
+		}
+	}
+	if err := tx.Commit().Error; err != nil {
+		return err
+	}
+	o.refresh()
+	return nil
+}
+
 // refresh reloads the cache from the database
 func (o *Option) refresh() {
 	db := DB()
@@ -98,4 +126,9 @@ func AdminOption(key string, defaultVal ...string) string {
 // AdminOptionSet is a global shorthand for GetOption().Set()
 func AdminOptionSet(key, value string) error {
 	return GetOption().Set(key, value)
+}
+
+// AdminOptionSetMany is a global shorthand for GetOption().SetMany()
+func AdminOptionSetMany(options map[string]string) error {
+	return GetOption().SetMany(options)
 }

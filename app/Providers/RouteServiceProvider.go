@@ -67,6 +67,7 @@ func (p *RouteServiceProvider) Register(router *core.Router) error {
 		r.Get("/auth/profile", core.H(adminCtrl.Profile))
 		r.Post("/auth/change-password", core.H(adminCtrl.ChangePassword))
 		r.Post("/options", core.H(optionCtrl.Set))
+		r.Post("/options/batch", core.H(optionCtrl.BatchSet))
 		// User management
 		r.Get("/users", core.H(userCtrl.Index))
 		r.Post("/users", core.H(userCtrl.Store))

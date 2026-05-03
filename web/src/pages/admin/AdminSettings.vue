@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { clearTokens, accessToken } from '../../composables/useAuth'
-import { adminOption, adminOptionSet, refreshOptions } from '../../composables/useAdminOption'
+import { adminOption, adminOptionSetMany, refreshOptions } from '../../composables/useAdminOption'
 import { toastSuccess } from '../../composables/useToast'
 import TechCard from '../../components/TechCard.vue'
 import GradientButton from '../../components/GradientButton.vue'
@@ -117,13 +117,15 @@ async function handleSave() {
   try {
     const form = activeForm()
     const fields = activeFields()
+    const optionsMap = {}
     for (const field of fields) {
-      await adminOptionSet(field.key, form[field.key])
+      optionsMap[field.key] = String(form[field.key])
     }
     const toggles = activeToggles()
     for (const toggle of toggles) {
-      await adminOptionSet(toggle.key, form[toggle.key])
+      optionsMap[toggle.key] = String(form[toggle.key])
     }
+    await adminOptionSetMany(optionsMap)
     await refreshOptions()
     toastSuccess(t('admin.settings_saved'))
   } catch (err) {

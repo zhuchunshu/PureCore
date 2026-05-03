@@ -93,7 +93,8 @@ All endpoints return `{code, message, data}` JSON. Paginated responses include `
 - **Page Background**: All non-homepage pages use `bg-base-200` for main content. Exceptions: HomePage (hero), NotFound (`bg-base-100` — never change).
 - **Dashboard Pages**: Each feature is a separate page component under `web/src/pages/dashboard/` with unique URL routes. `UserDashboard.vue` is a layout container only — sidebar + `<router-view />`, nested `children` routes.
 - **Admin Layout**: All admin pages after login MUST use `AdminLayout`/`AdminNavbar`. Public pages use `Navbar.vue` + `Footer.vue`.
-- **Icons**: NEVER use emoji. Primary: `lucide-vue-next`. Secondary: `@tabler/icons-vue`.
+- **Icons**: NEVER use emoji. Primary: `lucide-vue-next`. If Lucide doesn't have the desired icon, fall back to `@tabler/icons-vue`.
+- **Dependencies**: Third-party libraries are allowed when they solve a real problem — no need to reinvent the wheel.
 - **API Call Guard**: If an API endpoint requires authentication, check auth state before calling it.
 - **SEO**: `useSEO({ title, description, keywords })` composable for meta tags. `initSEO()` called in `main.js`.
 
