@@ -18,7 +18,11 @@ import (
 func jwtSecret() string {
 	secret := core.GetConfig().String("JWT_SECRET")
 	if secret == "" {
-		secret = "purecore-admin-secret-change-in-production"
+		// In development, allow a default for convenience; production must set JWT_SECRET.
+		if core.GetConfig().IsProduction() {
+			panic("JWT_SECRET environment variable is required in production")
+		}
+		secret = "purecore-dev-secret-do-not-use-in-production"
 	}
 	return secret
 }
@@ -65,8 +69,17 @@ func AdminAuth() fiber.Handler {
 			return res.Unauthorized()
 		}
 
-		userID := uint(claims["user_id"].(float64))
-		username := claims["username"].(string)
+		userIDFloat, ok := claims["user_id"].(float64)
+		if !ok {
+			res := core.NewResponse(c)
+			return res.Unauthorized()
+		}
+		userID := uint(userIDFloat)
+		username, ok := claims["username"].(string)
+		if !ok {
+			res := core.NewResponse(c)
+			return res.Unauthorized()
+		}
 
 		// Verify token_version matches the database
 		if tv, ok := claims["token_version"]; ok {
@@ -75,7 +88,8 @@ func AdminAuth() fiber.Handler {
 				res := core.NewResponse(c)
 				return res.Unauthorized()
 			}
-			if int(tv.(float64)) != admin.TokenVersion {
+			tvFloat, ok := tv.(float64)
+			if !ok || int(tvFloat) != admin.TokenVersion {
 				res := core.NewResponse(c)
 				return res.Unauthorized()
 			}

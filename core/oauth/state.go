@@ -61,13 +61,10 @@ func ParseState(state string) (*StateClaims, error) {
 // This is duplicated here to keep the oauth package self-contained,
 // but should match the value used by the middleware package.
 func jwtSecret() string {
-	// Access the core config; we import "purecore/core" in the controller layer,
-	// but to keep this package clean, we accept the secret as a package-level variable
-	// that can be set during initialization. Default to a safe fallback.
-	if defaultSecret != "" {
-		return defaultSecret
+	if defaultSecret == "" {
+		panic("oauth.SetSecret() must be called during application boot with a non-empty secret")
 	}
-	return "purecore-oauth-secret-change-in-production"
+	return defaultSecret
 }
 
 var defaultSecret string

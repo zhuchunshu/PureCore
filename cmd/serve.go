@@ -37,7 +37,10 @@ func serveRun(cmd *cobra.Command, args []string) {
 	// Set OAuth state signing secret (same as JWT secret)
 	oauthSecret := core.GetConfig().String("JWT_SECRET")
 	if oauthSecret == "" {
-		oauthSecret = "purecore-admin-secret-change-in-production"
+		if core.GetConfig().IsProduction() {
+			log.Fatalf("JWT_SECRET environment variable is required in production")
+		}
+		oauthSecret = "purecore-dev-secret-do-not-use-in-production"
 	}
 	oauth.SetSecret(oauthSecret)
 

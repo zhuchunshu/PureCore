@@ -82,7 +82,9 @@ async function fetchDoc(page) {
       content.value = json.data.content
       document.title = `${json.data.page} - PureCore Docs`
       await nextTick()
-      window.scrollTo({ top: 0, behavior: 'smooth' })
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
     } else if (resp.status === 404 || json.code === 404) {
       isNotFound.value = true
     } else {
@@ -108,15 +110,21 @@ function navigateTo(page) {
 }
 
 function scrollToTop() {
-  window.scrollTo({ top: 0, behavior: 'smooth' })
+  if (typeof window !== 'undefined') {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 }
 
 function handleScroll() {
-  showBackToTop.value = window.scrollY > 300
+  if (typeof window !== 'undefined') {
+    showBackToTop.value = window.scrollY > 300
+  }
 }
 
 onMounted(async () => {
-  window.addEventListener('scroll', handleScroll)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('scroll', handleScroll)
+  }
   await fetchPages()
   if (pages.value.length > 0) {
     await fetchDoc(currentPage.value)
@@ -125,7 +133,9 @@ onMounted(async () => {
 
 import { onUnmounted } from 'vue'
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('scroll', handleScroll)
+  }
 })
 
 watch(locale, async () => {

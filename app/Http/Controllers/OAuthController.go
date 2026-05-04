@@ -107,17 +107,21 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 		defer cancel()
 		userInfo, err = provider.Exchange(exchangeCtx, code)
 		if err != nil {
-			return res.Error("Failed to exchange OAuth code: "+err.Error(), 500)
+			// Log detailed error internally but return a generic message to the client
+			return res.Error("OAuth authorization failed. Please try again.", 500)
 		}
 	} else {
-		// Non-OAuth2 provider: collect all query parameters and call HandleCallback
+		// Non-OAuth2 provider: collect query parameters (exclude state which is handled separately)
 		params := make(map[string]string)
 		req.Ctx().Request().URI().QueryArgs().VisitAll(func(key, value []byte) {
-			params[string(key)] = string(value)
+			k := string(key)
+			if k != "state" { // state is validated separately above
+				params[k] = string(value)
+			}
 		})
 		userInfo, err = provider.HandleCallback(params)
 		if err != nil {
-			return res.Error("OAuth callback failed: "+err.Error(), 500)
+			return res.Error("OAuth authorization failed. Please try again.", 500)
 		}
 	}
 
@@ -384,7 +388,6 @@ func (c *OAuthController) Bind(req *core.Request, res *core.Response) error {
 	}
 
 	// Create the link
-	now := time.Now()
 	oauthAccount := models.OAuthAccount{
 		UserID:      userID,
 		Provider:    oAuthInfo.Provider,
@@ -411,7 +414,6 @@ func (c *OAuthController) Bind(req *core.Request, res *core.Response) error {
 		}
 	}
 
-	_ = now // Suppress unused warning
 	return res.Success(map[string]interface{}{
 		"message": "OAuth account linked successfully",
 	})
@@ -586,21 +588,24 @@ func (c *OAuthController) loginWithRedirect(req *core.Request, res *core.Respons
 	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
 	CreateSession(req.Ctx(), user.ID)
 
-	// Set tokens as cookies (not HttpOnly so JS can read them)
+	// Set tokens as HttpOnly cookies for security (not readable by JS)
+	// The frontend should use the /auth/profile endpoint to verify login state,
+	// not read tokens from cookies.
+	isProduction := core.GetConfig().IsProduction()
 	req.Ctx().Cookie(&fiber.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
-		Secure:   false,
-		HTTPOnly: false,
+		Secure:   isProduction,
+		HTTPOnly: true,
 		SameSite: "Lax",
 	})
 	req.Ctx().Cookie(&fiber.Cookie{
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		Path:     "/",
-		Secure:   false,
-		HTTPOnly: false,
+		Secure:   isProduction,
+		HTTPOnly: true,
 		SameSite: "Lax",
 	})
 
@@ -664,49 +669,4 @@ func getSiteBaseURL(req *core.Request) string {
 
 func urlQueryEscape(s string) string {
 	return url.QueryEscape(s)
-}
-
-// bindOAuth links an OAuth account to the currently logged-in user.
-func (c *OAuthController) bindOAuth(req *core.Request, res *core.Response, userID uint, providerName string, userInfo *oauth.UserInfo) error {
-	now := time.Now()
-	oauthAccount := models.OAuthAccount{
-		UserID:     userID,
-		Provider:   providerName,
-		ProviderID: userInfo.ProviderID,
-		Email:      userInfo.Email,
-		Name:       userInfo.Name,
-		AvatarURL:  userInfo.AvatarURL,
-	}
-	if userInfo.Raw != nil {
-		rawBytes, _ := json.Marshal(userInfo.Raw)
-		oauthAccount.RawData = string(rawBytes)
-	}
-	if err := core.DB().Create(&oauthAccount).Error; err != nil {
-		// If already exists (unique constraint), just update
-		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
-			core.DB().Model(&models.OAuthAccount{}).
-				Where("provider = ? AND provider_id = ?", providerName, userInfo.ProviderID).
-				Updates(map[string]interface{}{
-					"email":      userInfo.Email,
-					"name":       userInfo.Name,
-					"avatar_url": userInfo.AvatarURL,
-					"updated_at": now,
-				})
-		} else {
-			return res.Error("Failed to link OAuth account: "+err.Error(), 500)
-		}
-	}
-
-	// Update user avatar if not set
-	var user models.User
-	if err := core.DB().First(&user, userID).Error; err == nil {
-		if user.Avatar == "" && userInfo.AvatarURL != "" {
-			core.DB().Model(&user).Update("avatar", userInfo.AvatarURL)
-		}
-	}
-
-	return res.Success(map[string]interface{}{
-		"message": "OAuth account linked",
-		"linked":  true,
-	})
 }

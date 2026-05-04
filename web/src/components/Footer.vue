@@ -1,8 +1,13 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { useI18n } from '../i18n'
 
 const { t } = useI18n()
-const currentYear = new Date().getFullYear()
+const currentYear = ref(new Date().getFullYear())
+// Re-assign on client-side to avoid SSR/CSR mismatch
+onMounted(() => {
+  currentYear.value = new Date().getFullYear()
+})
 </script>
 
 <template>
