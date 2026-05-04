@@ -34,3 +34,19 @@ export function initUserAuth() {
   // The API service initializes itself on creation, so this is a no-op.
   // Kept for backward compatibility with existing main.js imports.
 }
+
+// Composable for user auth state — function-based API used by IntegrationsPage.vue
+export function useUserAuth() {
+  return {
+    accessToken,
+    refreshToken,
+    currentUser,
+    isLoggedIn,
+    setTokens,
+    clearTokens,
+    refreshAccessToken,
+    refreshIfNeeded,
+    fetchProfile,
+    authFetch,
+  }
+}

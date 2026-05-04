@@ -5,22 +5,27 @@ import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { useOAuth } from '../../composables/useOAuth'
 import { setTokens as setUserTokens } from '../../composables/useUserAuth'
+import { IconExclamationCircle, IconCircleCheck, IconUserPlus, IconLogin2, IconLoader2 } from '@tabler/icons-vue'
 
 const { t } = useI18n()
 useSEO({ title: t('oauth.callback_title'), description: t('oauth.callback_title') })
 
 const route = useRoute()
 const router = useRouter()
-const { oauthRegister, bindOAuth } = useOAuth()
+const { oauthRegister, bindOAuth, exchangeCode } = useOAuth()
 
-// Query parameters from backend redirect
+// Query parameters from backend redirect (old flow)
 const status = ref(route.query.status || '')
 const linkToken = ref(route.query.link_token || '')
-const provider = ref(route.query.provider || '')
+const provider = ref(route.query.provider || route.params.provider || '')
 const oauthName = ref(route.query.name || '')
 const oauthEmail = ref(route.query.email || '')
 const oauthAvatar = ref(route.query.avatar_url || '')
 const redirectTo = ref(route.query.redirect || '/')
+
+// New exchange flow parameters
+const code = ref(route.query.code || '')
+const state = ref(route.query.state || '')
 
 const loading = ref(true)
 const error = ref('')
@@ -31,25 +36,109 @@ const registerLoading = ref(false)
 const registerError = ref('')
 
 onMounted(async () => {
-  // Status is set by backend as a query param after the OAuth redirect
+  // Check for bind mode first (coming from login page with mode=bind)
+  if (route.query.mode === 'bind') {
+    const storedToken = typeof window !== 'undefined' ? sessionStorage.getItem('oauth_link_token') : null
+    if (storedToken) {
+      linkToken.value = storedToken
+      try {
+        await bindOAuth(storedToken)
+        if (typeof window !== 'undefined') {
+          sessionStorage.removeItem('oauth_link_token')
+        }
+        router.replace(redirectTo.value || '/')
+        return
+      } catch (err) {
+        error.value = err.message || t('oauth.bind_failed')
+        loading.value = false
+        return
+      }
+    }
+    // If no stored token, fall through — this shouldn't happen but show error
+    error.value = t('oauth.bind_failed')
+    loading.value = false
+    return
+  }
+
+  // New exchange flow: OAuth provider redirected back to frontend with code+state
+  if (code.value && state.value && !status.value) {
+    await handleExchange()
+    return
+  }
+
+  // Old flow: backend redirected here with status query param
   if (status.value === 'linked') {
     // Backend already set tokens via cookies and redirected here
-    // We need to read cookies and save to localStorage
     readCookiesAndLogin()
   } else if (status.value === 'bound') {
     // OAuth was bound to an existing logged-in session
-    // Just redirect
     router.replace(redirectTo.value)
   } else if (status.value === 'unlinked' && linkToken.value) {
     // New OAuth account — show registration/bind options
-    loading.value = false
     registerName.value = oauthName.value || ''
     registerEmail.value = oauthEmail.value || ''
+    loading.value = false
   } else {
     error.value = t('oauth.invalid_callback')
     loading.value = false
   }
 })
+
+async function handleExchange() {
+  loading.value = true
+  error.value = ''
+  try {
+    const data = await exchangeCode(provider.value, code.value, state.value)
+    processExchangeResult(data)
+  } catch (err) {
+    error.value = err.message || t('oauth.callback_failed')
+    loading.value = false
+  }
+}
+
+function processExchangeResult(data) {
+  if (!data) {
+    error.value = t('oauth.invalid_callback')
+    loading.value = false
+    return
+  }
+
+  switch (data.status) {
+    case 'linked':
+      // Already linked: tokens returned, log user in
+      if (data.token) {
+        setUserTokens(data.token, data.refresh_token || '')
+        if (data.name && data.email) {
+          localStorage.setItem('user_profile', JSON.stringify({ name: data.name, email: data.email }))
+        }
+        router.replace(data.redirect || redirectTo.value || '/')
+      } else {
+        error.value = t('oauth.callback_failed')
+        loading.value = false
+      }
+      break
+    case 'bound':
+      // Bound to existing logged-in session
+      router.replace(data.redirect || redirectTo.value || '/')
+      break
+    case 'unlinked':
+      // New OAuth account: show registration/bind options
+      linkToken.value = data.link_token || ''
+      provider.value = data.provider || provider.value
+      oauthName.value = data.name || ''
+      oauthEmail.value = data.email || ''
+      oauthAvatar.value = data.avatar_url || ''
+      redirectTo.value = data.redirect || redirectTo.value || '/'
+      registerName.value = data.name || ''
+      registerEmail.value = data.email || ''
+      loading.value = false
+      mode.value = 'choose'
+      break
+    default:
+      error.value = t('oauth.invalid_callback')
+      loading.value = false
+  }
+}
 
 function readCookiesAndLogin() {
   try {
@@ -77,7 +166,8 @@ function chooseLogin() {
   if (typeof window !== 'undefined') {
     sessionStorage.setItem('oauth_link_token', linkToken.value)
   }
-  router.replace({ path: '/login', query: { redirect: '/oauth/callback?mode=bind&redirect=' + encodeURIComponent(redirectTo.value) } })
+  const callbackPath = '/oauth/' + (route.params.provider || provider.value) + '/callback'
+  router.replace({ path: '/login', query: { redirect: callbackPath + '?mode=bind&redirect=' + encodeURIComponent(redirectTo.value) } })
 }
 
 async function handleOAuthRegister() {
@@ -105,29 +195,15 @@ function goBack() {
   mode.value = 'choose'
 }
 
-// Check for bind mode after login
-onMounted(async () => {
-  if (route.query.mode === 'bind') {
-    const storedToken = typeof window !== 'undefined' ? sessionStorage.getItem('oauth_link_token') : null
-    if (storedToken) {
-      linkToken.value = storedToken
-      loading.value = true
-      try {
-        await bindOAuth(storedToken)
-        sessionStorage.removeItem('oauth_link_token')
-        router.replace(redirectTo.value || '/')
-      } catch (err) {
-        error.value = err.message || t('oauth.bind_failed')
-        loading.value = false
-      }
-    }
-  }
-})
-
 const providerDisplay = computed(() => {
-  if (provider.value === 'github') return 'GitHub'
-  if (provider.value === 'google') return 'Google'
-  return provider.value || 'OAuth'
+  const map = {
+    github: 'GitHub',
+    google: 'Google',
+    apple: 'Apple',
+    telegram: 'Telegram',
+    discord: 'Discord',
+  }
+  return map[provider.value] || provider.value || 'OAuth'
 })
 </script>
 
@@ -154,9 +230,7 @@ const providerDisplay = computed(() => {
       <!-- Error state -->
       <div v-else-if="error" class="card bg-base-100/80 border border-base-300/20 shadow-xl p-8 text-center">
         <div class="text-error mb-4">
-          <svg class="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/>
-          </svg>
+          <IconExclamationCircle :size="64" class="mx-auto" />
         </div>
         <h2 class="text-xl font-bold text-base-content mb-2">{{ t('oauth.callback_error') }}</h2>
         <p class="text-base-content/60 mb-6">{{ error }}</p>
@@ -172,9 +246,7 @@ const providerDisplay = computed(() => {
             </div>
           </div>
           <div v-else class="mb-4">
-            <svg class="w-16 h-16 mx-auto text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-            </svg>
+            <IconCircleCheck :size="64" class="mx-auto text-success" />
           </div>
           <h2 class="text-xl font-bold text-base-content">{{ t('oauth.choose_action') }}</h2>
           <p class="text-base-content/60 mt-2">
@@ -187,18 +259,14 @@ const providerDisplay = computed(() => {
             class="btn btn-primary w-full gap-3"
             @click="chooseRegister"
           >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
-            </svg>
+            <IconUserPlus :size="20" />
             {{ t('oauth.register_with_provider', { provider: providerDisplay }) }}
           </button>
           <button
             class="btn btn-outline w-full gap-3"
             @click="chooseLogin"
           >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-            </svg>
+            <IconLogin2 :size="20" />
             {{ t('oauth.login_then_bind') }}
           </button>
         </div>
@@ -234,7 +302,7 @@ const providerDisplay = computed(() => {
           </div>
 
           <div v-if="registerError" class="alert alert-error text-sm">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>
+            <IconExclamationCircle :size="20" />
             <span>{{ registerError }}</span>
           </div>
 

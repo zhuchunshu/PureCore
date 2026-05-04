@@ -45,6 +45,16 @@ export function useOAuth() {
     }
   }
 
+  // Exchange the authorization code returned by the OAuth provider with the backend.
+  // This is called by the frontend OAuth callback page after receiving code + state.
+  async function exchangeCode(providerName, code, state) {
+    const json = await publicApi(`/api/v1/oauth/${providerName}/exchange`, {
+      method: 'POST',
+      body: JSON.stringify({ code, state }),
+    })
+    return json.data || {}
+  }
+
   // Complete OAuth register: send link token and user info to create account
   async function oauthRegister(linkToken, name, email) {
     const resp = await fetch('/api/v1/oauth/register', {
@@ -86,6 +96,7 @@ export function useOAuth() {
     error,
     fetchProviders,
     initiateLogin,
+    exchangeCode,
     oauthRegister,
     bindOAuth,
     fetchAccounts,

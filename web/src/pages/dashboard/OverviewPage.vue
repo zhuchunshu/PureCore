@@ -13,7 +13,10 @@ const loading = ref(true)
 const error = ref('')
 
 onMounted(async () => {
-  if (!accessToken.value) return
+  if (!accessToken.value) {
+    loading.value = false
+    return
+  }
   try {
     const data = await fetchProfile()
     if (data) {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"strings"
 	"sync"
 )
 
@@ -131,4 +132,11 @@ func AdminOptionSet(key, value string) error {
 // AdminOptionSetMany is a global shorthand for GetOption().SetMany()
 func AdminOptionSetMany(options map[string]string) error {
 	return GetOption().SetMany(options)
+}
+
+// IsOptionTrue checks whether an option value represents "true".
+// It supports "1", "true", "yes" (case-insensitive).
+func IsOptionTrue(val string) bool {
+	lower := strings.ToLower(val)
+	return lower == "1" || lower == "true" || lower == "yes"
 }

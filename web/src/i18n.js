@@ -70,9 +70,28 @@ export function initI18n(locale, translations) {
   }
 }
 
-// 翻译函数
-export function t(key, defaultVal) {
-  return messages.value[key] || defaultVal || key
+// 翻译函数 - 支持 {key} 占位符替换
+// 用法: t('key') -> 返回翻译文本
+//       t('key', '默认值') -> 找不到时返回默认值
+//       t('key', { param: 'value' }) -> 替换翻译文本中的 {param} 占位符
+export function t(key, defaultValOrParams) {
+  let msg = messages.value[key]
+
+  // 找不到翻译键时的回退逻辑
+  if (msg === undefined || msg === null) {
+    if (typeof defaultValOrParams === 'string') return defaultValOrParams
+    return key
+  }
+
+  // 如果第二个参数是对象（非字符串、非 null），则进行占位符替换
+  if (defaultValOrParams && typeof defaultValOrParams === 'object') {
+    return msg.replace(/\{(\w+)\}/g, (match, placeholder) => {
+      const value = defaultValOrParams[placeholder]
+      return value !== undefined && value !== null ? value : match
+    })
+  }
+
+  return msg
 }
 
 // 切换语言

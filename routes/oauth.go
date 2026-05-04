@@ -19,6 +19,7 @@ func RegisterOAuthRoutes(router *core.Router) {
 		r.Get("/providers", core.H(oauthCtrl.Providers))
 		r.Get("/:provider/authorize", core.H(oauthCtrl.Authorize))
 		r.Get("/:provider/callback", core.H(oauthCtrl.Callback))
+		r.Post("/:provider/exchange", core.H(oauthCtrl.Exchange))
 		r.Post("/register", core.H(oauthCtrl.Register))
 	})
 

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
@@ -26,6 +26,11 @@ const eyeClosed = ref(false)
 
 // OAuth providers for social register buttons
 const { providers, fetchProviders } = useOAuth()
+
+// Only show providers that are both enabled and allow registration
+const registerProviders = computed(() =>
+  providers.value.filter(p => p.enabled && p.register_enabled)
+)
 
 onMounted(async () => {
   if (accessToken.value) {
@@ -214,7 +219,7 @@ async function register() {
             </form>
 
             <!-- OAuth register buttons -->
-            <div v-if="providers.length > 0" class="mt-6">
+            <div v-if="registerProviders.length > 0" class="mt-6">
               <div class="relative mb-4">
                 <div class="absolute inset-0 flex items-center">
                   <div class="w-full border-t border-base-content/10"></div>
@@ -223,9 +228,9 @@ async function register() {
                   <span class="px-3 bg-base-200/40 text-base-content/40">{{ t('oauth.or_signup_with') }}</span>
                 </div>
               </div>
-              <div class="space-y-2">
+              <div class="flex justify-center gap-2">
                 <OAuthButton
-                  v-for="provider in providers"
+                  v-for="provider in registerProviders"
                   :key="provider.name"
                   :provider="provider"
                   :redirect="'/'"

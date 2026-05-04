@@ -98,6 +98,34 @@ All endpoints return `{code, message, data}` JSON. Paginated responses include `
 - **API Call Guard**: If an API endpoint requires authentication, check auth state before calling it.
 - **SEO**: `useSEO({ title, description, keywords })` composable for meta tags. `initSEO()` called in `main.js`.
 
+### OAuth / Third-Party Login (Strategy Pattern)
+
+- **Framework**: `core/oauth/` — Base interface (`Provider`), HMAC signed state tokens, global registry. Each provider is one file (e.g., `core/oauth/github.go`), self-registers via `init()`.
+- **Adding a new provider**: Create `core/oauth/{name}.go` implementing the `Provider` interface and calling `oauth.Register()` in `init()`. No changes to routes, controllers, or frontend needed.
+- **Provider interface**: Every provider declares its metadata (name, display name, doc/apply URLs, is_oauth2 flag), plus `ConfigFields()` returning platform-specific credential fields (e.g., standard OAuth2 fields, or Telegram bot token, Apple team/key IDs).
+- **Config fields**: Each field has `key`, `label`, `type` (text/password/toggle), `placeholder`, `help`, `required`. The backend uses these to dynamically serve per-provider settings forms.
+- **Redirect URL**: The `redirect_url` field is always included in OAuth2 providers. The backend computes the recommended callback URL (`_recommended_redirect_url`) from `app_url` option + `/oauth/{provider}/callback` route.
+- **Supported providers**: GitHub, Google, Apple, Telegram, Discord (all OAuth 2.0 except Telegram which uses bot-based login widget).
+- **Backend endpoints**:
+  - `GET /api/v1/oauth/providers` — list all registered providers with enabled/login_enabled/register_enabled status (checked via `core.IsOptionTrue()` to properly handle "0"/"1" string values).
+  - `GET /api/v1/oauth/:provider/authorize` — generate authorization URL with HMAC-signed state token.
+  - `GET /api/v1/oauth/:provider/callback` — backend redirect handler (sets cookies, redirects to frontend callback page).
+  - `POST /api/v1/oauth/:provider/exchange` — **SSR-friendly code exchange endpoint**: frontend calls this with `{code, state}` to exchange the OAuth code server-side. Returns JSON with `status` ("linked"|"bound"|"unlinked"), tokens, or `link_token` for new accounts. Used by `OAuthCallback.vue` when the provider redirects with `?code=...&state=...`.
+  - `POST /api/v1/oauth/register` — create new user account from OAuth `link_token`.
+  - `POST /api/v1/oauth/bind` (auth required) — bind OAuth account to logged-in user.
+  - `GET/POST /api/v1/{admin_prefix}/oauth/settings` (admin auth required) — get/save per-provider settings.
+- **Frontend**: 
+  - `AdminOAuthSettings.vue` renders dynamic per-provider tabbed settings using Tabler icons (IconBrandGithub, IconBrandGoogle, IconBrandApple, IconBrandTelegram, IconBrandDiscord). Selected tab uses `!bg-primary/15 !text-primary shadow-sm ring-1 ring-primary/30 scale-[1.02]` styling for clear visual distinction. Each tab shows usage instructions, documentation/application links, toggle switches, and credential fields.
+  - **Unsaved changes detection**: `AdminOAuthSettings.vue` tracks dirty state per provider by comparing form values with original snapshots. Tab switches with unsaved changes trigger a confirmation dialog. Each tab shows a warning dot indicator (pulsing `bg-warning`) when dirty.
+  - `OAuthButton.vue` — reusable button for public login/register pages.
+  - `OAuthCallback.vue` — handles both legacy (backend redirect with `?status=linked|bound|unlinked`) and new exchange flow (provider redirect with `?code=...&state=...`). In exchange flow, calls `POST /api/v1/oauth/:provider/exchange` to complete the OAuth handshake.
+  - `IntegrationsPage.vue` — user-facing dashboard page to view and unlink connected OAuth accounts (at `/dashboard/integrations`). Uses `userAPI` for authenticated requests, shows empty state and unlink confirmation.
+  - `useOAuth.js` — composable with `fetchProviders()`, `initiateLogin()`, `exchangeCode()`, `oauthRegister()`, `bindOAuth()`, `fetchAccounts()`, `unlinkAccount()`.
+- **Admin settings keys**: Each provider's settings are stored in `web_options` table with keys like `oauth_{provider}_enabled`, `oauth_{provider}_login_enabled`, etc. The backend controller reads/writes all settings via `GET /api/v1/{admin_prefix}/oauth/settings` and `POST /api/v1/{admin_prefix}/oauth/settings`.
+- **Icons**: All OAuth provider tab icons come from `@tabler/icons-vue`. NEVER write raw SVG code for provider icons.
+- **Documentation**: `docs/en/OAUTH.md` and `docs/zh/OAUTH.md`.
+- **IsOptionTrue**: Use `core.IsOptionTrue()` to check boolean option values (stored as "1"/"0" strings in `web_options` table). Do NOT check `core.AdminOption("key") == "1"` manually — always use the helper for consistency.
+
 ### Admin vs User Auth
 
 Two separate auth systems:

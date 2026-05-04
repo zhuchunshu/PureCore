@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import { fetchProfile } from '../composables/useUserAuth'
-import { LayoutDashboard, User, Lock, Key, Smartphone } from 'lucide-vue-next'
+import { LayoutDashboard, User, Lock, Key, Smartphone, Link2 } from 'lucide-vue-next'
 
 const { t } = useI18n()
 useSEO({ title: t('user.dashboard'), description: t('user.dashboard') })
@@ -20,6 +20,7 @@ const sidebarItems = [
   { path: '/dashboard/security', icon: Lock, label: 'user.security' },
   { path: '/dashboard/api-keys', icon: Key, label: 'user.api_keys' },
   { path: '/dashboard/sessions', icon: Smartphone, label: 'user.sessions' },
+  { path: '/dashboard/integrations', icon: Link2, label: 'user.integrations' },
 ]
 
 function isActive(item) {

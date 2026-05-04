@@ -7,6 +7,7 @@ import ProfilePage from '../pages/dashboard/ProfilePage.vue'
 import SecurityPage from '../pages/dashboard/SecurityPage.vue'
 import ApiKeysPage from '../pages/dashboard/ApiKeysPage.vue'
 import SessionsPage from '../pages/dashboard/SessionsPage.vue'
+import IntegrationsPage from '../pages/dashboard/IntegrationsPage.vue'
 import DocsPage from '../pages/DocsPage.vue'
 import NotFound from '../pages/NotFound.vue'
 import AdminLogin from '../pages/admin/AdminLogin.vue'
@@ -66,6 +67,11 @@ export const routes = [
         name: 'DashboardSessions',
         component: SessionsPage,
       },
+      {
+        path: 'integrations',
+        name: 'DashboardIntegrations',
+        component: IntegrationsPage,
+      },
     ],
   },
   {
@@ -119,9 +125,10 @@ export const routes = [
     meta: { requiresAuth: true, authType: 'admin' },
   },
   {
-    path: '/oauth/callback',
+    path: '/oauth/:provider/callback',
     name: 'OAuthCallback',
     component: OAuthCallback,
+    props: true,
   },
   {
     path: '/:pathMatch(.*)*',

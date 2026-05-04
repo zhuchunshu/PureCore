@@ -25,11 +25,21 @@ This file contains guidelines for developing on the **PureCore** project — a f
 - Login and Register pages use the public `Navbar.vue` + `Footer.vue` — they are NOT standalone pages
 
 ## Dashboard page splitting rules
-- Each dashboard feature (profile, security, api keys, sessions, etc.) MUST be a **separate page component** under `web/src/pages/dashboard/`, e.g. `ProfilePage.vue`, `SecurityPage.vue`, `SessionsPage.vue`
+- Each dashboard feature (profile, security, api keys, sessions, integrations, etc.) MUST be a **separate page component** under `web/src/pages/dashboard/`, e.g. `ProfilePage.vue`, `SecurityPage.vue`, `SessionsPage.vue`, `IntegrationsPage.vue`
 - `UserDashboard.vue` MUST act as a **layout container** only — it provides the sidebar navigation and a `<router-view />` for child pages. It MUST NOT directly include the feature components.
-- Each dashboard child page MUST have a **unique URL route** (e.g. `/dashboard/profile`, `/dashboard/security`, `/dashboard/sessions`)
+- Each dashboard child page MUST have a **unique URL route** (e.g. `/dashboard/profile`, `/dashboard/security`, `/dashboard/sessions`, `/dashboard/integrations`)
 - Sidebar items MUST use `<router-link>` to navigate between child routes, enabling direct URL sharing and browser back/forward support
 - Route definitions MUST use nested `children` arrays under the `/dashboard` parent route
+
+### Dashboard Integrations page (OAuth linked accounts management)
+- `web/src/pages/dashboard/IntegrationsPage.vue` — user-facing page to view and unlink connected OAuth accounts
+- Calls `GET /api/v1/oauth/accounts` (user auth required) to list linked accounts via `userAPI` service
+- Calls `DELETE /api/v1/oauth/accounts/:id` (user auth required) to unlink an account
+- Displays provider icons from `@tabler/icons-vue` (`IconBrandGithub`, `IconBrandGoogle`, `IconBrandApple`, `IconBrandTelegram`, `IconBrandDiscord`)
+- Fallback provider icon: `Link2` from `lucide-vue-next`
+- Shows empty state with guidance when no accounts are linked
+- Uses DaisyUI skeleton for loading state per project convention
+- Translations under `integrations.*` keys in `lang/en.json` and `lang/zh.json`
 
 ## Frontend conventions
 - Vue 3 with `<script setup>` syntax and Composition API
@@ -149,7 +159,7 @@ This file contains guidelines for developing on the **PureCore** project — a f
 </template>
 ```
 
-**List item skeleton** (sessions, comments, etc.):
+**List item skeleton** (sessions, comments, integrations, etc.):
 ```html
 <div v-for="i in 4" :key="i" class="flex items-center gap-3 p-3 rounded-xl bg-base-200/50">
   <div class="skeleton w-10 h-10 rounded-lg shrink-0"></div>
@@ -280,17 +290,61 @@ Paginated responses include: `total`, `page`, `per_page` alongside `data`
 - Global registry at `core/oauth/registry.go` — providers self-register, admin settings page and login/register buttons auto-detect them
 - State tokens use HMAC-SHA256 signing with 10-minute expiry (CSRF protection) in `core/oauth/state.go`
 - Database: `oauth_accounts` table maps `(provider, provider_user_id)` → `user_id` via `app/Models/OAuthAccount.go`
-- Backend controller at `app/Http/Controllers/OAuthController.go` handles: redirect, callback, bind, unbind, list accounts
+- Backend controller at `app/Http/Controllers/OAuthController.go` handles: redirect, callback, exchange, bind, unbind, list accounts
 - Routes defined in `routes/oauth.go`, registered from `cmd/serve.go`
-- Frontend:
-  - `web/src/composables/useOAuth.js` — fetches available providers, builds redirect URLs
-  - `web/src/components/auth/OAuthButton.vue` — reusable button component for any provider
-  - `web/src/pages/auth/OAuthCallback.vue` — callback handler with bind/register UX
-  - `web/src/pages/admin/AdminOAuthSettings.vue` — tabbed admin panel to configure each provider (enabled, login/register toggles, client_id, client_secret, redirect_url)
-- Admin settings keys follow pattern: `oauth_{provider}_enabled`, `oauth_{provider}_login_enabled`, `oauth_{provider}_register_enabled`, `oauth_{provider}_client_id`, `oauth_{provider}_client_secret`, `oauth_{provider}_redirect_url`
+
+### Supported providers
+- **GitHub** (`core/oauth/github.go`) — Standard OAuth 2.0. Fields: client_id, client_secret, redirect_url
+- **Google** (`core/oauth/google.go`) — Standard OAuth 2.0. Fields: client_id, client_secret, redirect_url
+- **Apple** (`core/oauth/apple.go`) — OAuth 2.0 with client_secret JWT generation. Fields: client_id, team_id, key_id, private_key, redirect_url
+- **Telegram** (`core/oauth/telegram.go`) — Bot-based login widget (non-OAuth2). Fields: bot_token (no redirect_url needed)
+- **Discord** (`core/oauth/discord.go`) — Standard OAuth 2.0. Fields: client_id, client_secret, redirect_url
+
+### Dynamic config fields (CRITICAL)
+- Each provider declares its own config fields via `ConfigFields() []oauth.ConfigField`, returning a list of `{Key, Label, Type, Placeholder, Help, Required}` structs
+- Field types: `text`, `password`, `toggle` (boolean stored as "1"/"0")
+- The backend API dynamically serves these fields, and the frontend renders them per-provider — **no hardcoded form fields in the frontend**
+- `redirect_url` field is automatically included for OAuth2 providers; the backend computes `_recommended_redirect_url` from the `app_url` option + `/oauth/{provider}/callback`
+
+### Provider metadata
+- Each provider exposes: `Name()`, `DisplayName()`, `DocURL()`, `ApplyURL()`, `IsOAuth2()` — used by the admin panel to show usage instructions, documentation links, and application URLs
+- `AdminOAuthSettings.vue` renders usage instructions with numbered steps, external links to docs and application pages, and a copyable recommended callback URL
+
+### Provider icons
+- All OAuth provider tab icons **MUST** come from `@tabler/icons-vue` (e.g., `IconBrandGithub`, `IconBrandGoogle`, `IconBrandApple`, `IconBrandTelegram`, `IconBrandDiscord`)
+- **NEVER** write raw SVG code for provider icons
+- Icon mapping is done in `AdminOAuthSettings.vue` and `IntegrationsPage.vue` via a `providerIconMap` object keyed by provider name
+- Fallback provider icon: `Link2` from `lucide-vue-next` (used in `IntegrationsPage.vue` for unknown providers)
+
+### Backend endpoints
+- `GET /api/v1/oauth/providers` — list all registered providers with enabled/login_enabled/register_enabled status. **CRITICAL**: use `core.IsOptionTrue()` to check boolean option values (stored as "1"/"0" strings in `web_options` table). Do NOT check `core.AdminOption("key") == "1"` manually.
+- `GET /api/v1/oauth/:provider/authorize` — generate authorization URL with HMAC-signed state token.
+- `GET /api/v1/oauth/:provider/callback` — backend redirect handler (sets cookies, redirects to frontend callback page).
+- `POST /api/v1/oauth/:provider/exchange` — **SSR-friendly code exchange endpoint**: frontend calls this with `{code, state}` to exchange the OAuth code server-side. Returns JSON with `status` ("linked"|"bound"|"unlinked"), tokens, or `link_token` for new accounts. Used by `OAuthCallback.vue` when the provider redirects with `?code=...&state=...`.
+- `POST /api/v1/oauth/register` — create new user account from OAuth `link_token`.
+- `POST /api/v1/oauth/bind` (auth required) — bind OAuth account to logged-in user.
+- `GET /api/v1/oauth/accounts` (auth required) — list linked OAuth accounts for the authenticated user.
+- `DELETE /api/v1/oauth/accounts/:id` (auth required) — unlink an OAuth account.
+- `GET/POST /api/v1/{admin_prefix}/oauth/settings` (admin auth required) — get/save per-provider settings.
+
+### Frontend
+- `web/src/composables/useOAuth.js` — composable with `fetchProviders()`, `initiateLogin()`, `exchangeCode()`, `oauthRegister()`, `bindOAuth()`, `fetchAccounts()`, `unlinkAccount()`.
+- `web/src/components/auth/OAuthButton.vue` — reusable button component for any provider
+- `web/src/pages/auth/OAuthCallback.vue` — callback handler with bind/register UX. Handles both legacy flow (backend redirect with `?status=linked|bound|unlinked`) and **exchange flow** (provider redirect with `?code=...&state=...`, calls `POST /api/v1/oauth/:provider/exchange` to complete the OAuth handshake).
+- `web/src/pages/dashboard/IntegrationsPage.vue` — user-facing dashboard page to view and unlink connected OAuth accounts. Uses `userAPI` for authenticated requests. Shows empty state when no accounts are linked, modal confirmation for unlinking.
+- `web/src/pages/admin/AdminOAuthSettings.vue` — **fully dynamic** tabbed admin panel:
+  - Each provider gets its own tab with a Tabler brand icon
+  - **Selected tab** uses `!bg-primary/15 !text-primary shadow-sm ring-1 ring-primary/30 scale-[1.02]` styling for clear visual distinction from inactive tabs
+  - Usage instructions card showing steps, doc/apply links, and OAuth2 flow hint
+  - Toggle switches section for enabled/login_enabled/register_enabled
+  - Redirect URL section with recommended callback (computed from site URL), copy button
+  - Dynamic credential fields (varies per provider — e.g., Apple has team_id/key_id/private_key, Telegram has only bot_token)
+- Admin settings are stored in `web_options` table with keys matching each provider's config field keys
+- Settings endpoint: `GET/POST /api/v1/{admin_prefix}/oauth/settings` returns/accepts per-provider settings list
+- **Unsaved changes detection**: `AdminOAuthSettings.vue` tracks dirty state per provider by comparing form values with original snapshots. Tab switches with unsaved changes trigger a confirmation dialog. Each tab shows a warning dot indicator (pulsing `bg-warning`) when dirty.
 - Bind flow: when OAuth user doesn't exist, show two options: (1) register with pre-filled info, (2) login first then bind
 - Documentation: `docs/en/OAUTH.md` and `docs/zh/OAUTH.md`
-- Translation keys under `admin.oauth_*` (admin panel) and `oauth.*` (public-facing auth pages)
+- Translation keys under `admin.oauth_*` (admin panel), `oauth.*` (public-facing auth pages), and `integrations.*` (dashboard integrations page)
 
 ## Admin settings sidebar entry rule
 - When creating a new admin settings page (or any new page under the admin route prefix), after writing the page component, adding its route in `web/src/router/routes.js`, and completing translations, **ALWAYS ask the user** whether they want to add a sidebar link in `web/src/components/AdminLayout.vue`. Do NOT automatically add sidebar entries without explicit user confirmation.

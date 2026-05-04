@@ -24,15 +24,16 @@ func (c *OAuthController) Providers(req *core.Request, res *core.Response) error
 	providers := oauth.All()
 	list := make([]map[string]interface{}, 0, len(providers))
 	for _, p := range providers {
-		enabled := core.AdminOption(oauth.FullConfigKey(p, "enabled")) == "true"
-		loginEnabled := core.AdminOption(oauth.FullConfigKey(p, "login_enabled")) == "true"
-		registerEnabled := core.AdminOption(oauth.FullConfigKey(p, "register_enabled")) == "true"
+		enabled := core.IsOptionTrue(core.AdminOption(oauth.FullConfigKey(p, "enabled")))
+		loginEnabled := core.IsOptionTrue(core.AdminOption(oauth.FullConfigKey(p, "login_enabled")))
+		registerEnabled := core.IsOptionTrue(core.AdminOption(oauth.FullConfigKey(p, "register_enabled")))
 		list = append(list, map[string]interface{}{
 			"name":             p.Name(),
 			"display_name":     p.DisplayName(),
 			"enabled":          enabled,
 			"login_enabled":    loginEnabled,
 			"register_enabled": registerEnabled,
+			"is_oauth2":        p.IsOAuth2(),
 		})
 	}
 	return res.Success(list)
@@ -71,8 +72,8 @@ func (c *OAuthController) Authorize(req *core.Request, res *core.Response) error
 
 // Callback handles the OAuth provider redirect after user authorization.
 // This is the endpoint the provider redirects to after user consent.
-// It exchanges the code, fetches user info, and redirects to the frontend
-// OAuth callback page with the appropriate parameters (link_token, status, etc.)
+// For OAuth2 providers, it exchanges the authorization code.
+// For non-OAuth2 providers (e.g., Telegram), it verifies the signed callback data.
 func (c *OAuthController) Callback(req *core.Request, res *core.Response) error {
 	providerName := req.Ctx().Params("provider")
 	provider := oauth.Get(providerName)
@@ -80,24 +81,44 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 		return res.Error("Unsupported OAuth provider", 400)
 	}
 
-	code := req.Ctx().Query("code")
 	stateStr := req.Ctx().Query("state")
-	if code == "" || stateStr == "" {
-		return res.Error("Missing code or state", 422)
+	code := req.Ctx().Query("code")
+
+	if provider.IsOAuth2() {
+		if code == "" || stateStr == "" {
+			return res.Error("Missing code or state", 422)
+		}
+	} else {
+		if stateStr == "" {
+			return res.Error("Missing state", 422)
+		}
 	}
 
-	// Parse state token
+	// Parse state token (required for both flows)
 	state, err := oauth.ParseState(stateStr)
 	if err != nil {
 		return res.Error("Invalid or expired state token", 422)
 	}
 
-	// Exchange code for user info
-	exchangeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	userInfo, err := provider.Exchange(exchangeCtx, code)
-	if err != nil {
-		return res.Error("Failed to exchange OAuth code: "+err.Error(), 500)
+	var userInfo *oauth.UserInfo
+
+	if provider.IsOAuth2() {
+		exchangeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		userInfo, err = provider.Exchange(exchangeCtx, code)
+		if err != nil {
+			return res.Error("Failed to exchange OAuth code: "+err.Error(), 500)
+		}
+	} else {
+		// Non-OAuth2 provider: collect all query parameters and call HandleCallback
+		params := make(map[string]string)
+		req.Ctx().Request().URI().QueryArgs().VisitAll(func(key, value []byte) {
+			params[string(key)] = string(value)
+		})
+		userInfo, err = provider.HandleCallback(params)
+		if err != nil {
+			return res.Error("OAuth callback failed: "+err.Error(), 500)
+		}
 	}
 
 	// Check if this OAuth account is already linked to a user
@@ -105,12 +126,14 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 	alreadyLinked := false
 	var linkedUserID uint
 	if err := core.DB().Where("provider = ? AND provider_id = ?", providerName, userInfo.ProviderID).First(&existingOAuth).Error; err == nil {
-		alreadyLinked = true
-		linkedUserID = existingOAuth.UserID
+		if existingOAuth.UserID != 0 {
+			alreadyLinked = true
+			linkedUserID = existingOAuth.UserID
+		}
 	}
 
-	// Base redirect URL on the frontend
-	frontendBase := getFrontendURL(req)
+	// Base redirect URL: prefer the admin-configured site URL
+	frontendBase := getSiteBaseURL(req)
 	originalRedirect := state.Redirect
 	if originalRedirect == "" {
 		originalRedirect = "/"
@@ -120,14 +143,12 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 	if alreadyLinked {
 		var user models.User
 		if err := core.DB().First(&user, linkedUserID).Error; err != nil {
-			return res.Error("Linked user not found", 500)
+			// User was deleted — clean up the dangling OAuth record and continue to unlinked flow
+			core.DB().Model(&existingOAuth).Update("user_id", 0)
+			alreadyLinked = false
+		} else {
+			return c.loginWithRedirect(req, res, &user, frontendBase+"/oauth/"+providerName+"/callback?status=linked&redirect="+urlQueryEscape(originalRedirect))
 		}
-		c.loginUser(req, res, &user)
-		// loginUser writes JSON, but we need to redirect instead. We'll override.
-		// Remove the JSON body already written and redirect.
-		// Actually loginUser writes JSON to res, but we need a redirect.
-		// So we do login logic inline and set tokens via cookies, then redirect.
-		return c.loginWithRedirect(req, res, &user, frontendBase+"/oauth/callback?status=linked&redirect="+urlQueryEscape(originalRedirect))
 	}
 
 	// Check if there's a logged-in user (optional)
@@ -139,7 +160,7 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 		if err != nil {
 			return res.Error("Failed to bind OAuth: "+err.Error(), 500)
 		}
-		redirectURL := frontendBase + "/oauth/callback?status=bound&redirect=" + urlQueryEscape(originalRedirect)
+		redirectURL := frontendBase + "/oauth/" + providerName + "/callback?status=bound&redirect=" + urlQueryEscape(originalRedirect)
 		return req.Ctx().Redirect().To(redirectURL)
 	}
 
@@ -159,13 +180,113 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 		AvatarURL: userInfo.AvatarURL,
 	}).FirstOrCreate(&models.OAuthAccount{})
 
-	redirectURL := frontendBase + "/oauth/callback?status=unlinked&link_token=" + urlQueryEscape(linkToken) +
-		"&provider=" + urlQueryEscape(providerName) +
+	redirectURL := frontendBase + "/oauth/" + providerName + "/callback?status=unlinked&link_token=" + urlQueryEscape(linkToken) +
 		"&email=" + urlQueryEscape(userInfo.Email) +
 		"&name=" + urlQueryEscape(userInfo.Name) +
 		"&avatar_url=" + urlQueryEscape(userInfo.AvatarURL) +
 		"&redirect=" + urlQueryEscape(originalRedirect)
 	return req.Ctx().Redirect().To(redirectURL)
+}
+
+// Exchange handles the OAuth code exchange initiated by the frontend callback page.
+// The frontend receives code+state from the OAuth provider redirect and calls this
+// endpoint to complete the OAuth flow. Returns JSON with appropriate status:
+//   - "linked": OAuth account already linked → tokens returned, user logged in
+//   - "bound": Logged-in user → OAuth account bound silently
+//   - "unlinked": New OAuth account → link_token + user info returned for registration/binding
+func (c *OAuthController) Exchange(req *core.Request, res *core.Response) error {
+	providerName := req.Ctx().Params("provider")
+	provider := oauth.Get(providerName)
+	if provider == nil {
+		return res.Error("Unsupported OAuth provider", 400)
+	}
+
+	type ExchangeRequest struct {
+		Code  string `json:"code" validate:"required"`
+		State string `json:"state" validate:"required"`
+	}
+	var body ExchangeRequest
+	if err := req.Validate(&body); err != nil {
+		return res.Error("Missing code or state", 422)
+	}
+
+	state, err := oauth.ParseState(body.State)
+	if err != nil {
+		return res.Error("Invalid or expired state token", 422)
+	}
+
+	var userInfo *oauth.UserInfo
+
+	if provider.IsOAuth2() {
+		exchangeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		userInfo, err = provider.Exchange(exchangeCtx, body.Code)
+		if err != nil {
+			return res.Error("Failed to exchange OAuth code: "+err.Error(), 500)
+		}
+	} else {
+		return res.Error("Exchange endpoint only supports OAuth2 providers", 400)
+	}
+
+	originalRedirect := state.Redirect
+	if originalRedirect == "" {
+		originalRedirect = "/"
+	}
+
+	// Check if already linked (ignore dangling records with UserID == 0)
+	var existingOAuth models.OAuthAccount
+	if err := core.DB().Where("provider = ? AND provider_id = ?", providerName, userInfo.ProviderID).First(&existingOAuth).Error; err == nil {
+		if existingOAuth.UserID != 0 {
+			var user models.User
+			if err := core.DB().First(&user, existingOAuth.UserID).Error; err != nil {
+				// Dangling reference — clean up and continue to unlinked flow
+				core.DB().Model(&existingOAuth).Update("user_id", 0)
+			} else {
+				// Login and return tokens
+				return c.loginUser(req, res, &user)
+			}
+		}
+	}
+
+	// Check if there's a logged-in user
+	currentUserID := getUserID(req.Ctx())
+	if currentUserID != 0 {
+		err := c.bindOAuthSilent(currentUserID, providerName, userInfo)
+		if err != nil {
+			return res.Error("Failed to bind OAuth: "+err.Error(), 500)
+		}
+		return res.Success(map[string]interface{}{
+			"status":   "bound",
+			"message":  "OAuth account bound successfully",
+			"redirect": originalRedirect,
+		})
+	}
+
+	// Not linked and not logged in → generate link token
+	linkToken, err := oauth.GenerateLinkToken(providerName, userInfo)
+	if err != nil {
+		return res.Error("Failed to generate link token", 500)
+	}
+
+	// Upsert OAuth account record with latest info
+	core.DB().Where(models.OAuthAccount{
+		Provider:   providerName,
+		ProviderID: userInfo.ProviderID,
+	}).Assign(models.OAuthAccount{
+		Email:     userInfo.Email,
+		Name:      userInfo.Name,
+		AvatarURL: userInfo.AvatarURL,
+	}).FirstOrCreate(&models.OAuthAccount{})
+
+	return res.Success(map[string]interface{}{
+		"status":     "unlinked",
+		"link_token": linkToken,
+		"provider":   providerName,
+		"email":      userInfo.Email,
+		"name":       userInfo.Name,
+		"avatar_url": userInfo.AvatarURL,
+		"redirect":   originalRedirect,
+	})
 }
 
 // Register creates a new user account and binds it to the OAuth provider.
@@ -329,21 +450,52 @@ func (c *OAuthController) Unlink(req *core.Request, res *core.Response) error {
 }
 
 // AdminGetSettings returns all OAuth provider configurations for the admin panel.
+// Each provider entry includes its current setting values, dynamic ConfigFields metadata,
+// documentation/application URLs, and the recommended callback URL based on the site URL.
 func (c *OAuthController) AdminGetSettings(req *core.Request, res *core.Response) error {
 	providers := oauth.All()
-	settings := make(map[string]map[string]string)
+	settings := make([]map[string]interface{}, 0, len(providers))
+
+	siteURL := getSiteBaseURL(req)
+
 	for _, p := range providers {
 		prefix := p.ConfigKeyPrefix()
-		keys := []string{"enabled", "login_enabled", "register_enabled", "client_id", "client_secret", "redirect_url"}
-		providerSettings := make(map[string]string)
-		for _, key := range keys {
-			fullKey := prefix + "_" + key
-			val := core.AdminOption(fullKey, "")
-			providerSettings[key] = val
+		configFields := p.ConfigFields()
+
+		// Build current values map for all configured fields
+		values := make(map[string]string)
+		for _, field := range configFields {
+			fullKey := prefix + "_" + field.Key
+			values[field.Key] = core.AdminOption(fullKey, "")
 		}
-		providerSettings["display_name"] = p.DisplayName()
-		providerSettings["name"] = p.Name()
-		settings[p.Name()] = providerSettings
+		// For standard OAuth2 providers, auto-fill the redirect_url default if empty
+		if p.IsOAuth2() {
+			recommendedRedirect := siteURL + oauth.RedirectURLPath(p.Name())
+			if values["redirect_url"] == "" {
+				values["redirect_url"] = recommendedRedirect
+			}
+			// Add a hint about the recommended default
+			values["_recommended_redirect_url"] = recommendedRedirect
+		} else {
+			// Non-OAuth2 providers: suggest a frontend callback URL
+			recommendedRedirect := siteURL + "/oauth/" + p.Name() + "/callback"
+			if values["redirect_url"] == "" {
+				values["redirect_url"] = recommendedRedirect
+			}
+			values["_recommended_redirect_url"] = recommendedRedirect
+		}
+
+		providerSettings := map[string]interface{}{
+			"name":              p.Name(),
+			"display_name":      p.DisplayName(),
+			"config_key_prefix": prefix,
+			"is_oauth2":         p.IsOAuth2(),
+			"doc_url":           p.GetDocURL(),
+			"apply_url":         p.GetApplyURL(),
+			"config_fields":     configFields,
+			"values":            values,
+		}
+		settings = append(settings, providerSettings)
 	}
 	return res.Success(settings)
 }
@@ -496,10 +648,15 @@ func (c *OAuthController) bindOAuthSilent(userID uint, providerName string, user
 
 // ---------- helpers ----------
 
-// getFrontendURL returns the base URL of the frontend (no trailing slash).
-func getFrontendURL(req *core.Request) string {
-	// Use the request's own scheme and host; the frontend is served on the same origin
-	// in both dev (Vite proxy) and production (Go serves static files).
+// getSiteBaseURL returns the configured base URL of the site (no trailing slash).
+// It first checks the admin-configured "app_url" option, and falls back to auto-detection
+// from the current request. This ensures OAuth redirect URLs always match the canonical
+// site address configured by the administrator.
+func getSiteBaseURL(req *core.Request) string {
+	if appURL := strings.TrimRight(core.AdminOption("app_url", ""), "/"); appURL != "" {
+		return appURL
+	}
+	// Fallback: auto-detect from request
 	scheme := req.Ctx().Protocol()
 	host := req.Ctx().Hostname()
 	return scheme + "://" + host
