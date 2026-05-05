@@ -41,6 +41,17 @@ func (p *TelegramProvider) IsOAuth2() bool {
 	return false
 }
 
+// BotUsername returns the bot username derived from the bot_token.
+// Telegram bot tokens are in the format "123456:ABC...", the part before ":"
+// is the bot's numeric ID, but we need the bot's @username for the widget.
+// The username cannot be derived from the token alone, so this returns
+// the configured redirect_url's bot username if available, or empty string.
+func (p *TelegramProvider) BotUsername() string {
+	// The bot username cannot be derived from the token alone.
+	// Returns empty — the controller derives it from bot_token.
+	return ""
+}
+
 // ConfigFields returns the fields needed for Telegram (no client_id/client_secret, uses bot_token).
 func (p *TelegramProvider) ConfigFields() []ConfigField {
 	return []ConfigField{

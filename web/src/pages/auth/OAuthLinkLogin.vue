@@ -1,22 +1,35 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useI18n } from '../i18n'
-import { useSEO } from '../composables/useSEO'
-import { setTokens, accessToken } from '../composables/useUserAuth'
-import TurnstileWidget from '../components/TurnstileWidget.vue'
-import OAuthButton from '../components/auth/OAuthButton.vue'
-import TelegramLoginWidget from '../components/auth/TelegramLoginWidget.vue'
-import { useOAuth } from '../composables/useOAuth'
+import { useI18n } from '../../i18n'
+import { useSEO } from '../../composables/useSEO'
+import { setTokens, accessToken } from '../../composables/useUserAuth'
+import TurnstileWidget from '../../components/TurnstileWidget.vue'
 
 const { t } = useI18n()
 useSEO({
-  title: t('user.login_title'),
-  description: t('user.login_title'),
+  title: t('oauth.link_login_title'),
+  description: t('oauth.link_login_desc'),
 })
 const router = useRouter()
 const route = useRoute()
-const email = ref('')
+
+// Provider from route params
+const provider = computed(() => route.params.provider || '')
+
+// Load OAuth data from sessionStorage (set by OAuthCallback.vue)
+// Falls back to query params for backward compatibility
+let oauthData = {}
+try {
+  const stored = sessionStorage.getItem('oauth_link_data')
+  if (stored) {
+    oauthData = JSON.parse(stored)
+    sessionStorage.removeItem('oauth_link_data') // clean up after read
+  }
+} catch (_) { /* ignore */ }
+
+// Pre-fill email from OAuth provider data
+const email = ref(oauthData.email || route.query.email || '')
 const password = ref('')
 const errMsg = ref('')
 const loading = ref(false)
@@ -24,35 +37,19 @@ const turnstileToken = ref('')
 const turnstileRef = ref(null)
 const eyeClosed = ref(false)
 
-// OAuth providers for social login buttons
-const { providers, fetchProviders } = useOAuth()
-
-// Telegram widget state
-const telegramWidgetData = ref(null)
-
-// Only show providers that are both enabled and allow login (exclude telegram for widget rendering)
-const loginProviders = computed(() =>
-  providers.value.filter(p => p.enabled && p.login_enabled && p.name !== 'telegram')
-)
-
-// Telegram provider for widget rendering
-const telegramProvider = computed(() =>
-  providers.value.find(p => p.name === 'telegram' && p.enabled && p.login_enabled)
-)
-
-function onTelegramWidgetAuth(data) {
-  telegramWidgetData.value = data
-}
+// Link token from sessionStorage (required for the API call)
+const linkToken = ref(oauthData.link_token || route.query.link_token || '')
+const redirectTo = ref(oauthData.redirect || route.query.redirect || '/')
 
 onMounted(async () => {
   if (accessToken.value) {
-    router.push(route.query.redirect || '/')
+    router.push(redirectTo.value)
     return
   }
-  // Fetch available OAuth providers for login buttons
-  try {
-    await fetchProviders()
-  } catch (_) { /* silently ignore — OAuth buttons simply won't show */ }
+  // If no link token, something went wrong
+  if (!linkToken.value) {
+    errMsg.value = t('oauth.invalid_callback')
+  }
 })
 
 function onPasswordFocus() {
@@ -75,16 +72,21 @@ async function login() {
   loading.value = true
   errMsg.value = ''
   try {
-    const resp = await fetch('/api/v1/auth/login', {
+    const resp = await fetch(`/api/v1/oauth/${provider.value}/link/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.value, password: password.value, turnstile_token: turnstileToken.value }),
+      body: JSON.stringify({
+        link_token: linkToken.value,
+        email: email.value,
+        password: password.value,
+        turnstile_token: turnstileToken.value,
+      }),
     })
     const json = await resp.json()
     if (json.code === 0) {
       setTokens(json.data.token, json.data.refresh_token)
       localStorage.setItem('user_profile', JSON.stringify({ name: json.data.name, email: json.data.email }))
-      router.push(route.query.redirect || '/')
+      router.push(redirectTo.value)
     } else {
       errMsg.value = json.message || t('user.login_failed')
     }
@@ -94,6 +96,17 @@ async function login() {
     loading.value = false
   }
 }
+
+const providerDisplay = computed(() => {
+  const map = {
+    github: 'GitHub',
+    google: 'Google',
+    apple: 'Apple',
+    telegram: 'Telegram',
+    discord: 'Discord',
+  }
+  return map[provider.value] || provider.value || 'OAuth'
+})
 </script>
 
 <template>
@@ -124,7 +137,7 @@ async function login() {
             <h1 class="text-4xl lg:text-5xl font-black tracking-tight text-base-content">
               Pure<span class="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Core</span>
             </h1>
-            <p class="text-base-content/60 mt-2 text-lg font-light">{{ t('user.login_title') }}</p>
+            <p class="text-base-content/60 mt-2 text-lg font-light">{{ t('oauth.link_login_desc', { provider: providerDisplay }) }}</p>
           </div>
 
           <!-- Form card -->
@@ -188,44 +201,10 @@ async function login() {
               </button>
             </form>
 
-            <!-- OAuth login buttons -->
-            <div v-if="loginProviders.length > 0 || telegramProvider" class="mt-6">
-              <div class="relative mb-4">
-                <div class="absolute inset-0 flex items-center">
-                  <div class="w-full border-t border-base-content/10"></div>
-                </div>
-                <div class="relative flex justify-center text-xs">
-                  <span class="px-3 bg-base-200/40 text-base-content/40">{{ t('oauth.or_continue_with') }}</span>
-                </div>
-              </div>
-              <div class="flex justify-center gap-2">
-                <OAuthButton
-                  v-for="provider in loginProviders"
-                  :key="provider.name"
-                  :provider="provider"
-                  :redirect="route.query.redirect || '/'"
-                />
-                <!-- Telegram Login Widget -->
-                <TelegramLoginWidget
-                  v-if="telegramProvider && telegramWidgetData"
-                  :bot-username="telegramWidgetData.bot_username"
-                  :redirect-url="telegramWidgetData.redirect_url"
-                  :state="telegramWidgetData.state"
-                />
-                <!-- Telegram placeholder button (click to load widget) -->
-                <OAuthButton
-                  v-if="telegramProvider && !telegramWidgetData"
-                  :provider="telegramProvider"
-                  :redirect="route.query.redirect || '/'"
-                  @widget-auth="onTelegramWidgetAuth"
-                />
-              </div>
-            </div>
-
             <div class="mt-6 text-center lg:text-left space-y-4">
               <p class="text-sm text-base-content/40">
-                {{ t('user.no_account') }}
-                <a href="/register" class="text-primary hover:text-primary/80 font-semibold transition-colors underline decoration-primary/30 underline-offset-4"> {{ t('user.create_account') }} </a>
+                {{ t('oauth.no_account_link') }}
+                <a :href="`/oauth/${provider}/link/register?link_token=${encodeURIComponent(linkToken)}&email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(redirectTo)}`" class="text-primary hover:text-primary/80 font-semibold transition-colors underline decoration-primary/30 underline-offset-4"> {{ t('user.create_account') }} </a>
               </p>
               <a href="/" class="inline-flex items-center gap-1.5 text-base-content/30 hover:text-primary text-sm transition-colors">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

@@ -33,11 +33,22 @@ const providerIcon = computed(() => {
   return map[providerId.value] || IconWorld
 })
 
+const emit = defineEmits(['widgetAuth'])
+
 async function handleClick() {
   if (isLoading.value || !providerId.value) return
   isLoading.value = true
   try {
-    // initiateLogin will trigger a full page redirect to the provider
+    // Special handling for Telegram (non-OAuth2 widget-based login)
+    if (providerId.value === 'telegram') {
+      const widgetData = await initiateLogin(providerId.value, props.redirect)
+      if (widgetData && widgetData.type === 'widget') {
+        emit('widgetAuth', widgetData)
+        isLoading.value = false
+        return
+      }
+    }
+    // For OAuth2 providers, initiateLogin will redirect to the provider
     await initiateLogin(providerId.value, props.redirect)
   } catch (err) {
     console.error('OAuth login error:', err)

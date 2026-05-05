@@ -198,9 +198,21 @@ async function handleSave() {
   if (!provider) return
 
   try {
+    // Validate required fields before saving
+    const vals = providerValues[provider.name] || {}
+    for (const field of provider.config_fields) {
+      if (field.required) {
+        const val = vals[field.key]
+        if (val === undefined || val === null || String(val).trim() === '') {
+          error.value = `${fieldLabel(field)} ${t('admin.is_required') || 'is required'}`
+          saving.value = false
+          return
+        }
+      }
+    }
+
     // Build settings payload from all config fields
     const settings = {}
-    const vals = providerValues[provider.name] || {}
     for (const field of provider.config_fields) {
       settings[field.key] = vals[field.key] !== undefined && vals[field.key] !== null ? String(vals[field.key]) : ''
     }

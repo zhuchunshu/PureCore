@@ -131,6 +131,18 @@ export const routes = [
     props: true,
   },
   {
+    path: '/oauth/:provider/link/register',
+    name: 'OAuthLinkRegister',
+    component: () => import('../pages/auth/OAuthLinkRegister.vue'),
+    props: true,
+  },
+  {
+    path: '/oauth/:provider/link/login',
+    name: 'OAuthLinkLogin',
+    component: () => import('../pages/auth/OAuthLinkLogin.vue'),
+    props: true,
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: NotFound,

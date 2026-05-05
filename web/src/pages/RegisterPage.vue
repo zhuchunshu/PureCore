@@ -6,6 +6,7 @@ import { useSEO } from '../composables/useSEO'
 import { setTokens, accessToken } from '../composables/useUserAuth'
 import TurnstileWidget from '../components/TurnstileWidget.vue'
 import OAuthButton from '../components/auth/OAuthButton.vue'
+import TelegramLoginWidget from '../components/auth/TelegramLoginWidget.vue'
 import { useOAuth } from '../composables/useOAuth'
 
 const { t } = useI18n()
@@ -27,10 +28,22 @@ const eyeClosed = ref(false)
 // OAuth providers for social register buttons
 const { providers, fetchProviders } = useOAuth()
 
-// Only show providers that are both enabled and allow registration
+// Telegram widget state
+const telegramWidgetData = ref(null)
+
+// Only show providers that are both enabled and allow registration (exclude telegram for widget)
 const registerProviders = computed(() =>
-  providers.value.filter(p => p.enabled && p.register_enabled)
+  providers.value.filter(p => p.enabled && p.register_enabled && p.name !== 'telegram')
 )
+
+// Telegram provider for widget rendering
+const telegramProvider = computed(() =>
+  providers.value.find(p => p.name === 'telegram' && p.enabled && p.register_enabled)
+)
+
+function onTelegramWidgetAuth(data) {
+  telegramWidgetData.value = data
+}
 
 onMounted(async () => {
   if (accessToken.value) {
@@ -219,7 +232,7 @@ async function register() {
             </form>
 
             <!-- OAuth register buttons -->
-            <div v-if="registerProviders.length > 0" class="mt-6">
+            <div v-if="registerProviders.length > 0 || telegramProvider" class="mt-6">
               <div class="relative mb-4">
                 <div class="absolute inset-0 flex items-center">
                   <div class="w-full border-t border-base-content/10"></div>
@@ -234,6 +247,20 @@ async function register() {
                   :key="provider.name"
                   :provider="provider"
                   :redirect="'/'"
+                />
+                <!-- Telegram Login Widget -->
+                <TelegramLoginWidget
+                  v-if="telegramProvider && telegramWidgetData"
+                  :bot-username="telegramWidgetData.bot_username"
+                  :redirect-url="telegramWidgetData.redirect_url"
+                  :state="telegramWidgetData.state"
+                />
+                <!-- Telegram placeholder button -->
+                <OAuthButton
+                  v-if="telegramProvider && !telegramWidgetData"
+                  :provider="telegramProvider"
+                  :redirect="'/'"
+                  @widget-auth="onTelegramWidgetAuth"
                 />
               </div>
             </div>

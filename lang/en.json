@@ -393,6 +393,12 @@
     "bind_login_option": "I already have an account, sign in to link",
     "bind_success": "Account linked successfully",
     "bind_failed": "Failed to link account. Please try again.",
-    "register_failed": "Registration failed. Please try again."
+    "register_failed": "Registration failed. Please try again.",
+    "link_register_title": "Complete Registration",
+    "link_register_desc": "Create an account and link your {provider} account",
+    "link_login_title": "Login to Link",
+    "link_login_desc": "Login to your existing account to link {provider}",
+    "already_have_account_link": "Already have an account? Login to link",
+    "no_account_link": "Don't have an account? Register to link"
   }
 }

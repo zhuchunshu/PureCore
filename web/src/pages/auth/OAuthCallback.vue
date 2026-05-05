@@ -5,14 +5,14 @@ import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { useOAuth } from '../../composables/useOAuth'
 import { setTokens as setUserTokens } from '../../composables/useUserAuth'
-import { IconExclamationCircle, IconCircleCheck, IconUserPlus, IconLogin2, IconLoader2 } from '@tabler/icons-vue'
+import { IconExclamationCircle, IconCircleCheck, IconUserPlus, IconLogin2 } from '@tabler/icons-vue'
 
 const { t } = useI18n()
 useSEO({ title: t('oauth.callback_title'), description: t('oauth.callback_title') })
 
 const route = useRoute()
 const router = useRouter()
-const { oauthRegister, bindOAuth, exchangeCode } = useOAuth()
+const { exchangeCode } = useOAuth()
 
 // Query parameters from backend redirect (old flow)
 const status = ref(route.query.status || '')
@@ -29,37 +29,9 @@ const state = ref(route.query.state || '')
 
 const loading = ref(true)
 const error = ref('')
-const mode = ref('choose') // 'choose' | 'register' | 'login'
-const registerName = ref('')
-const registerEmail = ref('')
-const registerLoading = ref(false)
-const registerError = ref('')
+const mode = ref('choose')
 
 onMounted(async () => {
-  // Check for bind mode first (coming from login page with mode=bind)
-  if (route.query.mode === 'bind') {
-    const storedToken = typeof window !== 'undefined' ? sessionStorage.getItem('oauth_link_token') : null
-    if (storedToken) {
-      linkToken.value = storedToken
-      try {
-        await bindOAuth(storedToken)
-        if (typeof window !== 'undefined') {
-          sessionStorage.removeItem('oauth_link_token')
-        }
-        router.replace(redirectTo.value || '/')
-        return
-      } catch (err) {
-        error.value = err.message || t('oauth.bind_failed')
-        loading.value = false
-        return
-      }
-    }
-    // If no stored token, fall through — this shouldn't happen but show error
-    error.value = t('oauth.bind_failed')
-    loading.value = false
-    return
-  }
-
   // New exchange flow: OAuth provider redirected back to frontend with code+state
   if (code.value && state.value && !status.value) {
     await handleExchange()
@@ -75,8 +47,6 @@ onMounted(async () => {
     router.replace(redirectTo.value)
   } else if (status.value === 'unlinked' && linkToken.value) {
     // New OAuth account — show registration/bind options
-    registerName.value = oauthName.value || ''
-    registerEmail.value = oauthEmail.value || ''
     loading.value = false
   } else {
     error.value = t('oauth.invalid_callback')
@@ -129,8 +99,6 @@ function processExchangeResult(data) {
       oauthEmail.value = data.email || ''
       oauthAvatar.value = data.avatar_url || ''
       redirectTo.value = data.redirect || redirectTo.value || '/'
-      registerName.value = data.name || ''
-      registerEmail.value = data.email || ''
       loading.value = false
       mode.value = 'choose'
       break
@@ -158,41 +126,33 @@ function readCookiesAndLogin() {
 }
 
 function chooseRegister() {
-  mode.value = 'register'
+  // Store OAuth data in sessionStorage to avoid URL length limits with JWT tokens
+  const oauthData = {
+    link_token: linkToken.value,
+    name: oauthName.value,
+    email: oauthEmail.value,
+    avatar_url: oauthAvatar.value,
+    redirect: redirectTo.value,
+  }
+  try {
+    sessionStorage.setItem('oauth_link_data', JSON.stringify(oauthData))
+  } catch (_) { /* ignore quota errors */ }
+  const providerName = route.params.provider || provider.value
+  router.push(`/oauth/${providerName}/link/register`)
 }
 
 function chooseLogin() {
-  // User wants to log in first, then bind. Store link token and redirect to login.
-  if (typeof window !== 'undefined') {
-    sessionStorage.setItem('oauth_link_token', linkToken.value)
+  // Store OAuth data in sessionStorage to avoid URL length limits with JWT tokens
+  const oauthData = {
+    link_token: linkToken.value,
+    email: oauthEmail.value,
+    redirect: redirectTo.value,
   }
-  const callbackPath = '/oauth/' + (route.params.provider || provider.value) + '/callback'
-  router.replace({ path: '/login', query: { redirect: callbackPath + '?mode=bind&redirect=' + encodeURIComponent(redirectTo.value) } })
-}
-
-async function handleOAuthRegister() {
-  if (!registerName.value || !registerEmail.value) {
-    registerError.value = t('user.enter_credentials')
-    return
-  }
-  registerLoading.value = true
-  registerError.value = ''
   try {
-    const data = await oauthRegister(linkToken.value, registerName.value, registerEmail.value)
-    setUserTokens(data.token, data.refresh_token)
-    if (data.name && data.email) {
-      localStorage.setItem('user_profile', JSON.stringify({ name: data.name, email: data.email }))
-    }
-    router.replace(redirectTo.value)
-  } catch (err) {
-    registerError.value = err.message || t('oauth.register_failed')
-  } finally {
-    registerLoading.value = false
-  }
-}
-
-function goBack() {
-  mode.value = 'choose'
+    sessionStorage.setItem('oauth_link_data', JSON.stringify(oauthData))
+  } catch (_) { /* ignore quota errors */ }
+  const providerName = route.params.provider || provider.value
+  router.push(`/oauth/${providerName}/link/login`)
 }
 
 const providerDisplay = computed(() => {
@@ -270,52 +230,6 @@ const providerDisplay = computed(() => {
             {{ t('oauth.login_then_bind') }}
           </button>
         </div>
-      </div>
-
-      <!-- Register form mode -->
-      <div v-else-if="mode === 'register'" class="card bg-base-100/80 border border-base-300/20 shadow-xl p-8">
-        <div class="text-center mb-8">
-          <h2 class="text-xl font-bold text-base-content">{{ t('oauth.complete_registration') }}</h2>
-          <p class="text-base-content/60 mt-2">{{ t('oauth.complete_registration_desc', { provider: providerDisplay }) }}</p>
-        </div>
-
-        <form @submit.prevent="handleOAuthRegister" class="space-y-5">
-          <div>
-            <label class="block text-sm font-medium text-base-content/70 mb-2 ml-1">{{ t('user.name') }}</label>
-            <input
-              v-model="registerName"
-              type="text"
-              :placeholder="t('user.name_placeholder')"
-              class="input input-bordered w-full"
-              required
-            />
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-base-content/70 mb-2 ml-1">{{ t('user.email') }}</label>
-            <input
-              v-model="registerEmail"
-              type="email"
-              :placeholder="t('user.email_placeholder')"
-              class="input input-bordered w-full"
-              required
-            />
-          </div>
-
-          <div v-if="registerError" class="alert alert-error text-sm">
-            <IconExclamationCircle :size="20" />
-            <span>{{ registerError }}</span>
-          </div>
-
-          <div class="flex gap-3">
-            <button type="button" class="btn btn-outline flex-1" @click="goBack">
-              {{ t('admin.back') }}
-            </button>
-            <button type="submit" class="btn btn-primary flex-1" :disabled="registerLoading">
-              <span v-if="registerLoading" class="loading loading-spinner loading-xs"></span>
-              {{ t('user.create_account') }}
-            </button>
-          </div>
-        </form>
       </div>
     </div>
   </div>

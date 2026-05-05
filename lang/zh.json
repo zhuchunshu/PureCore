@@ -393,6 +393,12 @@
     "bind_login_option": "已有账号，登录后绑定",
     "bind_success": "账号关联成功",
     "bind_failed": "关联账号失败，请重试。",
-    "register_failed": "注册失败，请重试。"
+    "register_failed": "注册失败，请重试。",
+    "link_register_title": "完成注册",
+    "link_register_desc": "创建账户并关联您的 {provider} 账号",
+    "link_login_title": "登录并关联",
+    "link_login_desc": "登录已有账户以关联 {provider}",
+    "already_have_account_link": "已有账户？登录并关联",
+    "no_account_link": "还没有账户？注册并关联"
   }
 }

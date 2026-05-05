@@ -35,11 +35,22 @@ export function useOAuth() {
     }
   }
 
-  // Initiate OAuth login: ask backend for authorization URL, then redirect
+  // Initiate OAuth login: ask backend for authorization URL, then redirect.
+  // For non-OAuth2 providers (e.g., Telegram), the backend returns widget config
+  // instead of a URL — in that case, return the data for the caller to handle.
   async function initiateLogin(providerName, redirect = '/') {
     const json = await publicApi(`/api/v1/oauth/${providerName}/authorize?redirect=${encodeURIComponent(redirect)}`)
-    if (json.data && json.data.url) {
-      window.location.href = json.data.url
+    if (json.data) {
+      // Non-OAuth2 provider (widget type) — return config for frontend widget
+      if (json.data.type === 'widget') {
+        return json.data
+      }
+      // OAuth2 provider — redirect to auth URL
+      if (json.data.url) {
+        window.location.href = json.data.url
+      } else {
+        throw new Error('No authorization URL received')
+      }
     } else {
       throw new Error('No authorization URL received')
     }

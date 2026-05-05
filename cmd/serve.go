@@ -50,6 +50,9 @@ func serveRun(cmd *cobra.Command, args []string) {
 	// Register OAuth routes
 	routes.RegisterOAuthRoutes(app.Router())
 
+	// Register OAuth link routes (register+link, login+link)
+	routes.RegisterOAuthLinkRoutes(app.Router())
+
 	// Apply global middleware
 	app.App().Use(middleware.Cors(), middleware.Lang())
 

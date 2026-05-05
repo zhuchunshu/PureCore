@@ -1,58 +1,57 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useI18n } from '../i18n'
-import { useSEO } from '../composables/useSEO'
-import { setTokens, accessToken } from '../composables/useUserAuth'
-import TurnstileWidget from '../components/TurnstileWidget.vue'
-import OAuthButton from '../components/auth/OAuthButton.vue'
-import TelegramLoginWidget from '../components/auth/TelegramLoginWidget.vue'
-import { useOAuth } from '../composables/useOAuth'
+import { useI18n } from '../../i18n'
+import { useSEO } from '../../composables/useSEO'
+import { setTokens, accessToken } from '../../composables/useUserAuth'
+import TurnstileWidget from '../../components/TurnstileWidget.vue'
 
 const { t } = useI18n()
 useSEO({
-  title: t('user.login_title'),
-  description: t('user.login_title'),
+  title: t('oauth.link_register_title'),
+  description: t('oauth.link_register_desc'),
 })
 const router = useRouter()
 const route = useRoute()
-const email = ref('')
+
+// Provider from route params
+const provider = computed(() => route.params.provider || '')
+
+// Load OAuth data from sessionStorage (set by OAuthCallback.vue)
+// Falls back to query params for backward compatibility
+let oauthData = {}
+try {
+  const stored = sessionStorage.getItem('oauth_link_data')
+  if (stored) {
+    oauthData = JSON.parse(stored)
+    sessionStorage.removeItem('oauth_link_data') // clean up after read
+  }
+} catch (_) { /* ignore */ }
+
+// Pre-fill name and email from OAuth provider data
+const name = ref(oauthData.name || route.query.name || '')
+const email = ref(oauthData.email || route.query.email || '')
 const password = ref('')
+const confirmPassword = ref('')
 const errMsg = ref('')
 const loading = ref(false)
 const turnstileToken = ref('')
 const turnstileRef = ref(null)
 const eyeClosed = ref(false)
 
-// OAuth providers for social login buttons
-const { providers, fetchProviders } = useOAuth()
-
-// Telegram widget state
-const telegramWidgetData = ref(null)
-
-// Only show providers that are both enabled and allow login (exclude telegram for widget rendering)
-const loginProviders = computed(() =>
-  providers.value.filter(p => p.enabled && p.login_enabled && p.name !== 'telegram')
-)
-
-// Telegram provider for widget rendering
-const telegramProvider = computed(() =>
-  providers.value.find(p => p.name === 'telegram' && p.enabled && p.login_enabled)
-)
-
-function onTelegramWidgetAuth(data) {
-  telegramWidgetData.value = data
-}
+// Link token from sessionStorage (required for the API call)
+const linkToken = ref(oauthData.link_token || route.query.link_token || '')
+const redirectTo = ref(oauthData.redirect || route.query.redirect || '/')
 
 onMounted(async () => {
   if (accessToken.value) {
-    router.push(route.query.redirect || '/')
+    router.push(redirectTo.value)
     return
   }
-  // Fetch available OAuth providers for login buttons
-  try {
-    await fetchProviders()
-  } catch (_) { /* silently ignore — OAuth buttons simply won't show */ }
+  // If no link token, something went wrong
+  if (!linkToken.value) {
+    errMsg.value = t('oauth.invalid_callback')
+  }
 })
 
 function onPasswordFocus() {
@@ -63,9 +62,13 @@ function onPasswordBlur() {
   eyeClosed.value = false
 }
 
-async function login() {
-  if (!email.value || !password.value) {
+async function register() {
+  if (!name.value || !email.value || !password.value) {
     errMsg.value = t('user.enter_credentials')
+    return
+  }
+  if (password.value !== confirmPassword.value) {
+    errMsg.value = t('admin.passwords_not_match')
     return
   }
   if (turnstileRef.value && turnstileRef.value.isEnabled && !turnstileRef.value.verified) {
@@ -75,18 +78,24 @@ async function login() {
   loading.value = true
   errMsg.value = ''
   try {
-    const resp = await fetch('/api/v1/auth/login', {
+    const resp = await fetch(`/api/v1/oauth/${provider.value}/link/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.value, password: password.value, turnstile_token: turnstileToken.value }),
+      body: JSON.stringify({
+        link_token: linkToken.value,
+        name: name.value,
+        email: email.value,
+        password: password.value,
+        turnstile_token: turnstileToken.value,
+      }),
     })
     const json = await resp.json()
     if (json.code === 0) {
       setTokens(json.data.token, json.data.refresh_token)
       localStorage.setItem('user_profile', JSON.stringify({ name: json.data.name, email: json.data.email }))
-      router.push(route.query.redirect || '/')
+      router.push(redirectTo.value)
     } else {
-      errMsg.value = json.message || t('user.login_failed')
+      errMsg.value = json.message || t('user.register_failed')
     }
   } catch (err) {
     errMsg.value = t('admin.network_error')
@@ -94,6 +103,17 @@ async function login() {
     loading.value = false
   }
 }
+
+const providerDisplay = computed(() => {
+  const map = {
+    github: 'GitHub',
+    google: 'Google',
+    apple: 'Apple',
+    telegram: 'Telegram',
+    discord: 'Discord',
+  }
+  return map[provider.value] || provider.value || 'OAuth'
+})
 </script>
 
 <template>
@@ -103,17 +123,17 @@ async function login() {
       <div class="absolute inset-0" style="background-image: radial-gradient(circle at 1px 1px, oklch(var(--p)/0.15) 1px, transparent 0); background-size: 40px 40px;"></div>
     </div>
 
-    <!-- Glow orbs -->
-    <div class="absolute top-1/4 -left-20 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
-    <div class="absolute bottom-1/4 -right-20 w-96 h-96 bg-secondary/15 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
-    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-accent/10 rounded-full blur-3xl"></div>
+    <!-- Glow orbs - shifted positions for variety -->
+    <div class="absolute top-1/3 -right-20 w-80 h-80 bg-secondary/20 rounded-full blur-3xl animate-pulse"></div>
+    <div class="absolute bottom-1/4 -left-20 w-96 h-96 bg-accent/15 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+    <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-3xl"></div>
 
     <div class="relative z-10 w-full max-w-5xl mx-auto px-4 py-8">
       <div class="flex flex-col lg:flex-row items-center gap-8 lg:gap-16">
         <!-- Left: Illustration -->
         <div class="flex-1 hidden lg:flex items-center justify-center">
           <div :class="['relative w-80 h-80 transition-all duration-300', { 'scale-105': eyeClosed }]">
-            <img src="/assets/img/undraw_login_weas.svg" alt="Login illustration" class="w-full h-full object-contain" />
+            <img src="/assets/img/undraw_enter-password_1kl4.svg" alt="Register illustration" class="w-full h-full object-contain" />
           </div>
         </div>
 
@@ -124,12 +144,30 @@ async function login() {
             <h1 class="text-4xl lg:text-5xl font-black tracking-tight text-base-content">
               Pure<span class="bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">Core</span>
             </h1>
-            <p class="text-base-content/60 mt-2 text-lg font-light">{{ t('user.login_title') }}</p>
+            <p class="text-base-content/60 mt-2 text-lg font-light">{{ t('oauth.link_register_desc', { provider: providerDisplay }) }}</p>
           </div>
 
           <!-- Form card -->
           <div class="backdrop-blur-xl bg-base-200/40 border border-base-content/10 rounded-3xl p-8 shadow-2xl">
-            <form @submit.prevent="login" class="space-y-5">
+            <form @submit.prevent="register" class="space-y-5">
+              <div>
+                <label class="block text-sm font-medium text-base-content/70 mb-2 ml-1">{{ t('user.name') }}</label>
+                <div class="relative group">
+                  <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg class="w-5 h-5 text-base-content/30 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
+                    </svg>
+                  </div>
+                  <input
+                    v-model="name"
+                    type="text"
+                    :placeholder="t('user.name_placeholder')"
+                    class="w-full pl-12 pr-4 py-3.5 bg-base-100/50 border border-base-content/10 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
+                    autocomplete="name"
+                  />
+                </div>
+              </div>
+
               <div>
                 <label class="block text-sm font-medium text-base-content/70 mb-2 ml-1">{{ t('user.email') }}</label>
                 <div class="relative group">
@@ -161,7 +199,27 @@ async function login() {
                     type="password"
                     :placeholder="t('admin.password_placeholder')"
                     class="w-full pl-12 pr-4 py-3.5 bg-base-100/50 border border-base-content/10 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
-                    autocomplete="current-password"
+                    autocomplete="new-password"
+                    @focus="onPasswordFocus"
+                    @blur="onPasswordBlur"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-sm font-medium text-base-content/70 mb-2 ml-1">{{ t('admin.confirm_password') }}</label>
+                <div class="relative group">
+                  <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg class="w-5 h-5 text-base-content/30 group-focus-within:text-primary transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
+                    </svg>
+                  </div>
+                  <input
+                    v-model="confirmPassword"
+                    type="password"
+                    :placeholder="t('admin.confirm_password_placeholder')"
+                    class="w-full pl-12 pr-4 py-3.5 bg-base-100/50 border border-base-content/10 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
+                    autocomplete="new-password"
                     @focus="onPasswordFocus"
                     @blur="onPasswordBlur"
                   />
@@ -182,50 +240,16 @@ async function login() {
               >
                 <span v-if="loading" class="flex items-center justify-center gap-2">
                   <svg class="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
-                  {{ t('user.sign_in') }}
+                  {{ t('user.register_button') }}
                 </span>
-                <span v-else>{{ t('user.sign_in') }}</span>
+                <span v-else>{{ t('user.register_button') }}</span>
               </button>
             </form>
 
-            <!-- OAuth login buttons -->
-            <div v-if="loginProviders.length > 0 || telegramProvider" class="mt-6">
-              <div class="relative mb-4">
-                <div class="absolute inset-0 flex items-center">
-                  <div class="w-full border-t border-base-content/10"></div>
-                </div>
-                <div class="relative flex justify-center text-xs">
-                  <span class="px-3 bg-base-200/40 text-base-content/40">{{ t('oauth.or_continue_with') }}</span>
-                </div>
-              </div>
-              <div class="flex justify-center gap-2">
-                <OAuthButton
-                  v-for="provider in loginProviders"
-                  :key="provider.name"
-                  :provider="provider"
-                  :redirect="route.query.redirect || '/'"
-                />
-                <!-- Telegram Login Widget -->
-                <TelegramLoginWidget
-                  v-if="telegramProvider && telegramWidgetData"
-                  :bot-username="telegramWidgetData.bot_username"
-                  :redirect-url="telegramWidgetData.redirect_url"
-                  :state="telegramWidgetData.state"
-                />
-                <!-- Telegram placeholder button (click to load widget) -->
-                <OAuthButton
-                  v-if="telegramProvider && !telegramWidgetData"
-                  :provider="telegramProvider"
-                  :redirect="route.query.redirect || '/'"
-                  @widget-auth="onTelegramWidgetAuth"
-                />
-              </div>
-            </div>
-
             <div class="mt-6 text-center lg:text-left space-y-4">
               <p class="text-sm text-base-content/40">
-                {{ t('user.no_account') }}
-                <a href="/register" class="text-primary hover:text-primary/80 font-semibold transition-colors underline decoration-primary/30 underline-offset-4"> {{ t('user.create_account') }} </a>
+                {{ t('oauth.already_have_account_link') }}
+                <a :href="`/oauth/${provider}/link/login?link_token=${encodeURIComponent(linkToken)}&email=${encodeURIComponent(email)}&redirect=${encodeURIComponent(redirectTo)}`" class="text-primary hover:text-primary/80 font-semibold transition-colors underline decoration-primary/30 underline-offset-4"> {{ t('user.sign_in') }} </a>
               </p>
               <a href="/" class="inline-flex items-center gap-1.5 text-base-content/30 hover:text-primary text-sm transition-colors">
                 <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

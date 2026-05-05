@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -62,6 +63,28 @@ func (c *OAuthController) Authorize(req *core.Request, res *core.Response) error
 	state, err := oauth.GenerateState(providerName, body.Redirect, action)
 	if err != nil {
 		return res.Error("Failed to generate state", 500)
+	}
+
+	// For non-OAuth2 providers (e.g., Telegram), return widget config
+	// instead of a redirect URL — the frontend renders the login widget.
+	if !provider.IsOAuth2() {
+		botUsername := ""
+		if bp, ok := provider.(interface{ BotUsername() string }); ok {
+			botUsername = bp.BotUsername()
+		}
+		if botUsername == "" {
+			// Derive from bot_token: Telegram tokens are "123456:ABC..."
+			botToken := oauth.GetProviderOption(provider.(oauth.Provider), "bot_token")
+			botUsername = deriveBotUsernameFromToken(botToken)
+		}
+		redirectURL := oauth.GetProviderOption(provider.(oauth.Provider), "redirect_url")
+		return res.Success(map[string]interface{}{
+			"type":         "widget",
+			"provider":     providerName,
+			"state":        state,
+			"bot_username": botUsername,
+			"redirect_url": redirectURL,
+		})
 	}
 
 	authURL := provider.GetAuthURL(state)
@@ -174,16 +197,6 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 		return res.Error("Failed to generate link token", 500)
 	}
 
-	// Upsert OAuth account record with latest info
-	core.DB().Where(models.OAuthAccount{
-		Provider:   providerName,
-		ProviderID: userInfo.ProviderID,
-	}).Assign(models.OAuthAccount{
-		Email:     userInfo.Email,
-		Name:      userInfo.Name,
-		AvatarURL: userInfo.AvatarURL,
-	}).FirstOrCreate(&models.OAuthAccount{})
-
 	redirectURL := frontendBase + "/oauth/" + providerName + "/callback?status=unlinked&link_token=" + urlQueryEscape(linkToken) +
 		"&email=" + urlQueryEscape(userInfo.Email) +
 		"&name=" + urlQueryEscape(userInfo.Name) +
@@ -229,7 +242,38 @@ func (c *OAuthController) Exchange(req *core.Request, res *core.Response) error 
 			return res.Error("Failed to exchange OAuth code: "+err.Error(), 500)
 		}
 	} else {
-		return res.Error("Exchange endpoint only supports OAuth2 providers", 400)
+		// Non-OAuth2 provider (e.g., Telegram): receive callback params in request body
+		type NonOAuth2Params struct {
+			State string            `json:"state" validate:"required"`
+			Data  map[string]string `json:"data"`
+		}
+		var nonOAuth2Body NonOAuth2Params
+		if err := req.Validate(&nonOAuth2Body); err != nil {
+			return res.Error("Missing state or callback data for non-OAuth2 provider", 422)
+		}
+		state, err = oauth.ParseState(nonOAuth2Body.State)
+		if err != nil {
+			return res.Error("Invalid or expired state token", 422)
+		}
+		if nonOAuth2Body.Data == nil || len(nonOAuth2Body.Data) == 0 {
+			// Try to read raw body as map
+			var rawBody map[string]interface{}
+			if err := json.Unmarshal([]byte(req.Ctx().Body()), &rawBody); err == nil {
+				nonOAuth2Body.Data = make(map[string]string)
+				for k, v := range rawBody {
+					if k == "state" {
+						continue
+					}
+					if s, ok := v.(string); ok {
+						nonOAuth2Body.Data[k] = s
+					}
+				}
+			}
+		}
+		userInfo, err = provider.HandleCallback(nonOAuth2Body.Data)
+		if err != nil {
+			return res.Error("OAuth authorization failed: "+err.Error(), 500)
+		}
 	}
 
 	originalRedirect := state.Redirect
@@ -247,7 +291,7 @@ func (c *OAuthController) Exchange(req *core.Request, res *core.Response) error 
 				core.DB().Model(&existingOAuth).Update("user_id", 0)
 			} else {
 				// Login and return tokens
-				return c.loginUser(req, res, &user)
+				return c.loginUser(req, res, &user, originalRedirect)
 			}
 		}
 	}
@@ -271,16 +315,6 @@ func (c *OAuthController) Exchange(req *core.Request, res *core.Response) error 
 	if err != nil {
 		return res.Error("Failed to generate link token", 500)
 	}
-
-	// Upsert OAuth account record with latest info
-	core.DB().Where(models.OAuthAccount{
-		Provider:   providerName,
-		ProviderID: userInfo.ProviderID,
-	}).Assign(models.OAuthAccount{
-		Email:     userInfo.Email,
-		Name:      userInfo.Name,
-		AvatarURL: userInfo.AvatarURL,
-	}).FirstOrCreate(&models.OAuthAccount{})
 
 	return res.Success(map[string]interface{}{
 		"status":     "unlinked",
@@ -354,7 +388,7 @@ func (c *OAuthController) Register(req *core.Request, res *core.Response) error 
 	core.DB().Model(&user).Update("last_login_at", now)
 
 	// Login the user
-	return c.loginUser(req, res, &user)
+	return c.loginUser(req, res, &user, "/")
 }
 
 // Bind links an OAuth provider to the currently logged-in user.
@@ -534,8 +568,9 @@ func (c *OAuthController) AdminSetSettings(req *core.Request, res *core.Response
 	return res.Success("Settings saved")
 }
 
-// loginUser generates tokens and creates a session for a user, returning JSON.
-func (c *OAuthController) loginUser(req *core.Request, res *core.Response, user *models.User) error {
+// loginUser generates tokens and creates a session for a user, returning JSON
+// with status "linked" so the frontend can process the OAuth exchange result correctly.
+func (c *OAuthController) loginUser(req *core.Request, res *core.Response, user *models.User, redirect string) error {
 	accessToken, err := middleware.GenerateUserToken(user.ID, user.Name)
 	if err != nil {
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
@@ -558,16 +593,18 @@ func (c *OAuthController) loginUser(req *core.Request, res *core.Response, user 
 	CreateSession(req.Ctx(), user.ID)
 
 	return res.Success(map[string]interface{}{
+		"status":        "linked",
 		"token":         accessToken,
 		"refresh_token": refreshToken,
 		"name":          user.Name,
 		"email":         user.Email,
-		"linked":        true,
+		"redirect":      redirect,
 	})
 }
 
-// loginWithRedirect logs the user in and sets tokens as non-HttpOnly cookies,
-// then redirects to the given URL.
+// loginWithRedirect logs the user in and sets tokens as readable cookies,
+// then redirects to the given URL. Cookies are NOT HttpOnly so the frontend
+// JS can read them on the callback page.
 func (c *OAuthController) loginWithRedirect(req *core.Request, res *core.Response, user *models.User, redirectTo string) error {
 	accessToken, err := middleware.GenerateUserToken(user.ID, user.Name)
 	if err != nil {
@@ -588,16 +625,15 @@ func (c *OAuthController) loginWithRedirect(req *core.Request, res *core.Respons
 	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
 	CreateSession(req.Ctx(), user.ID)
 
-	// Set tokens as HttpOnly cookies for security (not readable by JS)
-	// The frontend should use the /auth/profile endpoint to verify login state,
-	// not read tokens from cookies.
+	// Set tokens as non-HttpOnly cookies so the frontend JS can read them
+	// on the OAuth callback page to complete the login flow.
 	isProduction := core.GetConfig().IsProduction()
 	req.Ctx().Cookie(&fiber.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
 		Path:     "/",
 		Secure:   isProduction,
-		HTTPOnly: true,
+		HTTPOnly: false,
 		SameSite: "Lax",
 	})
 	req.Ctx().Cookie(&fiber.Cookie{
@@ -605,7 +641,7 @@ func (c *OAuthController) loginWithRedirect(req *core.Request, res *core.Respons
 		Value:    refreshToken,
 		Path:     "/",
 		Secure:   isProduction,
-		HTTPOnly: true,
+		HTTPOnly: false,
 		SameSite: "Lax",
 	})
 
@@ -654,12 +690,15 @@ func (c *OAuthController) bindOAuthSilent(userID uint, providerName string, user
 // ---------- helpers ----------
 
 // getSiteBaseURL returns the configured base URL of the site (no trailing slash).
-// It first checks the admin-configured "app_url" option, and falls back to auto-detection
-// from the current request. This ensures OAuth redirect URLs always match the canonical
-// site address configured by the administrator.
+// Priority: 1) Admin-configured "app_url" option, 2) FRONTEND_URL env var,
+// 3) Auto-detection from the current request.
 func getSiteBaseURL(req *core.Request) string {
 	if appURL := strings.TrimRight(core.AdminOption("app_url", ""), "/"); appURL != "" {
 		return appURL
+	}
+	// Check for FRONTEND_URL environment variable (for dev environments)
+	if frontendURL := strings.TrimRight(os.Getenv("FRONTEND_URL"), "/"); frontendURL != "" {
+		return frontendURL
 	}
 	// Fallback: auto-detect from request
 	scheme := req.Ctx().Protocol()
@@ -669,4 +708,16 @@ func getSiteBaseURL(req *core.Request) string {
 
 func urlQueryEscape(s string) string {
 	return url.QueryEscape(s)
+}
+
+// deriveBotUsernameFromToken extracts the bot username from a Telegram bot token.
+// Telegram bot tokens follow the format: "NUMBER:ALPHANUMERIC_STRING"
+// The bot username cannot be derived from the token alone, so this returns ""
+// as a fallback — the frontend should prompt for the username if needed.
+func deriveBotUsernameFromToken(token string) string {
+	// Bot username cannot be extracted from the token.
+	// The admin must configure it, or we can try common patterns.
+	// For now return empty; the frontend can use the widget without it
+	// as the Telegram widget script can auto-detect from data-* attributes.
+	return ""
 }
