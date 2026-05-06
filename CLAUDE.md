@@ -70,7 +70,7 @@ The framework kernel. Key files:
 - **State**: No Pinia/Vuex — composables use module-level reactive state.
 - **Styling**: Tailwind CSS 4 + DaisyUI 5.
 - **API calls**: `services/api.js` (fetch wrapper with auth token injection).
-- **i18n**: `i18n.js` uses `navigator.language`.
+- **i18n**: `i18n.js` uses `navigator.language`. Translation files live in `lang/` (root level). `web/public/lang` is a **symlink** to `lang/`, so editing `lang/*.json` is sufficient — no copy needed.
 
 ### Key Patterns
 
