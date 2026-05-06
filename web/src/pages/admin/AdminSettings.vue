@@ -228,7 +228,7 @@ async function handleSave() {
                   v-model="activeForm()[field.key]"
                   :type="field.type"
                   :placeholder="field.placeholder"
-                  class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all rounded-xl font-mono text-sm"
+                  class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-blue-400 focus:ring-2 focus:ring-blue-400/20 transition-all rounded-xl font-mono text-sm"
                 />
               </div>
             </div>
@@ -298,14 +298,14 @@ async function handleSave() {
                   v-model="activeForm()[field.key]"
                   :placeholder="field.placeholder"
                   rows="3"
-                  class="textarea textarea-bordered w-full bg-base-200/50 border-base-300/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20 transition-all rounded-xl"
+                  class="textarea textarea-bordered w-full bg-base-100 border-base-300/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20 transition-all rounded-xl"
                 ></textarea>
                 <input
                   v-else
                   v-model="activeForm()[field.key]"
                   type="text"
                   :placeholder="field.placeholder"
-                  class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20 transition-all rounded-xl"
+                  class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-purple-400 focus:ring-2 focus:ring-purple-400/20 transition-all rounded-xl"
                 />
               </div>
             </div>

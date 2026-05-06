@@ -402,7 +402,7 @@ function recommendedCallback() {
                 @input="setValue('redirect_url', $event.target.value)"
                 type="text"
                 :placeholder="'https://your-domain.com/oauth/github/callback'"
-                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+                class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
               />
             </div>
           </div>
@@ -429,7 +429,7 @@ function recommendedCallback() {
                     @input="setValue('client_id', $event.target.value)"
                     type="text"
                     placeholder="Iv23li..."
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm"
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm"
                   />
                 </div>
                 <div>
@@ -441,7 +441,7 @@ function recommendedCallback() {
                     @input="setValue('client_secret', $event.target.value)"
                     type="password"
                     placeholder="••••••••••••••••"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm"
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm"
                   />
                 </div>
               </div>
@@ -554,7 +554,7 @@ function recommendedCallback() {
                 @input="setValue('redirect_url', $event.target.value)"
                 type="text"
                 :placeholder="'https://your-domain.com/oauth/google/callback'"
-                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+                class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
               />
             </div>
           </div>
@@ -578,7 +578,7 @@ function recommendedCallback() {
                   </label>
                   <input :value="getValue('client_id')" @input="setValue('client_id', $event.target.value)" type="text"
                     placeholder="123456789-xxxxx.apps.googleusercontent.com"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
                 </div>
                 <div>
                   <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
@@ -586,7 +586,7 @@ function recommendedCallback() {
                   </label>
                   <input :value="getValue('client_secret')" @input="setValue('client_secret', $event.target.value)" type="password"
                     placeholder="GOCSPX-••••••••••••••••"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
                 </div>
               </div>
             </div>
@@ -694,7 +694,7 @@ function recommendedCallback() {
                 @input="setValue('redirect_url', $event.target.value)"
                 type="text"
                 :placeholder="'https://your-domain.com/oauth/discord/callback'"
-                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+                class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
               />
             </div>
           </div>
@@ -718,7 +718,7 @@ function recommendedCallback() {
                   </label>
                   <input :value="getValue('client_id')" @input="setValue('client_id', $event.target.value)" type="text"
                     placeholder="123456789012345678"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
                 </div>
                 <div>
                   <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
@@ -726,7 +726,7 @@ function recommendedCallback() {
                   </label>
                   <input :value="getValue('client_secret')" @input="setValue('client_secret', $event.target.value)" type="password"
                     placeholder="••••••••••••••••••••••••"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
                 </div>
               </div>
             </div>
@@ -842,7 +842,7 @@ function recommendedCallback() {
                 @input="setValue('redirect_url', $event.target.value)"
                 type="text"
                 :placeholder="'https://your-domain.com/oauth/apple/callback'"
-                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+                class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
               />
             </div>
           </div>
@@ -866,7 +866,7 @@ function recommendedCallback() {
                   </label>
                   <input :value="getValue('client_id')" @input="setValue('client_id', $event.target.value)" type="text"
                     placeholder="com.example.app"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
                 </div>
                 <div>
                   <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
@@ -874,7 +874,7 @@ function recommendedCallback() {
                   </label>
                   <input :value="getValue('team_id')" @input="setValue('team_id', $event.target.value)" type="text"
                     placeholder="ABCDEF1234"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
                 </div>
                 <div>
                   <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
@@ -882,7 +882,7 @@ function recommendedCallback() {
                   </label>
                   <input :value="getValue('key_id')" @input="setValue('key_id', $event.target.value)" type="text"
                     placeholder="ABCDEF1234"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
                 </div>
               </div>
               <!-- Private key textarea -->
@@ -894,7 +894,7 @@ function recommendedCallback() {
                 <textarea
                   :value="getValue('private_key')"
                   @input="setValue('private_key', $event.target.value)"
-                  class="textarea textarea-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-xs min-h-[150px]"
+                  class="textarea textarea-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-xs min-h-[150px]"
                   placeholder="-----BEGIN PRIVATE KEY-----
 MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdw...
 -----END PRIVATE KEY-----"
@@ -1008,7 +1008,7 @@ MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdw...
                 @input="setValue('redirect_url', $event.target.value)"
                 type="text"
                 :placeholder="'https://your-domain.com/oauth/telegram/callback'"
-                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+                class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
               />
             </div>
           </div>
@@ -1033,7 +1033,7 @@ MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdw...
                   <p class="text-xs text-base-content/40 mb-1.5">{{ t('admin.oauth_telegram_bot_token_help') }}</p>
                   <input :value="getValue('bot_token')" @input="setValue('bot_token', $event.target.value)" type="password"
                     placeholder="123456:ABC-DEF1234ghIkl..."
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
                 </div>
                 <div>
                   <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
@@ -1042,7 +1042,7 @@ MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdw...
                   <p class="text-xs text-base-content/40 mb-1.5">{{ t('admin.oauth_telegram_bot_username_help') }}</p>
                   <input :value="getValue('bot_username')" @input="setValue('bot_username', $event.target.value)" type="text"
                     placeholder="@YourBot"
-                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                    class="input input-bordered w-full bg-base-100 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
                 </div>
               </div>
             </div>

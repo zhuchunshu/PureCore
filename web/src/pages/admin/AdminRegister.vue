@@ -118,7 +118,7 @@ async function register() {
                 v-model="username"
                 type="text"
                 :placeholder="t('admin.username_placeholder')"
-                class="w-full pl-10 pr-4 py-3 bg-base-200 border border-base-300/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                class="w-full pl-10 pr-4 py-3 bg-base-100 border border-base-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
                 autocomplete="username"
               />
             </div>
@@ -136,7 +136,7 @@ async function register() {
                 v-model="name"
                 type="text"
                 :placeholder="t('admin.name_placeholder')"
-                class="w-full pl-10 pr-4 py-3 bg-base-200 border border-base-300/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                class="w-full pl-10 pr-4 py-3 bg-base-100 border border-base-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
               />
             </div>
           </div>
@@ -153,7 +153,7 @@ async function register() {
                 v-model="password"
                 type="password"
                 :placeholder="t('admin.password_placeholder')"
-                class="w-full pl-10 pr-4 py-3 bg-base-200 border border-base-300/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                class="w-full pl-10 pr-4 py-3 bg-base-100 border border-base-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
                 autocomplete="new-password"
               />
             </div>
@@ -171,7 +171,7 @@ async function register() {
                 v-model="confirmPassword"
                 type="password"
                 :placeholder="t('admin.confirm_password_placeholder')"
-                class="w-full pl-10 pr-4 py-3 bg-base-200 border border-base-300/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                class="w-full pl-10 pr-4 py-3 bg-base-100 border border-base-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
                 autocomplete="new-password"
               />
             </div>

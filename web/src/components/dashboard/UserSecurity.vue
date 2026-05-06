@@ -69,17 +69,17 @@ async function changePassword() {
       <div>
         <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.current_password') }}</label>
         <input v-model="passwordForm.current_password" type="password" :placeholder="t('user.current_password_placeholder')"
-          class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" required />
+          class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" required />
       </div>
       <div>
         <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.new_password') }}</label>
         <input v-model="passwordForm.new_password" type="password" :placeholder="t('user.new_password_placeholder')"
-          class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" required minlength="8" />
+          class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" required minlength="8" />
       </div>
       <div>
         <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.confirm_password') }}</label>
         <input v-model="passwordForm.confirm_password" type="password" :placeholder="t('user.confirm_password_placeholder')"
-          class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" required />
+          class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" required />
       </div>
       <div class="pt-2">
         <button type="submit" :disabled="passwordSaving" class="btn btn-primary rounded-xl">

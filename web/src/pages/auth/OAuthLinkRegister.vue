@@ -162,7 +162,7 @@ const providerDisplay = computed(() => {
                     v-model="name"
                     type="text"
                     :placeholder="t('user.name_placeholder')"
-                    class="w-full pl-12 pr-4 py-3.5 bg-base-100/50 border border-base-content/10 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
+                    class="w-full pl-12 pr-4 py-3.5 bg-base-100 border border-base-300 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
                     autocomplete="name"
                   />
                 </div>
@@ -180,7 +180,7 @@ const providerDisplay = computed(() => {
                     v-model="email"
                     type="email"
                     :placeholder="t('user.email_placeholder')"
-                    class="w-full pl-12 pr-4 py-3.5 bg-base-100/50 border border-base-content/10 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
+                    class="w-full pl-12 pr-4 py-3.5 bg-base-100 border border-base-300 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
                     autocomplete="email"
                   />
                 </div>
@@ -198,7 +198,7 @@ const providerDisplay = computed(() => {
                     v-model="password"
                     type="password"
                     :placeholder="t('admin.password_placeholder')"
-                    class="w-full pl-12 pr-4 py-3.5 bg-base-100/50 border border-base-content/10 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
+                    class="w-full pl-12 pr-4 py-3.5 bg-base-100 border border-base-300 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
                     autocomplete="new-password"
                     @focus="onPasswordFocus"
                     @blur="onPasswordBlur"
@@ -218,7 +218,7 @@ const providerDisplay = computed(() => {
                     v-model="confirmPassword"
                     type="password"
                     :placeholder="t('admin.confirm_password_placeholder')"
-                    class="w-full pl-12 pr-4 py-3.5 bg-base-100/50 border border-base-content/10 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
+                    class="w-full pl-12 pr-4 py-3.5 bg-base-100 border border-base-300 rounded-2xl text-base-content placeholder:text-base-content/30 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all text-sm"
                     autocomplete="new-password"
                     @focus="onPasswordFocus"
                     @blur="onPasswordBlur"

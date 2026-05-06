@@ -351,11 +351,11 @@ function formatDate(dateStr) {
         <div class="space-y-4">
           <div>
             <label class="label"><span class="label-text font-medium">{{ t('user.name') }}</span></label>
-            <input v-model="userForm.name" type="text" :placeholder="t('user.name_placeholder')" class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            <input v-model="userForm.name" type="text" :placeholder="t('user.name_placeholder')" class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
           </div>
           <div>
             <label class="label"><span class="label-text font-medium">{{ t('user.email') }}</span></label>
-            <input v-model="userForm.email" type="email" :placeholder="t('user.email_placeholder')" class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            <input v-model="userForm.email" type="email" :placeholder="t('user.email_placeholder')" class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
           </div>
         </div>
         <div class="modal-action">
@@ -378,11 +378,11 @@ function formatDate(dateStr) {
         <div class="space-y-4">
           <div>
             <label class="label"><span class="label-text font-medium">{{ t('user.name') }}</span></label>
-            <input v-model="userForm.name" type="text" :placeholder="t('user.name_placeholder')" class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            <input v-model="userForm.name" type="text" :placeholder="t('user.name_placeholder')" class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
           </div>
           <div>
             <label class="label"><span class="label-text font-medium">{{ t('user.email') }}</span></label>
-            <input v-model="userForm.email" type="email" :placeholder="t('user.email_placeholder')" class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            <input v-model="userForm.email" type="email" :placeholder="t('user.email_placeholder')" class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
           </div>
           <div>
             <label class="label"><span class="label-text font-medium">{{ t('admin.users_avatar') }}</span></label>
@@ -390,15 +390,15 @@ function formatDate(dateStr) {
               <AvatarInitials :name="userForm.name" size="md" />
               <span class="text-xs text-base-content/40">输入 URL 设置自定义头像，留空则使用首字母头像</span>
             </div>
-            <input v-model="userForm.avatar" type="text" placeholder="https://..." class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            <input v-model="userForm.avatar" type="text" placeholder="https://..." class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
           </div>
           <div>
             <label class="label"><span class="label-text font-medium">{{ t('user.bio') }}</span></label>
-            <textarea v-model="userForm.bio" rows="2" :placeholder="t('user.bio_placeholder')" class="textarea textarea-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl"></textarea>
+            <textarea v-model="userForm.bio" rows="2" :placeholder="t('user.bio_placeholder')" class="textarea textarea-bordered w-full bg-base-100 border-base-300/30 rounded-xl"></textarea>
           </div>
           <div>
             <label class="label"><span class="label-text font-medium">{{ t('admin.users_status') }}</span></label>
-            <select v-model="userForm.status" class="select select-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl">
+            <select v-model="userForm.status" class="select select-bordered w-full bg-base-100 border-base-300/30 rounded-xl">
               <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
             </select>
           </div>

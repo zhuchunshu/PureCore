@@ -80,27 +80,27 @@ defineExpose({ initProfileForm })
         <div>
           <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.name') }}</label>
           <input v-model="profileForm.name" type="text" :placeholder="t('user.name_placeholder')"
-            class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
         </div>
         <div>
           <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.email') }}</label>
           <input v-model="profileForm.email" type="email" :placeholder="t('user.email_placeholder')"
-            class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
         </div>
         <div class="sm:col-span-2">
           <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.bio') }}</label>
           <textarea v-model="profileForm.bio" :placeholder="t('user.bio_placeholder')" rows="3"
-            class="textarea textarea-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl resize-none"></textarea>
+            class="textarea textarea-bordered w-full bg-base-100 border-base-300/30 rounded-xl resize-none"></textarea>
         </div>
         <div>
           <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.website') }}</label>
           <input v-model="profileForm.website" type="url" :placeholder="t('user.website_placeholder')"
-            class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
         </div>
         <div>
           <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.location') }}</label>
           <input v-model="profileForm.location" type="text" :placeholder="t('user.location_placeholder')"
-            class="input input-bordered w-full bg-base-200/50 border-base-300/30 rounded-xl" />
+            class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
         </div>
       </div>
       <div class="pt-2">

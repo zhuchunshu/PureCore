@@ -37,3 +37,25 @@
 @import "daisyui/theme/caramellatte.css";
 @import "daisyui/theme/abyss.css";
 @import "daisyui/theme/silk.css";
+
+/* ============================================
+   Form input contrast optimization
+   Ensures inputs have solid backgrounds that are
+   distinguishable from surrounding containers
+   ============================================ */
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select {
+    background-color: var(--color-base-100);
+    border-color: var(--color-base-300);
+  }
+
+  /* DaisyUI input/textarea/select component overrides */
+  .input,
+  .textarea,
+  .select {
+    background-color: var(--color-base-100);
+    border-color: var(--color-base-300);
+  }
+}

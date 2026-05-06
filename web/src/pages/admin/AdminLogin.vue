@@ -112,7 +112,7 @@ async function login() {
                 v-model="username"
                 type="text"
                 :placeholder="t('admin.username_placeholder')"
-                class="w-full pl-10 pr-4 py-3 bg-base-200 border border-base-300/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                class="w-full pl-10 pr-4 py-3 bg-base-100 border border-base-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
                 autocomplete="username"
               />
             </div>
@@ -130,7 +130,7 @@ async function login() {
                 v-model="password"
                 type="password"
                 :placeholder="t('admin.password_placeholder')"
-                class="w-full pl-10 pr-4 py-3 bg-base-200 border border-base-300/50 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                class="w-full pl-10 pr-4 py-3 bg-base-100 border border-base-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
                 autocomplete="current-password"
               />
             </div>
