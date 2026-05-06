@@ -4,11 +4,12 @@ import { useI18n } from '../../i18n'
 import { userAPI } from '../../services/api'
 import { useToast } from '../../composables/useToast'
 import TechCard from '../TechCard.vue'
+import { IconBrandGithub, IconBrandGoogle, IconBrandApple, IconBrandTelegram, IconBrandDiscord } from '@tabler/icons-vue'
 import {
   Smartphone, Tablet, Monitor,
   Globe, Compass,
   Apple, Terminal,
-  Trash2, ShieldX
+  Trash2, ShieldX, Key
 } from 'lucide-vue-next'
 
 const { t } = useI18n()
@@ -63,6 +64,30 @@ const browserDisplay = (session) => {
 // OS name or fallback
 const osDisplay = (session) => {
   return session.os || t('user.session_unknown_os')
+}
+
+// OAuth provider icon mapping
+const providerIconMap = {
+  github: IconBrandGithub,
+  google: IconBrandGoogle,
+  apple: IconBrandApple,
+  telegram: IconBrandTelegram,
+  discord: IconBrandDiscord,
+}
+const providerDisplayMap = {
+  github: 'GitHub',
+  google: 'Google',
+  apple: 'Apple',
+  telegram: 'Telegram',
+  discord: 'Discord',
+}
+
+const loginProviderIcon = (provider) => {
+  return providerIconMap[provider] || Key
+}
+
+const loginProviderDisplay = (provider) => {
+  return providerDisplayMap[provider] || provider
 }
 
 // Simple template replacement for {n} (i18n does not support parameter interpolation)
@@ -232,12 +257,26 @@ onMounted(fetchSessions)
 
         <!-- Session details -->
         <div class="flex-1 min-w-0">
-          <!-- Top row: browser · OS + current badge -->
+          <!-- Top row: browser · OS + login provider + current badge -->
           <div class="flex items-center gap-2 flex-wrap">
             <span class="text-sm font-medium text-base-content/80 truncate">
               {{ browserDisplay(session) }}
               <span class="text-base-content/40 mx-1">·</span>
               {{ osDisplay(session) }}
+            </span>
+            <span
+              v-if="session.login_provider"
+              class="badge badge-xs badge-outline !rounded-md gap-1"
+            >
+              <component :is="loginProviderIcon(session.login_provider)" :size="10" />
+              {{ loginProviderDisplay(session.login_provider) }}
+            </span>
+            <span
+              v-else
+              class="badge badge-xs badge-ghost !rounded-md gap-1"
+            >
+              <Key :size="10" />
+              {{ t('user.login_method_password') }}
             </span>
             <span
               v-if="session.is_current"

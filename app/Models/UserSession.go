@@ -17,7 +17,8 @@ type UserSession struct {
 	Browser      string    `gorm:"type:varchar(50);default:''" json:"browser"`
 	OS           string    `gorm:"type:varchar(50);default:''" json:"os"`
 	SessionToken string    `gorm:"type:varchar(255);index;not null" json:"session_token"`
-	IsCurrent    bool      `gorm:"default:true" json:"is_current"`
-	LastActivity time.Time `json:"last_activity"`
+	IsCurrent     bool      `gorm:"default:true" json:"is_current"`
+	LoginProvider string    `gorm:"type:varchar(50);default:''" json:"login_provider"`
+	LastActivity  time.Time `json:"last_activity"`
 	ExpiresAt    time.Time `json:"expires_at"`
 }

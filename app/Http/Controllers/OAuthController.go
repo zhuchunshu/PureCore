@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -15,6 +17,7 @@ import (
 	"purecore/core/oauth"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 // OAuthController handles third-party OAuth login flows.
@@ -41,7 +44,8 @@ func (c *OAuthController) Providers(req *core.Request, res *core.Response) error
 }
 
 // Authorize generates the OAuth authorization URL for a provider and returns it.
-// Request body: { "redirect": "/dashboard" } (optional, defaults to "/")
+// Accepts redirect via query string (GET) or JSON body (POST).
+// Defaults to "/" if neither is provided.
 func (c *OAuthController) Authorize(req *core.Request, res *core.Response) error {
 	providerName := req.Ctx().Params("provider")
 	provider := oauth.Get(providerName)
@@ -49,18 +53,26 @@ func (c *OAuthController) Authorize(req *core.Request, res *core.Response) error
 		return res.Error("Unsupported OAuth provider", 400)
 	}
 
-	type AuthRequest struct {
-		Redirect string `json:"redirect"`
+	// Read redirect from query parameter first (used by frontend GET requests),
+	// then fall back to JSON body for backward compatibility.
+	redirect := req.Ctx().Query("redirect", "")
+	if redirect == "" {
+		type AuthRequest struct {
+			Redirect string `json:"redirect"`
+		}
+		var body AuthRequest
+		if err := req.Validate(&body); err == nil && body.Redirect != "" {
+			redirect = body.Redirect
+		}
 	}
-	var body AuthRequest
-	if err := req.Validate(&body); err != nil {
-		body.Redirect = "/"
+	if redirect == "" {
+		redirect = "/"
 	}
 
 	// Default action is "login"
 	action := "login"
 
-	state, err := oauth.GenerateState(providerName, body.Redirect, action)
+	state, err := oauth.GenerateState(providerName, redirect, action)
 	if err != nil {
 		return res.Error("Failed to generate state", 500)
 	}
@@ -176,29 +188,44 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 			core.DB().Model(&existingOAuth).Update("user_id", 0)
 			alreadyLinked = false
 		} else {
-			return c.loginWithRedirect(req, res, &user, frontendBase+"/oauth/"+providerName+"/callback?status=linked&redirect="+urlQueryEscape(originalRedirect))
+			return c.loginWithRedirect(req, res, &user, providerName, frontendBase+"/oauth/"+providerName+"/callback?status=linked&redirect="+urlQueryEscape(originalRedirect))
 		}
 	}
 
-	// Check if there's a logged-in user (optional)
+	// Check if there's a logged-in user (optional).
+	// The Callback route is public, so try: middleware locals → Auth header → cookie.
 	currentUserID := getUserID(req.Ctx())
-
-	// Case 2: Logged-in user → bind automatically
-	if currentUserID != 0 {
-		err := c.bindOAuthSilent(currentUserID, providerName, userInfo)
-		if err != nil {
-			return res.Error("Failed to bind OAuth: "+err.Error(), 500)
-		}
-		redirectURL := frontendBase + "/oauth/" + providerName + "/callback?status=bound&redirect=" + urlQueryEscape(originalRedirect)
-		return req.Ctx().Redirect().To(redirectURL)
+	if currentUserID == 0 {
+		currentUserID = extractUserIDFromAuthHeader(req.Ctx())
+	}
+	if currentUserID == 0 {
+		currentUserID = extractUserIDFromCookie(req.Ctx())
 	}
 
-	// Case 3: Not linked and not logged in → generate link token and redirect to OAuth callback page
+	// Generate link token first (needed for both logged_in and unlinked paths)
 	linkToken, err := oauth.GenerateLinkToken(providerName, userInfo)
 	if err != nil {
 		return res.Error("Failed to generate link token", 500)
 	}
 
+	// Case 2: Logged-in user → redirect with logged_in status so frontend asks whether to bind
+	if currentUserID != 0 {
+		var currentUser models.User
+		redirectQuery := "status=logged_in&link_token=" + urlQueryEscape(linkToken) +
+			"&provider=" + urlQueryEscape(providerName) +
+			"&email=" + urlQueryEscape(userInfo.Email) +
+			"&name=" + urlQueryEscape(userInfo.Name) +
+			"&avatar_url=" + urlQueryEscape(userInfo.AvatarURL) +
+			"&redirect=" + urlQueryEscape(originalRedirect)
+		if err := core.DB().First(&currentUser, currentUserID).Error; err == nil {
+			redirectQuery += "&current_user_name=" + urlQueryEscape(currentUser.Name) +
+				"&current_user_email=" + urlQueryEscape(currentUser.Email)
+		}
+		redirectURL := frontendBase + "/oauth/" + providerName + "/callback?" + redirectQuery
+		return req.Ctx().Redirect().To(redirectURL)
+	}
+
+	// Case 3: Not linked and not logged in → redirect with unlinked status
 	redirectURL := frontendBase + "/oauth/" + providerName + "/callback?status=unlinked&link_token=" + urlQueryEscape(linkToken) +
 		"&email=" + urlQueryEscape(userInfo.Email) +
 		"&name=" + urlQueryEscape(userInfo.Name) +
@@ -211,7 +238,7 @@ func (c *OAuthController) Callback(req *core.Request, res *core.Response) error 
 // The frontend receives code+state from the OAuth provider redirect and calls this
 // endpoint to complete the OAuth flow. Returns JSON with appropriate status:
 //   - "linked": OAuth account already linked → tokens returned, user logged in
-//   - "bound": Logged-in user → OAuth account bound silently
+//   - "logged_in": User is already logged in → link_token + user info returned, frontend asks whether to bind
 //   - "unlinked": New OAuth account → link_token + user info returned for registration/binding
 func (c *OAuthController) Exchange(req *core.Request, res *core.Response) error {
 	providerName := req.Ctx().Params("provider")
@@ -314,31 +341,50 @@ func (c *OAuthController) Exchange(req *core.Request, res *core.Response) error 
 				core.DB().Model(&existingOAuth).Update("user_id", 0)
 			} else {
 				// Login and return tokens
-				return c.loginUser(req, res, &user, originalRedirect)
+				return c.loginUser(req, res, &user, providerName, originalRedirect)
 			}
 		}
 	}
 
-	// Check if there's a logged-in user
-	currentUserID := getUserID(req.Ctx())
-	if currentUserID != 0 {
-		err := c.bindOAuthSilent(currentUserID, providerName, userInfo)
-		if err != nil {
-			return res.Error("Failed to bind OAuth: "+err.Error(), 500)
-		}
-		return res.Success(map[string]interface{}{
-			"status":   "bound",
-			"message":  "OAuth account bound successfully",
-			"redirect": originalRedirect,
-		})
-	}
-
-	// Not linked and not logged in → generate link token
+	// Generate link token first (needed for both logged_in and unlinked paths)
 	linkToken, err := oauth.GenerateLinkToken(providerName, userInfo)
 	if err != nil {
 		return res.Error("Failed to generate link token", 500)
 	}
 
+	// Check if there's a logged-in user.
+	// The Exchange route is public (no auth middleware), so Locals("user") may
+	// be empty even when a valid Bearer token is present. Try: locals → auth header → cookie.
+	currentUserID := getUserID(req.Ctx())
+	if currentUserID == 0 {
+		currentUserID = extractUserIDFromAuthHeader(req.Ctx())
+	}
+	if currentUserID == 0 {
+		currentUserID = extractUserIDFromCookie(req.Ctx())
+	}
+	if currentUserID != 0 {
+		// User is already logged in — return logged_in status so the frontend
+		// can ask the user whether to bind this OAuth account.
+		var currentUser models.User
+		response := map[string]interface{}{
+			"status":     "logged_in",
+			"link_token": linkToken,
+			"provider":   providerName,
+			"email":      userInfo.Email,
+			"name":       userInfo.Name,
+			"avatar_url": userInfo.AvatarURL,
+			"redirect":   originalRedirect,
+		}
+		if err := core.DB().First(&currentUser, currentUserID).Error; err == nil {
+			response["current_user"] = map[string]interface{}{
+				"name":  currentUser.Name,
+				"email": currentUser.Email,
+			}
+		}
+		return res.Success(response)
+	}
+
+	// Not linked and not logged in → return unlinked status
 	return res.Success(map[string]interface{}{
 		"status":     "unlinked",
 		"link_token": linkToken,
@@ -411,7 +457,7 @@ func (c *OAuthController) Register(req *core.Request, res *core.Response) error 
 	core.DB().Model(&user).Update("last_login_at", now)
 
 	// Login the user
-	return c.loginUser(req, res, &user, "/")
+	return c.loginUser(req, res, &user, oAuthInfo.Provider, "/")
 }
 
 // Bind links an OAuth provider to the currently logged-in user.
@@ -446,6 +492,7 @@ func (c *OAuthController) Bind(req *core.Request, res *core.Response) error {
 		}
 
 		updates := map[string]interface{}{
+			"user_id":       userID,
 			"provider":      oAuthInfo.Provider,
 			"email":         oAuthInfo.Email,
 			"name":          oAuthInfo.Name,
@@ -502,6 +549,7 @@ func (c *OAuthController) Bind(req *core.Request, res *core.Response) error {
 				}
 
 				updates := map[string]interface{}{
+					"user_id":       userID,
 					"provider":      oAuthInfo.Provider,
 					"email":         oAuthInfo.Email,
 					"name":          oAuthInfo.Name,
@@ -541,7 +589,8 @@ func (c *OAuthController) Bind(req *core.Request, res *core.Response) error {
 	})
 }
 
-// Accounts returns all OAuth accounts linked to the current user.
+// Accounts returns all OAuth accounts linked to the current user,
+// along with the login provider of the current session (if any).
 func (c *OAuthController) Accounts(req *core.Request, res *core.Response) error {
 	userID := getUserID(req.Ctx())
 	if userID == 0 {
@@ -550,7 +599,18 @@ func (c *OAuthController) Accounts(req *core.Request, res *core.Response) error 
 
 	var accounts []models.OAuthAccount
 	core.DB().Where("user_id = ?", userID).Find(&accounts)
-	return res.Success(accounts)
+
+	// Look up the current session to determine which OAuth provider was used for this login
+	var currentSession models.UserSession
+	currentLoginProvider := ""
+	if err := core.DB().Where("user_id = ? AND is_current = ?", userID, true).First(&currentSession).Error; err == nil {
+		currentLoginProvider = currentSession.LoginProvider
+	}
+
+	return res.Success(map[string]interface{}{
+		"accounts":              accounts,
+		"current_login_provider": currentLoginProvider,
+	})
 }
 
 // Unlink removes an OAuth account link from the current user.
@@ -658,7 +718,8 @@ func (c *OAuthController) AdminSetSettings(req *core.Request, res *core.Response
 
 // loginUser generates tokens and creates a session for a user, returning JSON
 // with status "linked" so the frontend can process the OAuth exchange result correctly.
-func (c *OAuthController) loginUser(req *core.Request, res *core.Response, user *models.User, redirect string) error {
+// providerName records which OAuth provider was used for this login session.
+func (c *OAuthController) loginUser(req *core.Request, res *core.Response, user *models.User, providerName string, redirect string) error {
 	accessToken, err := middleware.GenerateUserToken(user.ID, user.Name)
 	if err != nil {
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
@@ -678,7 +739,7 @@ func (c *OAuthController) loginUser(req *core.Request, res *core.Response, user 
 	// Mark all previous sessions as not current
 	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
 	// Create a new session record
-	CreateSession(req.Ctx(), user.ID)
+	CreateSession(req.Ctx(), user.ID, providerName)
 
 	return res.Success(map[string]interface{}{
 		"status":        "linked",
@@ -692,8 +753,9 @@ func (c *OAuthController) loginUser(req *core.Request, res *core.Response, user 
 
 // loginWithRedirect logs the user in and sets tokens as readable cookies,
 // then redirects to the given URL. Cookies are NOT HttpOnly so the frontend
-// JS can read them on the callback page.
-func (c *OAuthController) loginWithRedirect(req *core.Request, res *core.Response, user *models.User, redirectTo string) error {
+// JS can read them on the callback page. providerName records which OAuth
+// provider was used for this login session.
+func (c *OAuthController) loginWithRedirect(req *core.Request, res *core.Response, user *models.User, providerName string, redirectTo string) error {
 	accessToken, err := middleware.GenerateUserToken(user.ID, user.Name)
 	if err != nil {
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
@@ -711,7 +773,7 @@ func (c *OAuthController) loginWithRedirect(req *core.Request, res *core.Respons
 	})
 
 	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
-	CreateSession(req.Ctx(), user.ID)
+	CreateSession(req.Ctx(), user.ID, providerName)
 
 	// Set tokens as non-HttpOnly cookies so the frontend JS can read them
 	// on the OAuth callback page to complete the login flow.
@@ -818,4 +880,55 @@ func deriveBotIDFromToken(token string) string {
 		return ""
 	}
 	return strings.TrimSpace(parts[0])
+}
+
+// extractUserIDFromAuthHeader tries to parse a user JWT from the Authorization
+// header. This is used on public OAuth routes where the auth middleware is not
+// applied, so a logged-in user's token wouldn't be populated in Locals("user").
+// Returns the user ID if a valid token is found, or 0 otherwise.
+func extractUserIDFromAuthHeader(c fiber.Ctx) uint {
+	auth := c.Get("Authorization")
+	if auth == "" || !strings.HasPrefix(auth, "Bearer ") {
+		return 0
+	}
+	return parseUserIDFromToken(strings.TrimPrefix(auth, "Bearer "))
+}
+
+// extractUserIDFromCookie tries to parse a user JWT from the access_token cookie.
+// This is used as a fallback on public OAuth routes that receive browser redirects
+// (no Authorization header). The cookie may have been set by loginWithRedirect().
+// Returns the user ID if a valid token is found, or 0 otherwise.
+func extractUserIDFromCookie(c fiber.Ctx) uint {
+	tokenStr := c.Cookies("access_token", "")
+	if tokenStr == "" {
+		return 0
+	}
+	return parseUserIDFromToken(tokenStr)
+}
+
+// parseUserIDFromToken validates a JWT token string and extracts the user_id claim.
+// Returns the user ID if the token is valid, or 0 otherwise.
+func parseUserIDFromToken(tokenStr string) uint {
+	claims := jwt.MapClaims{}
+	token, err := jwt.ParseWithClaims(tokenStr, claims,
+		func(t *jwt.Token) (interface{}, error) {
+			return []byte(core.GetConfig().String("JWT_SECRET")), nil
+		},
+	)
+	if err != nil || !token.Valid {
+		return 0
+	}
+	if id, ok := claims["user_id"]; ok {
+		switch v := id.(type) {
+		case float64:
+			if v > 0 && v <= math.MaxUint32 {
+				return uint(v)
+			}
+		case string:
+			if parsed, err := strconv.ParseUint(v, 10, 32); err == nil {
+				return uint(parsed)
+			}
+		}
+	}
+	return 0
 }

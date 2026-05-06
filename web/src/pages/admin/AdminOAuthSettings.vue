@@ -1,5 +1,12 @@
 <script setup>
-import { ref, reactive, onMounted, computed, watch } from 'vue'
+/**
+ * Admin OAuth Settings Page
+ *
+ * Renders a per-provider tabbed interface for configuring third-party OAuth login.
+ * Each provider has a dedicated template with setup guide, credentials form, and
+ * toggle switches — tailored to the provider's official documentation requirements.
+ */
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { toastSuccess } from '../../composables/useToast'
@@ -36,22 +43,14 @@ const saving = ref(false)
 const error = ref('')
 const copiedCallback = ref('')
 
-// Providers list from backend
 const providers = ref([])
 const activeProviderIndex = ref(0)
-const pendingTabIndex = ref(null) // used when user tries to switch tabs with unsaved changes
-
-// Settings values for each provider (keyed by provider name)
+const pendingTabIndex = ref(null)
 const providerValues = reactive({})
-// Original values snapshot for dirty detection
 const originalValues = reactive({})
-// Track which providers have unsaved changes
 const dirtyProviders = reactive(new Set())
-
-// Confirm dialog state
 const showUnsavedDialog = ref(false)
 
-// Provider icon map using Tabler icons
 const providerIconMap = {
   github: IconBrandGithub,
   google: IconBrandGoogle,
@@ -59,57 +58,25 @@ const providerIconMap = {
   telegram: IconBrandTelegram,
   discord: IconBrandDiscord,
 }
-
 function getProviderIcon(name) {
   return providerIconMap[name] || IconPlugConnected
 }
 
-const activeProvider = computed(() => {
-  return providers.value[activeProviderIndex.value] || null
-})
-
-const activeValues = computed(() => {
-  const name = activeProvider.value?.name
-  return name ? (providerValues[name] || {}) : {}
-})
-
-const activeConfigFields = computed(() => {
-  return activeProvider.value?.config_fields || []
-})
-
-// Separate toggles from credential fields
-const toggleFields = computed(() => {
-  return activeConfigFields.value.filter(f => f.type === 'toggle')
-})
-
-const credentialFields = computed(() => {
-  return activeConfigFields.value.filter(f => f.type !== 'toggle')
-})
-
-const redirectUrlField = computed(() => {
-  return credentialFields.value.find(f => f.key === 'redirect_url')
-})
-
-const otherCredentialFields = computed(() => {
-  return credentialFields.value.filter(f => f.key !== 'redirect_url')
-})
-
-// Check if current active provider has unsaved changes
-const isCurrentDirty = computed(() => {
-  const name = activeProvider.value?.name
-  return name ? dirtyProviders.has(name) : false
-})
+const activeProvider = computed(() => providers.value[activeProviderIndex.value] || null)
+const activeProviderName = computed(() => activeProvider.value?.name || '')
+const isCurrentDirty = computed(() => dirtyProviders.has(activeProviderName.value))
 
 function getValue(key, fallback = '') {
-  const vals = activeValues.value
-  return vals[key] !== undefined && vals[key] !== null ? vals[key] : fallback
+  const name = activeProviderName.value
+  if (!name || !providerValues[name]) return fallback
+  return providerValues[name][key] !== undefined && providerValues[name][key] !== null
+    ? providerValues[name][key] : fallback
 }
 
 function setValue(key, value) {
-  const name = activeProvider.value?.name
+  const name = activeProviderName.value
   if (name && providerValues[name]) {
     providerValues[name][key] = value
-    // Mark as dirty by comparing with original
     checkDirty(name)
   }
 }
@@ -118,7 +85,6 @@ function handleToggleChange(key, event) {
   setValue(key, event.target.checked ? '1' : '0')
 }
 
-// Compare current values with originals to determine dirty state
 function checkDirty(name) {
   const current = providerValues[name] || {}
   const original = originalValues[name] || {}
@@ -127,19 +93,12 @@ function checkDirty(name) {
   for (const key of keys) {
     const cv = current[key] !== undefined && current[key] !== null ? String(current[key]) : ''
     const ov = original[key] !== undefined && original[key] !== null ? String(original[key]) : ''
-    if (cv !== ov) {
-      isDirty = true
-      break
-    }
+    if (cv !== ov) { isDirty = true; break }
   }
-  if (isDirty) {
-    dirtyProviders.add(name)
-  } else {
-    dirtyProviders.delete(name)
-  }
+  if (isDirty) dirtyProviders.add(name)
+  else dirtyProviders.delete(name)
 }
 
-// Snapshot current values as originals (after load or save)
 function snapshotOriginal(name) {
   const vals = providerValues[name]
   if (!vals) return
@@ -148,34 +107,28 @@ function snapshotOriginal(name) {
 }
 
 function copyCallbackUrl() {
-  const url = activeValues.value._recommended_redirect_url || getValue('redirect_url')
+  const vals = providerValues[activeProviderName.value] || {}
+  const url = vals._recommended_redirect_url || vals.redirect_url
   if (!url || typeof navigator === 'undefined') return
   navigator.clipboard.writeText(url).then(() => {
-    copiedCallback.value = activeProvider.value?.name || ''
-    setTimeout(() => {
-      copiedCallback.value = ''
-    }, 2000)
+    copiedCallback.value = activeProviderName.value
+    setTimeout(() => { copiedCallback.value = '' }, 2000)
   }).catch(() => {})
 }
 
-// Handle tab switching with unsaved changes warning
 function switchTab(index) {
   if (activeProviderIndex.value === index) return
-
-  // If current tab has unsaved changes, show confirmation
   if (isCurrentDirty.value) {
     pendingTabIndex.value = index
     showUnsavedDialog.value = true
     return
   }
-
   activeProviderIndex.value = index
 }
 
 function confirmDiscardAndSwitch() {
-  const name = activeProvider.value?.name
+  const name = activeProviderName.value
   if (name) {
-    // Restore original values
     providerValues[name] = { ...originalValues[name] }
     dirtyProviders.delete(name)
   }
@@ -191,16 +144,19 @@ function cancelSwitch() {
   pendingTabIndex.value = null
 }
 
+function getConfigFields() {
+  return activeProvider.value?.config_fields || []
+}
+
 async function handleSave() {
   saving.value = true
   error.value = ''
   const provider = activeProvider.value
   if (!provider) return
-
   try {
-    // Validate required fields before saving
     const vals = providerValues[provider.name] || {}
-    for (const field of provider.config_fields) {
+    const fields = getConfigFields()
+    for (const field of fields) {
       if (field.required) {
         const val = vals[field.key]
         if (val === undefined || val === null || String(val).trim() === '') {
@@ -210,22 +166,11 @@ async function handleSave() {
         }
       }
     }
-
-    // Build settings payload from all config fields
     const settings = {}
-    for (const field of provider.config_fields) {
+    for (const field of fields) {
       settings[field.key] = vals[field.key] !== undefined && vals[field.key] !== null ? String(vals[field.key]) : ''
     }
-
-    const payload = {
-      providers: [
-        {
-          provider: provider.name,
-          settings,
-        },
-      ],
-    }
-
+    const payload = { providers: [{ provider: provider.name, settings }] }
     const resp = await adminAPI.post(`/api/v1/${adminPrefix}/oauth/settings`, payload)
     const json = await resp.json()
     if (json.code === 0) {
@@ -250,7 +195,6 @@ onMounted(async () => {
       for (const item of list) {
         providers.value.push(item)
         providerValues[item.name] = { ...item.values }
-        // Snapshot originals for dirty detection
         originalValues[item.name] = { ...item.values }
       }
     } else {
@@ -263,10 +207,8 @@ onMounted(async () => {
   }
 })
 
-// Translate a label key or return as-is
 function fieldLabel(field) {
   const label = field.label || ''
-  // If it's a translation key (contains dots), try translating
   if (label.includes('.')) {
     const translated = t(label)
     if (translated !== label) return translated
@@ -282,6 +224,11 @@ function fieldHelp(field) {
     if (translated !== help) return translated
   }
   return help
+}
+
+// Get recommended callback URL for the active provider
+function recommendedCallback() {
+  return getValue('_recommended_redirect_url') || getValue('redirect_url')
 }
 </script>
 
@@ -335,7 +282,7 @@ function fieldHelp(field) {
         </div>
       </div>
 
-      <!-- Provider tabs with Tabler icons and unsaved indicators -->
+      <!-- Provider tabs -->
       <div class="tabs tabs-boxed bg-base-100/80 backdrop-blur-sm border border-base-300/20 rounded-xl p-1.5 shadow-sm overflow-x-auto flex-nowrap">
         <button
           v-for="(provider, index) in providers"
@@ -351,7 +298,6 @@ function fieldHelp(field) {
         >
           <component :is="getProviderIcon(provider.name)" :size="20" />
           <span>{{ provider.display_name }}</span>
-          <!-- Unsaved changes indicator dot -->
           <span
             v-if="dirtyProviders.has(provider.name)"
             class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-warning animate-pulse"
@@ -360,7 +306,7 @@ function fieldHelp(field) {
         </button>
       </div>
 
-      <!-- Unsaved changes confirmation dialog -->
+      <!-- Unsaved changes dialog -->
       <div v-if="showUnsavedDialog" class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
         <div class="card bg-base-100 border border-base-300/20 shadow-2xl p-6 max-w-sm w-full mx-4 animate-in fade-in zoom-in duration-200">
           <div class="flex items-center gap-3 mb-4">
@@ -379,215 +325,772 @@ function fieldHelp(field) {
         </div>
       </div>
 
-      <!-- Active provider settings -->
-      <div v-if="activeProvider" class="grid gap-6">
-        <!-- Usage instructions card -->
-        <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
-          <div class="card-body p-5">
-            <div class="flex items-center gap-3 mb-4">
-              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center shadow-sm">
-                <IconBook :size="20" class="text-cyan-400" />
-              </div>
-              <div>
-                <h3 class="font-semibold text-sm">{{ t('admin.oauth_usage_title') }}</h3>
-                <p class="text-xs text-base-content/40">{{ t('admin.oauth_usage_instructions', { provider: activeProvider.display_name }) }}</p>
-              </div>
-            </div>
+      <!-- ====== PER-PROVIDER SETTINGS ====== -->
+      <div v-if="activeProvider" class="space-y-6">
 
-            <!-- Flow type hint -->
-            <div class="flex items-center gap-2 mb-4 px-3 py-2 bg-base-200/50 rounded-lg">
-              <IconPlugConnected :size="16" class="text-base-content/50 shrink-0" />
-              <span class="text-xs text-base-content/60">
-                {{ activeProvider.is_oauth2 ? t('admin.oauth_is_oauth2_hint') : t('admin.oauth_non_oauth2_hint') }}
-              </span>
-            </div>
-
-            <!-- Step-by-step instructions -->
-            <div class="space-y-3 text-sm text-base-content/70">
-              <div class="flex items-start gap-3">
-                <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-semibold text-xs shrink-0 mt-0.5">1</span>
-                <span>
-                  {{ t('admin.oauth_usage_instructions', { provider: activeProvider.display_name }) }}
-                  <a v-if="activeProvider.apply_url" :href="activeProvider.apply_url" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-primary hover:underline ml-1">
-                    {{ t('admin.oauth_apply') }}
-                    <IconExternalLink :size="12" />
-                  </a>
-                </span>
-              </div>
-              <div class="flex items-start gap-3">
-                <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-semibold text-xs shrink-0 mt-0.5">2</span>
-                <span>
-                  {{ t('admin.oauth_redirect_url_desc') }}
-                </span>
-              </div>
-              <div class="flex items-start gap-3">
-                <span class="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary font-semibold text-xs shrink-0 mt-0.5">3</span>
-                <span>
-                  {{ t('admin.oauth_redirect_url_hint', { provider: activeProvider.display_name }) }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Documentation and Apply links -->
-            <div class="flex flex-wrap gap-3 mt-5">
-              <a
-                v-if="activeProvider.doc_url"
-                :href="activeProvider.doc_url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn btn-sm btn-ghost gap-2 text-base-content/70 hover:text-primary"
-              >
-                <IconBook :size="16" />
-                {{ t('admin.oauth_documentation') }}
-                <IconExternalLink :size="12" />
-              </a>
-              <a
-                v-if="activeProvider.apply_url"
-                :href="activeProvider.apply_url"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn btn-sm btn-ghost gap-2 text-base-content/70 hover:text-primary"
-              >
-                <IconExternalLink :size="16" />
-                {{ t('admin.oauth_apply') }}
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Toggle switches -->
-        <div v-if="toggleFields.length > 0" class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
-          <div class="card-body p-5">
-            <div class="flex items-center gap-3 mb-5">
-              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center shadow-sm">
-                <IconSettings :size="20" class="text-emerald-400" />
-              </div>
-              <div>
-                <h3 class="font-semibold text-sm">{{ t('admin.oauth_toggle_section') }}</h3>
-                <p class="text-xs text-base-content/40">{{ t('admin.oauth_toggle_section_desc') }}</p>
-              </div>
-            </div>
-            <div class="divide-y divide-base-300/10">
-              <div
-                v-for="(field, idx) in toggleFields"
-                :key="field.key"
-                class="flex items-center justify-between py-4"
-                :class="{ 'pt-0': idx === 0, 'pb-0': idx === toggleFields.length - 1 }"
-              >
-                <div class="flex items-center gap-3">
-                  <span class="text-lg">
-                    <IconPlugConnected v-if="field.key === 'enabled'" :size="20" />
-                    <IconKey v-else-if="field.key === 'login_enabled'" :size="20" />
-                    <IconId v-else-if="field.key === 'register_enabled'" :size="20" />
-                    <IconSettings v-else :size="20" />
-                  </span>
-                  <div>
-                    <p class="font-medium text-sm">{{ fieldLabel(field) }}</p>
-                    <p class="text-xs text-base-content/40">{{ fieldHelp(field) }}</p>
-                  </div>
+        <!-- ========== GITHUB ========== -->
+        <template v-if="activeProviderName === 'github'">
+          <!-- Setup guide -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-gray-800 flex items-center justify-center shadow-sm">
+                  <IconBrandGithub :size="20" class="text-white" />
                 </div>
-                <input
-                  :checked="getValue(field.key) === '1'"
-                  @change="handleToggleChange(field.key, $event)"
-                  type="checkbox"
-                  class="toggle"
-                  :class="{
-                    'toggle-primary': field.key === 'enabled',
-                    'toggle-secondary': field.key === 'login_enabled',
-                    'toggle-accent': field.key === 'register_enabled'
-                  }"
-                />
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_setup_title') }} — GitHub</h3>
+              </div>
+              <div class="space-y-3 text-sm text-base-content/70">
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">1</span>
+                  <span>
+                    Go to
+                    <a v-if="activeProvider.apply_url" :href="activeProvider.apply_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">GitHub Developer Settings</a>
+                    to create a new OAuth App
+                  </span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">2</span>
+                  <span>Set <strong>Homepage URL</strong> to your site URL</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">3</span>
+                  <span>Set <strong>Authorization callback URL</strong> to the recommended callback below</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">4</span>
+                  <span>Copy the <strong>Client ID</strong> and generate a <strong>Client Secret</strong></span>
+                </div>
+              </div>
+              <div class="mt-4 flex items-center gap-2 px-3 py-2 bg-base-200/50 rounded-lg text-xs text-base-content/60">
+                <IconKey :size="14" />
+                <span>Scopes:</span>
+                <code class="text-primary/70">read:user, user:email</code>
+              </div>
+              <div class="flex gap-3 mt-4">
+                <a v-if="activeProvider.doc_url" :href="activeProvider.doc_url" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-ghost gap-2 text-base-content/70 hover:text-primary">
+                  <IconBook :size="16" /> {{ t('admin.oauth_documentation') }} <IconExternalLink :size="12" />
+                </a>
+                <a v-if="activeProvider.apply_url" :href="activeProvider.apply_url" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-ghost gap-2 text-base-content/70 hover:text-primary">
+                  <IconExternalLink :size="16" /> {{ t('admin.oauth_apply') }}
+                </a>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- API Credentials -->
-        <div v-if="credentialFields.length > 0">
-          <div class="flex items-center gap-3 mb-4">
-            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center">
-              <IconLock :size="16" class="text-blue-400" />
-            </div>
-            <h3 class="font-semibold text-sm">{{ t('admin.oauth_credentials_section') }}</h3>
-          </div>
-
-          <!-- Redirect URL (always shown first if exists) -->
-          <div v-if="redirectUrlField" class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm mb-5 overflow-hidden">
+          <!-- Redirect URL -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
             <div class="card-body p-5">
               <div class="flex items-center gap-3 mb-4">
                 <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center shadow-sm">
                   <IconLink :size="20" class="text-green-400" />
                 </div>
                 <div>
-                  <h3 class="font-semibold text-sm">{{ fieldLabel(redirectUrlField) }}</h3>
-                  <p class="text-xs text-base-content/40">{{ fieldHelp(redirectUrlField) || t('admin.oauth_redirect_url_desc') }}</p>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_redirect_url') }}</h3>
+                  <p class="text-xs text-base-content/40">{{ t('admin.oauth_redirect_url_desc') }}</p>
                 </div>
               </div>
-
-              <!-- Recommended callback URL -->
               <div class="flex items-center gap-2 mb-3 px-3 py-2 bg-success/5 border border-success/10 rounded-lg">
                 <span class="text-xs text-success font-medium shrink-0">{{ t('admin.oauth_recommended_callback') }}:</span>
-                <code class="text-xs text-success/80 break-all">{{ activeValues._recommended_redirect_url || getValue('redirect_url') }}</code>
-                <button
-                  class="btn btn-ghost btn-xs shrink-0 ml-auto"
-                  @click="copyCallbackUrl"
-                  :title="t('user.copy')"
-                >
-                  <IconCheck v-if="copiedCallback === activeProvider.name" :size="14" class="text-success" />
+                <code class="text-xs text-success/80 break-all">{{ recommendedCallback() }}</code>
+                <button class="btn btn-ghost btn-xs shrink-0 ml-auto" @click="copyCallbackUrl" :title="t('user.copy')">
+                  <IconCheck v-if="copiedCallback === 'github'" :size="14" class="text-success" />
                   <IconCopy v-else :size="14" />
                 </button>
               </div>
-
               <input
                 :value="getValue('redirect_url')"
                 @input="setValue('redirect_url', $event.target.value)"
                 type="text"
-                :placeholder="redirectUrlField.placeholder || t('admin.oauth_redirect_url_placeholder')"
+                :placeholder="'https://your-domain.com/oauth/github/callback'"
                 class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
               />
             </div>
           </div>
 
-          <!-- Other credential fields in grid -->
-          <div class="grid gap-5" :class="otherCredentialFields.length > 1 ? 'sm:grid-cols-2' : ''">
-            <div
-              v-for="field in otherCredentialFields"
-              :key="field.key"
-              class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden"
-            >
-              <div class="card-body p-5">
-                <div class="flex items-center gap-3 mb-4">
-                  <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center shadow-sm">
-                    <IconKey v-if="field.type === 'password'" :size="18" class="text-orange-400" />
-                    <IconId v-else :size="18" class="text-blue-400" />
-                  </div>
-                  <div>
-                    <h3 class="font-semibold text-sm">{{ fieldLabel(field) }}</h3>
-                    <p v-if="fieldHelp(field)" class="text-xs text-base-content/40">{{ fieldHelp(field) }}</p>
-                  </div>
+          <!-- Credentials -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center shadow-sm">
+                  <IconLock :size="20" class="text-blue-400" />
                 </div>
-                <input
-                  :value="getValue(field.key)"
-                  @input="setValue(field.key, $event.target.value)"
-                  :type="field.type === 'password' ? 'password' : 'text'"
-                  :placeholder="field.placeholder || ''"
-                  class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm"
-                />
-                <div v-if="field.required" class="flex items-center gap-1 mt-2">
-                  <span class="text-xs text-error/60">* {{ fieldLabel(field) }} is required</span>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_credentials_section') }}</h3>
+                  <p class="text-xs text-base-content/40">GitHub OAuth App credentials</p>
+                </div>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_client_id') }} <span class="text-error">*</span>
+                  </label>
+                  <input
+                    :value="getValue('client_id')"
+                    @input="setValue('client_id', $event.target.value)"
+                    type="text"
+                    placeholder="Iv23li..."
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_client_secret') }} <span class="text-error">*</span>
+                  </label>
+                  <input
+                    :value="getValue('client_secret')"
+                    @input="setValue('client_secret', $event.target.value)"
+                    type="password"
+                    placeholder="••••••••••••••••"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm"
+                  />
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Error message -->
+          <!-- Toggles -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center shadow-sm">
+                  <IconSettings :size="20" class="text-emerald-400" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_toggle_section') }}</h3>
+              </div>
+              <div class="divide-y divide-base-300/10">
+                <div v-for="(field, idx) in getConfigFields().filter(f => f.type === 'toggle')" :key="field.key"
+                  class="flex items-center justify-between py-4" :class="{ 'pt-0': idx === 0, 'pb-0': idx === getConfigFields().filter(f => f.type === 'toggle').length - 1 }">
+                  <div class="flex items-center gap-3">
+                    <span class="text-lg">
+                      <IconPlugConnected v-if="field.key === 'enabled'" :size="20" />
+                      <IconKey v-else-if="field.key === 'login_enabled'" :size="20" />
+                      <IconId v-else-if="field.key === 'register_enabled'" :size="20" />
+                      <IconSettings v-else :size="20" />
+                    </span>
+                    <div>
+                      <p class="font-medium text-sm">{{ fieldLabel(field) }}</p>
+                      <p class="text-xs text-base-content/40" v-if="fieldHelp(field)">{{ fieldHelp(field) }}</p>
+                    </div>
+                  </div>
+                  <input
+                    :checked="getValue(field.key) === '1'"
+                    @change="handleToggleChange(field.key, $event)"
+                    type="checkbox"
+                    :class="['toggle', {
+                      'toggle-primary': field.key === 'enabled',
+                      'toggle-secondary': field.key === 'login_enabled',
+                      'toggle-accent': field.key === 'register_enabled'
+                    }]"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ========== GOOGLE ========== -->
+        <template v-if="activeProviderName === 'google'">
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-white flex items-center justify-center shadow-sm border">
+                  <IconBrandGoogle :size="20" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_setup_title') }} — Google</h3>
+              </div>
+              <div class="space-y-3 text-sm text-base-content/70">
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">1</span>
+                  <span>Go to <a v-if="activeProvider.apply_url" :href="activeProvider.apply_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Google Cloud Console</a> and create an OAuth 2.0 Client ID</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">2</span>
+                  <span>Configure the <strong>OAuth consent screen</strong> with your app details</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">3</span>
+                  <span>Add the recommended callback below as an <strong>Authorized redirect URI</strong></span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">4</span>
+                  <span>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong></span>
+                </div>
+              </div>
+              <div class="mt-4 flex items-center gap-2 px-3 py-2 bg-base-200/50 rounded-lg text-xs text-base-content/60">
+                <IconKey :size="14" />
+                <span>Scopes:</span>
+                <code class="text-primary/70">openid, profile, email</code>
+              </div>
+              <div class="flex gap-3 mt-4">
+                <a v-if="activeProvider.doc_url" :href="activeProvider.doc_url" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-ghost gap-2 text-base-content/70 hover:text-primary">
+                  <IconBook :size="16" /> {{ t('admin.oauth_documentation') }} <IconExternalLink :size="12" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Redirect URL -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center shadow-sm">
+                  <IconLink :size="20" class="text-green-400" />
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_redirect_url') }}</h3>
+                  <p class="text-xs text-base-content/40">{{ t('admin.oauth_redirect_url_desc') }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 mb-3 px-3 py-2 bg-success/5 border border-success/10 rounded-lg">
+                <span class="text-xs text-success font-medium shrink-0">{{ t('admin.oauth_recommended_callback') }}:</span>
+                <code class="text-xs text-success/80 break-all">{{ recommendedCallback() }}</code>
+                <button class="btn btn-ghost btn-xs shrink-0 ml-auto" @click="copyCallbackUrl" :title="t('user.copy')">
+                  <IconCheck v-if="copiedCallback === 'google'" :size="14" class="text-success" />
+                  <IconCopy v-else :size="14" />
+                </button>
+              </div>
+              <input
+                :value="getValue('redirect_url')"
+                @input="setValue('redirect_url', $event.target.value)"
+                type="text"
+                :placeholder="'https://your-domain.com/oauth/google/callback'"
+                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          <!-- Credentials -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center shadow-sm">
+                  <IconLock :size="20" class="text-blue-400" />
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_credentials_section') }}</h3>
+                  <p class="text-xs text-base-content/40">Google OAuth 2.0 credentials</p>
+                </div>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_client_id') }} <span class="text-error">*</span>
+                  </label>
+                  <input :value="getValue('client_id')" @input="setValue('client_id', $event.target.value)" type="text"
+                    placeholder="123456789-xxxxx.apps.googleusercontent.com"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_client_secret') }} <span class="text-error">*</span>
+                  </label>
+                  <input :value="getValue('client_secret')" @input="setValue('client_secret', $event.target.value)" type="password"
+                    placeholder="GOCSPX-••••••••••••••••"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center shadow-sm">
+                  <IconSettings :size="20" class="text-emerald-400" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_toggle_section') }}</h3>
+              </div>
+              <div class="divide-y divide-base-300/10">
+                <div v-for="(field, idx) in getConfigFields().filter(f => f.type === 'toggle')" :key="field.key"
+                  class="flex items-center justify-between py-4" :class="{ 'pt-0': idx === 0, 'pb-0': idx === getConfigFields().filter(f => f.type === 'toggle').length - 1 }">
+                  <div class="flex items-center gap-3">
+                    <span class="text-lg">
+                      <IconPlugConnected v-if="field.key === 'enabled'" :size="20" />
+                      <IconKey v-else-if="field.key === 'login_enabled'" :size="20" />
+                      <IconId v-else-if="field.key === 'register_enabled'" :size="20" />
+                      <IconSettings v-else :size="20" />
+                    </span>
+                    <div>
+                      <p class="font-medium text-sm">{{ fieldLabel(field) }}</p>
+                      <p class="text-xs text-base-content/40" v-if="fieldHelp(field)">{{ fieldHelp(field) }}</p>
+                    </div>
+                  </div>
+                  <input :checked="getValue(field.key) === '1'" @change="handleToggleChange(field.key, $event)" type="checkbox"
+                    :class="['toggle', {
+                      'toggle-primary': field.key === 'enabled',
+                      'toggle-secondary': field.key === 'login_enabled',
+                      'toggle-accent': field.key === 'register_enabled'
+                    }]" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ========== DISCORD ========== -->
+        <template v-if="activeProviderName === 'discord'">
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-[#5865F2] flex items-center justify-center shadow-sm">
+                  <IconBrandDiscord :size="20" class="text-white" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_setup_title') }} — Discord</h3>
+              </div>
+              <div class="space-y-3 text-sm text-base-content/70">
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">1</span>
+                  <span>Go to <a v-if="activeProvider.apply_url" :href="activeProvider.apply_url" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Discord Developer Portal</a> and create a new application</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">2</span>
+                  <span>Navigate to the <strong>OAuth2</strong> settings page</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">3</span>
+                  <span>Add the recommended callback below under <strong>Redirects</strong></span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">4</span>
+                  <span>Copy the <strong>Client ID</strong> and <strong>Client Secret</strong></span>
+                </div>
+              </div>
+              <div class="mt-4 flex items-center gap-2 px-3 py-2 bg-base-200/50 rounded-lg text-xs text-base-content/60">
+                <IconKey :size="14" />
+                <span>Scopes:</span>
+                <code class="text-primary/70">identify, email</code>
+              </div>
+              <div class="flex gap-3 mt-4">
+                <a v-if="activeProvider.doc_url" :href="activeProvider.doc_url" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-ghost gap-2 text-base-content/70 hover:text-primary">
+                  <IconBook :size="16" /> {{ t('admin.oauth_documentation') }} <IconExternalLink :size="12" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Redirect URL -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center shadow-sm">
+                  <IconLink :size="20" class="text-green-400" />
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_redirect_url') }}</h3>
+                  <p class="text-xs text-base-content/40">{{ t('admin.oauth_redirect_url_desc') }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 mb-3 px-3 py-2 bg-success/5 border border-success/10 rounded-lg">
+                <span class="text-xs text-success font-medium shrink-0">{{ t('admin.oauth_recommended_callback') }}:</span>
+                <code class="text-xs text-success/80 break-all">{{ recommendedCallback() }}</code>
+                <button class="btn btn-ghost btn-xs shrink-0 ml-auto" @click="copyCallbackUrl" :title="t('user.copy')">
+                  <IconCheck v-if="copiedCallback === 'discord'" :size="14" class="text-success" />
+                  <IconCopy v-else :size="14" />
+                </button>
+              </div>
+              <input
+                :value="getValue('redirect_url')"
+                @input="setValue('redirect_url', $event.target.value)"
+                type="text"
+                :placeholder="'https://your-domain.com/oauth/discord/callback'"
+                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          <!-- Credentials -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center shadow-sm">
+                  <IconLock :size="20" class="text-blue-400" />
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_credentials_section') }}</h3>
+                  <p class="text-xs text-base-content/40">Discord OAuth2 credentials</p>
+                </div>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_client_id') }} <span class="text-error">*</span>
+                  </label>
+                  <input :value="getValue('client_id')" @input="setValue('client_id', $event.target.value)" type="text"
+                    placeholder="123456789012345678"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_client_secret') }} <span class="text-error">*</span>
+                  </label>
+                  <input :value="getValue('client_secret')" @input="setValue('client_secret', $event.target.value)" type="password"
+                    placeholder="••••••••••••••••••••••••"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-sm" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center shadow-sm">
+                  <IconSettings :size="20" class="text-emerald-400" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_toggle_section') }}</h3>
+              </div>
+              <div class="divide-y divide-base-300/10">
+                <div v-for="(field, idx) in getConfigFields().filter(f => f.type === 'toggle')" :key="field.key"
+                  class="flex items-center justify-between py-4" :class="{ 'pt-0': idx === 0, 'pb-0': idx === getConfigFields().filter(f => f.type === 'toggle').length - 1 }">
+                  <div class="flex items-center gap-3">
+                    <span class="text-lg">
+                      <IconPlugConnected v-if="field.key === 'enabled'" :size="20" />
+                      <IconKey v-else-if="field.key === 'login_enabled'" :size="20" />
+                      <IconId v-else-if="field.key === 'register_enabled'" :size="20" />
+                      <IconSettings v-else :size="20" />
+                    </span>
+                    <div>
+                      <p class="font-medium text-sm">{{ fieldLabel(field) }}</p>
+                      <p class="text-xs text-base-content/40" v-if="fieldHelp(field)">{{ fieldHelp(field) }}</p>
+                    </div>
+                  </div>
+                  <input :checked="getValue(field.key) === '1'" @change="handleToggleChange(field.key, $event)" type="checkbox"
+                    :class="['toggle', {
+                      'toggle-primary': field.key === 'enabled',
+                      'toggle-secondary': field.key === 'login_enabled',
+                      'toggle-accent': field.key === 'register_enabled'
+                    }]" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ========== APPLE ========== -->
+        <template v-if="activeProviderName === 'apple'">
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-black flex items-center justify-center shadow-sm">
+                  <IconBrandApple :size="20" class="text-white" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_setup_title') }} — Sign in with Apple</h3>
+              </div>
+              <div class="mb-4 px-3 py-2 bg-info/5 border border-info/10 rounded-lg text-xs text-base-content/70 flex items-start gap-2">
+                <IconKey :size="14" class="text-info shrink-0 mt-0.5" />
+                <span>Apple does not use a traditional Client Secret. The system auto-generates a JWT client secret from your private key (.p8).</span>
+              </div>
+              <div class="space-y-3 text-sm text-base-content/70">
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">1</span>
+                  <span>Go to <a href="https://developer.apple.com/account/resources/identifiers/list/serviceId" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Apple Developer</a> and create a <strong>Services ID</strong></span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">2</span>
+                  <span>Enable <strong>Sign in with Apple</strong> on the Services ID and configure the callback domain</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">3</span>
+                  <span>Go to <a href="https://developer.apple.com/account/resources/authkeys/list" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Keys</a> to create a private key and download the <strong>.p8</strong> file</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">4</span>
+                  <span>Get your <strong>Team ID</strong> from <a href="https://developer.apple.com/account" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">Membership</a></span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">5</span>
+                  <span>Fill in <strong>Services ID</strong> (as Client ID), <strong>Team ID</strong>, <strong>Key ID</strong>, and <strong>Private Key</strong></span>
+                </div>
+              </div>
+              <div class="mt-4 flex items-center gap-2 px-3 py-2 bg-base-200/50 rounded-lg text-xs text-base-content/60">
+                <IconKey :size="14" />
+                <span>Scopes:</span>
+                <code class="text-primary/70">name, email</code>
+              </div>
+              <div class="flex gap-3 mt-4">
+                <a v-if="activeProvider.doc_url" :href="activeProvider.doc_url" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-ghost gap-2 text-base-content/70 hover:text-primary">
+                  <IconBook :size="16" /> {{ t('admin.oauth_documentation') }} <IconExternalLink :size="12" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Redirect URL -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center shadow-sm">
+                  <IconLink :size="20" class="text-green-400" />
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_redirect_url') }}</h3>
+                  <p class="text-xs text-base-content/40">{{ t('admin.oauth_redirect_url_desc') }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 mb-3 px-3 py-2 bg-success/5 border border-success/10 rounded-lg">
+                <span class="text-xs text-success font-medium shrink-0">{{ t('admin.oauth_recommended_callback') }}:</span>
+                <code class="text-xs text-success/80 break-all">{{ recommendedCallback() }}</code>
+                <button class="btn btn-ghost btn-xs shrink-0 ml-auto" @click="copyCallbackUrl" :title="t('user.copy')">
+                  <IconCheck v-if="copiedCallback === 'apple'" :size="14" class="text-success" />
+                  <IconCopy v-else :size="14" />
+                </button>
+              </div>
+              <input
+                :value="getValue('redirect_url')"
+                @input="setValue('redirect_url', $event.target.value)"
+                type="text"
+                :placeholder="'https://your-domain.com/oauth/apple/callback'"
+                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          <!-- Apple-specific credentials -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center shadow-sm">
+                  <IconLock :size="20" class="text-blue-400" />
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_credentials_section') }}</h3>
+                  <p class="text-xs text-base-content/40">Apple Sign In credentials</p>
+                </div>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_client_id') }} (Services ID) <span class="text-error">*</span>
+                  </label>
+                  <input :value="getValue('client_id')" @input="setValue('client_id', $event.target.value)" type="text"
+                    placeholder="com.example.app"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_apple_team_id') }} <span class="text-error">*</span>
+                  </label>
+                  <input :value="getValue('team_id')" @input="setValue('team_id', $event.target.value)" type="text"
+                    placeholder="ABCDEF1234"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_apple_key_id') }} <span class="text-error">*</span>
+                  </label>
+                  <input :value="getValue('key_id')" @input="setValue('key_id', $event.target.value)" type="text"
+                    placeholder="ABCDEF1234"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                </div>
+              </div>
+              <!-- Private key textarea -->
+              <div class="mt-4">
+                <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                  {{ t('admin.oauth_apple_private_key') }} <span class="text-error">*</span>
+                </label>
+                <p class="text-xs text-base-content/40 mb-2">{{ t('admin.oauth_apple_private_key_help') }}</p>
+                <textarea
+                  :value="getValue('private_key')"
+                  @input="setValue('private_key', $event.target.value)"
+                  class="textarea textarea-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 focus:ring-2 focus:ring-primary/20 transition-all rounded-xl font-mono text-xs min-h-[150px]"
+                  placeholder="-----BEGIN PRIVATE KEY-----
+MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdw...
+-----END PRIVATE KEY-----"
+                ></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center shadow-sm">
+                  <IconSettings :size="20" class="text-emerald-400" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_toggle_section') }}</h3>
+              </div>
+              <div class="divide-y divide-base-300/10">
+                <div v-for="(field, idx) in getConfigFields().filter(f => f.type === 'toggle')" :key="field.key"
+                  class="flex items-center justify-between py-4" :class="{ 'pt-0': idx === 0, 'pb-0': idx === getConfigFields().filter(f => f.type === 'toggle').length - 1 }">
+                  <div class="flex items-center gap-3">
+                    <span class="text-lg">
+                      <IconPlugConnected v-if="field.key === 'enabled'" :size="20" />
+                      <IconKey v-else-if="field.key === 'login_enabled'" :size="20" />
+                      <IconId v-else-if="field.key === 'register_enabled'" :size="20" />
+                      <IconSettings v-else :size="20" />
+                    </span>
+                    <div>
+                      <p class="font-medium text-sm">{{ fieldLabel(field) }}</p>
+                      <p class="text-xs text-base-content/40" v-if="fieldHelp(field)">{{ fieldHelp(field) }}</p>
+                    </div>
+                  </div>
+                  <input :checked="getValue(field.key) === '1'" @change="handleToggleChange(field.key, $event)" type="checkbox"
+                    :class="['toggle', {
+                      'toggle-primary': field.key === 'enabled',
+                      'toggle-secondary': field.key === 'login_enabled',
+                      'toggle-accent': field.key === 'register_enabled'
+                    }]" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ========== TELEGRAM ========== -->
+        <template v-if="activeProviderName === 'telegram'">
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-[#2AABEE] flex items-center justify-center shadow-sm">
+                  <IconBrandTelegram :size="20" class="text-white" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_setup_title') }} — Telegram</h3>
+              </div>
+              <div class="mb-4 px-3 py-2 bg-warning/5 border border-warning/10 rounded-lg text-xs text-base-content/70 flex items-start gap-2">
+                <IconPlugConnected :size="14" class="text-warning shrink-0 mt-0.5" />
+                <span>Telegram uses a login widget, not OAuth2. It does not provide user email, so auto-registration is disabled — users must bind manually.</span>
+              </div>
+              <div class="space-y-3 text-sm text-base-content/70">
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">1</span>
+                  <span>Contact <a href="https://t.me/BotFather" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">@BotFather</a> on Telegram to create a bot</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">2</span>
+                  <span>Use the <code>/newbot</code> command to create a bot and set its username</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">3</span>
+                  <span>Save the <strong>Bot Token</strong> returned by @BotFather</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">4</span>
+                  <span>Use <code>/setdomain</code> to set your site URL as the bot domain</span>
+                </div>
+                <div class="flex items-start gap-3">
+                  <span class="flex items-center justify-center w-6 h-6 rounded-full bg-base-300/50 font-semibold text-xs shrink-0 mt-0.5">5</span>
+                  <span>Fill in the <strong>Bot Token</strong>, <strong>Bot Username</strong>, and callback URL</span>
+                </div>
+              </div>
+              <div class="flex gap-3 mt-4">
+                <a v-if="activeProvider.doc_url" :href="activeProvider.doc_url" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-ghost gap-2 text-base-content/70 hover:text-primary">
+                  <IconBook :size="16" /> {{ t('admin.oauth_documentation') }} <IconExternalLink :size="12" />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Redirect URL -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 flex items-center justify-center shadow-sm">
+                  <IconLink :size="20" class="text-green-400" />
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_redirect_url') }}</h3>
+                  <p class="text-xs text-base-content/40">{{ t('admin.oauth_redirect_url_desc') }}</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2 mb-3 px-3 py-2 bg-success/5 border border-success/10 rounded-lg">
+                <span class="text-xs text-success font-medium shrink-0">{{ t('admin.oauth_recommended_callback') }}:</span>
+                <code class="text-xs text-success/80 break-all">{{ recommendedCallback() }}</code>
+                <button class="btn btn-ghost btn-xs shrink-0 ml-auto" @click="copyCallbackUrl" :title="t('user.copy')">
+                  <IconCheck v-if="copiedCallback === 'telegram'" :size="14" class="text-success" />
+                  <IconCopy v-else :size="14" />
+                </button>
+              </div>
+              <input
+                :value="getValue('redirect_url')"
+                @input="setValue('redirect_url', $event.target.value)"
+                type="text"
+                :placeholder="'https://your-domain.com/oauth/telegram/callback'"
+                class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-green-400 focus:ring-2 focus:ring-green-400/20 transition-all rounded-xl font-mono text-sm"
+              />
+            </div>
+          </div>
+
+          <!-- Telegram credentials -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 flex items-center justify-center shadow-sm">
+                  <IconLock :size="20" class="text-blue-400" />
+                </div>
+                <div>
+                  <h3 class="font-semibold text-sm">{{ t('admin.oauth_credentials_section') }}</h3>
+                  <p class="text-xs text-base-content/40">Telegram Bot credentials</p>
+                </div>
+              </div>
+              <div class="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_telegram_bot_token') }} <span class="text-error">*</span>
+                  </label>
+                  <p class="text-xs text-base-content/40 mb-1.5">{{ t('admin.oauth_telegram_bot_token_help') }}</p>
+                  <input :value="getValue('bot_token')" @input="setValue('bot_token', $event.target.value)" type="password"
+                    placeholder="123456:ABC-DEF1234ghIkl..."
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                </div>
+                <div>
+                  <label class="text-sm font-medium text-base-content/80 mb-1.5 block">
+                    {{ t('admin.oauth_telegram_bot_username') }} <span class="text-error">*</span>
+                  </label>
+                  <p class="text-xs text-base-content/40 mb-1.5">{{ t('admin.oauth_telegram_bot_username_help') }}</p>
+                  <input :value="getValue('bot_username')" @input="setValue('bot_username', $event.target.value)" type="text"
+                    placeholder="@YourBot"
+                    class="input input-bordered w-full bg-base-200/50 border-base-300/30 focus:border-primary/40 transition-all rounded-xl font-mono text-sm" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toggles -->
+          <div class="card bg-base-100/80 backdrop-blur-sm border border-base-300/20 shadow-sm overflow-hidden">
+            <div class="card-body p-5">
+              <div class="flex items-center gap-3 mb-5">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/20 flex items-center justify-center shadow-sm">
+                  <IconSettings :size="20" class="text-emerald-400" />
+                </div>
+                <h3 class="font-semibold text-sm">{{ t('admin.oauth_toggle_section') }}</h3>
+              </div>
+              <div class="divide-y divide-base-300/10">
+                <div v-for="(field, idx) in getConfigFields().filter(f => f.type === 'toggle')" :key="field.key"
+                  class="flex items-center justify-between py-4" :class="{ 'pt-0': idx === 0, 'pb-0': idx === getConfigFields().filter(f => f.type === 'toggle').length - 1 }">
+                  <div class="flex items-center gap-3">
+                    <span class="text-lg">
+                      <IconPlugConnected v-if="field.key === 'enabled'" :size="20" />
+                      <IconKey v-else-if="field.key === 'login_enabled'" :size="20" />
+                      <IconId v-else-if="field.key === 'register_enabled'" :size="20" />
+                      <IconSettings v-else :size="20" />
+                    </span>
+                    <div>
+                      <p class="font-medium text-sm">{{ fieldLabel(field) }}</p>
+                      <p class="text-xs text-base-content/40" v-if="fieldHelp(field)">{{ fieldHelp(field) }}</p>
+                    </div>
+                  </div>
+                  <input :checked="getValue(field.key) === '1'" @change="handleToggleChange(field.key, $event)" type="checkbox"
+                    :class="['toggle', {
+                      'toggle-primary': field.key === 'enabled',
+                      'toggle-secondary': field.key === 'login_enabled',
+                      'toggle-accent': field.key === 'register_enabled'
+                    }]" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- Error -->
         <div v-if="error" class="p-4 bg-error/10 border border-error/20 rounded-xl text-error text-sm flex items-center gap-2">
           <IconPlugConnected :size="18" class="shrink-0" />
           {{ error }}
         </div>
 
-        <!-- Save button with unsaved indicator -->
+        <!-- Save button -->
         <div class="flex justify-end pt-2 items-center gap-3">
           <span v-if="isCurrentDirty" class="text-xs text-warning/80 flex items-center gap-1.5 px-3 py-1.5 bg-warning/10 rounded-lg">
             <span class="w-1.5 h-1.5 rounded-full bg-warning animate-pulse"></span>

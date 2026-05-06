@@ -20,6 +20,7 @@ type ConfigField struct {
 	Key         string `json:"key"`         // Config key suffix (e.g., "client_id", "bot_token")
 	Label       string `json:"label"`       // Human-readable label for the admin form
 	Type        string `json:"type"`        // "text", "password", "toggle"
+	InputType   string `json:"input_type"`  // Optional: "textarea" for multi-line, empty for default input
 	Required    bool   `json:"required"`    // Whether this field must be filled to enable the provider
 	Placeholder string `json:"placeholder"` // Placeholder text for the input
 	Help        string `json:"help"`        // Help text / usage hint shown below the input

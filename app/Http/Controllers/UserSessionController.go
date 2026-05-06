@@ -214,8 +214,9 @@ func (usc *UserSessionController) RevokeAll(req *core.Request, res *core.Respons
 	return res.Success(nil)
 }
 
-// CreateSession creates a new session record (called during login/register)
-func CreateSession(c fiber.Ctx, userID uint) (*models.UserSession, error) {
+// CreateSession creates a new session record (called during login/register).
+// An optional loginProvider can be passed to record which OAuth provider was used.
+func CreateSession(c fiber.Ctx, userID uint, loginProvider ...string) (*models.UserSession, error) {
 	const maxSessions = 6
 
 	// Check count of active (non-expired) sessions for this user
@@ -240,19 +241,25 @@ func CreateSession(c fiber.Ctx, userID uint) (*models.UserSession, error) {
 
 	sessionToken := uuid.New().String()
 
+	provider := ""
+	if len(loginProvider) > 0 {
+		provider = loginProvider[0]
+	}
+
 	session := models.UserSession{
-		UserID:       userID,
-		IPAddress:    ip,
-		UserAgent:    ua,
-		DeviceType:   deviceType,
-		DeviceBrand:  deviceBrand,
-		DeviceModel:  deviceModel,
-		Browser:      browser,
-		OS:           os,
-		SessionToken: sessionToken,
-		IsCurrent:    true,
-		LastActivity: time.Now(),
-		ExpiresAt:    time.Now().Add(7 * 24 * time.Hour), // 7 days
+		UserID:        userID,
+		IPAddress:     ip,
+		UserAgent:     ua,
+		DeviceType:    deviceType,
+		DeviceBrand:   deviceBrand,
+		DeviceModel:   deviceModel,
+		Browser:       browser,
+		OS:            os,
+		SessionToken:  sessionToken,
+		IsCurrent:     true,
+		LoginProvider: provider,
+		LastActivity:  time.Now(),
+		ExpiresAt:     time.Now().Add(7 * 24 * time.Hour), // 7 days
 	}
 
 	if err := core.DB().Create(&session).Error; err != nil {

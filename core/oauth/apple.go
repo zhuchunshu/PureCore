@@ -50,7 +50,7 @@ func (p *AppleProvider) ConfigFields() []ConfigField {
 		{Key: "redirect_url", Label: "admin.oauth_redirect_url", Type: "text", Required: true},
 		{Key: "team_id", Label: "admin.oauth_apple_team_id", Type: "text", Required: true},
 		{Key: "key_id", Label: "admin.oauth_apple_key_id", Type: "text", Required: true},
-		{Key: "private_key", Label: "admin.oauth_apple_private_key", Type: "password", Required: true, Help: "admin.oauth_apple_private_key_help"},
+		{Key: "private_key", Label: "admin.oauth_apple_private_key", Type: "password", InputType: "textarea", Required: true, Help: "admin.oauth_apple_private_key_help"},
 	}
 }
 

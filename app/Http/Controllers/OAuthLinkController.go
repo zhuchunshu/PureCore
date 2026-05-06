@@ -158,7 +158,7 @@ func (c *OAuthLinkController) LinkRegister(req *core.Request, res *core.Response
 	core.DB().Model(&user).Update("last_login_at", now)
 
 	// Login the user and return tokens
-	return c.loginUser(req, res, &user)
+	return c.loginUser(req, res, &user, oAuthInfo.Provider)
 }
 
 // LinkLogin authenticates an existing user and links the OAuth identity to them.
@@ -220,7 +220,7 @@ func (c *OAuthLinkController) LinkLogin(req *core.Request, res *core.Response) e
 			core.DB().Model(&user).Update("avatar", oAuthInfo.AvatarURL)
 		}
 		core.DB().Model(&user).Update("last_login_at", now)
-		return c.loginUser(req, res, &user)
+		return c.loginUser(req, res, &user, oAuthInfo.Provider)
 	}
 
 	// Create the OAuth account link
@@ -276,12 +276,13 @@ func (c *OAuthLinkController) LinkLogin(req *core.Request, res *core.Response) e
 	core.DB().Model(&user).Update("last_login_at", now)
 
 	// Login the user and return tokens
-	return c.loginUser(req, res, &user)
+	return c.loginUser(req, res, &user, oAuthInfo.Provider)
 }
 
 // loginUser generates tokens and creates a session for a user, returning JSON.
 // Mirrors OAuthController.loginUser() for consistency.
-func (c *OAuthLinkController) loginUser(req *core.Request, res *core.Response, user *models.User) error {
+// loginProvider records which OAuth provider was used for this login session.
+func (c *OAuthLinkController) loginUser(req *core.Request, res *core.Response, user *models.User, loginProvider string) error {
 	accessToken, err := middleware.GenerateUserToken(user.ID, user.Name)
 	if err != nil {
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
@@ -301,7 +302,7 @@ func (c *OAuthLinkController) loginUser(req *core.Request, res *core.Response, u
 	// Mark all previous sessions as not current
 	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
 	// Create a new session record
-	CreateSession(req.Ctx(), user.ID)
+	CreateSession(req.Ctx(), user.ID, loginProvider)
 
 	return res.Success(map[string]interface{}{
 		"token":         accessToken,
