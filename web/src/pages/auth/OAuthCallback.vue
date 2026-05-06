@@ -33,7 +33,8 @@ const mode = ref('choose')
 
 onMounted(async () => {
   // New exchange flow: OAuth provider redirected back to frontend with code+state
-  if (code.value && state.value && !status.value) {
+  const isTelegramStateCallback = provider.value === 'telegram' && state.value && route.query.hash
+  if ((code.value && state.value && !status.value) || (isTelegramStateCallback && !status.value)) {
     await handleExchange()
     return
   }
@@ -58,7 +59,14 @@ async function handleExchange() {
   loading.value = true
   error.value = ''
   try {
-    const data = await exchangeCode(provider.value, code.value, state.value)
+    const callbackData = provider.value === 'telegram'
+      ? Object.fromEntries(
+          Object.entries(route.query)
+            .filter(([key, value]) => key !== 'state' && value !== undefined && value !== null)
+            .map(([key, value]) => [key, String(value)])
+        )
+      : null
+    const data = await exchangeCode(provider.value, code.value, state.value, callbackData)
     processExchangeResult(data)
   } catch (err) {
     error.value = err.message || t('oauth.callback_failed')

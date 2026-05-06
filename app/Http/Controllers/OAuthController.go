@@ -78,11 +78,13 @@ func (c *OAuthController) Authorize(req *core.Request, res *core.Response) error
 			botUsername = deriveBotUsernameFromToken(botToken)
 		}
 		redirectURL := oauth.GetProviderOption(provider.(oauth.Provider), "redirect_url")
+		botID := deriveBotIDFromToken(oauth.GetProviderOption(provider.(oauth.Provider), "bot_token"))
 		return res.Success(map[string]interface{}{
 			"type":         "widget",
 			"provider":     providerName,
 			"state":        state,
 			"bot_username": botUsername,
+			"bot_id":       botID,
 			"redirect_url": redirectURL,
 		})
 	}
@@ -218,16 +220,29 @@ func (c *OAuthController) Exchange(req *core.Request, res *core.Response) error 
 		return res.Error("Unsupported OAuth provider", 400)
 	}
 
-	type ExchangeRequest struct {
-		Code  string `json:"code" validate:"required"`
-		State string `json:"state" validate:"required"`
-	}
-	var body ExchangeRequest
-	if err := req.Validate(&body); err != nil {
-		return res.Error("Missing code or state", 422)
+	var stateToken string
+	if provider.IsOAuth2() {
+		type ExchangeOAuth2Request struct {
+			Code  string `json:"code" validate:"required"`
+			State string `json:"state" validate:"required"`
+		}
+		var body ExchangeOAuth2Request
+		if err := req.Validate(&body); err != nil {
+			return res.Error("Missing code or state", 422)
+		}
+		stateToken = body.State
+	} else {
+		type ExchangeNonOAuth2Request struct {
+			State string `json:"state" validate:"required"`
+		}
+		var body ExchangeNonOAuth2Request
+		if err := req.Validate(&body); err != nil {
+			return res.Error("Missing state for non-OAuth2 provider", 422)
+		}
+		stateToken = body.State
 	}
 
-	state, err := oauth.ParseState(body.State)
+	state, err := oauth.ParseState(stateToken)
 	if err != nil {
 		return res.Error("Invalid or expired state token", 422)
 	}
@@ -235,6 +250,14 @@ func (c *OAuthController) Exchange(req *core.Request, res *core.Response) error 
 	var userInfo *oauth.UserInfo
 
 	if provider.IsOAuth2() {
+		type ExchangeOAuth2Request struct {
+			Code  string `json:"code" validate:"required"`
+			State string `json:"state" validate:"required"`
+		}
+		var body ExchangeOAuth2Request
+		if err := req.Validate(&body); err != nil {
+			return res.Error("Missing code or state", 422)
+		}
 		exchangeCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		userInfo, err = provider.Exchange(exchangeCtx, body.Code)
@@ -412,12 +435,45 @@ func (c *OAuthController) Bind(req *core.Request, res *core.Response) error {
 		return res.Error("Invalid or expired link token", 422)
 	}
 
-	// Check if this provider ID is already linked to another user
+	// Check if this provider ID is already linked (including soft-deleted rows).
+	// The DB unique index is on provider_id, so we must query by provider_id only.
 	var existing models.OAuthAccount
-	if err := core.DB().Where("provider = ? AND provider_id = ?", oAuthInfo.Provider, oAuthInfo.ProviderID).First(&existing).Error; err == nil {
-		if existing.UserID != userID {
+	now := time.Now()
+	if err := core.DB().Unscoped().Where("provider_id = ?", oAuthInfo.ProviderID).First(&existing).Error; err == nil {
+		// Soft-deleted historical links should be reclaimable after fresh OAuth auth.
+		if !existing.DeletedAt.Valid && existing.UserID != userID {
 			return res.Error("This OAuth account is already linked to another user", 409)
 		}
+
+		updates := map[string]interface{}{
+			"provider":      oAuthInfo.Provider,
+			"email":         oAuthInfo.Email,
+			"name":          oAuthInfo.Name,
+			"avatar_url":    oAuthInfo.AvatarURL,
+			"access_token":  oAuthInfo.AccessToken,
+			"token_expiry":  oAuthInfo.TokenExpiry,
+			"raw_data":      "",
+			"refresh_token": "",
+			"updated_at":    now,
+			"deleted_at":    nil, // restore soft-deleted links
+		}
+		if oAuthInfo.RawData != nil {
+			rawBytes, _ := json.Marshal(oAuthInfo.RawData)
+			updates["raw_data"] = string(rawBytes)
+		}
+
+		if err := core.DB().Unscoped().Model(&existing).Updates(updates).Error; err != nil {
+			return res.Error("Failed to link OAuth account: "+err.Error(), 500)
+		}
+
+		// Update user's avatar if not set
+		var user models.User
+		if err := core.DB().First(&user, userID).Error; err == nil {
+			if user.Avatar == "" && oAuthInfo.AvatarURL != "" {
+				core.DB().Model(&user).Update("avatar", oAuthInfo.AvatarURL)
+			}
+		}
+
 		return res.Success("Already linked")
 	}
 
@@ -437,7 +493,39 @@ func (c *OAuthController) Bind(req *core.Request, res *core.Response) error {
 		oauthAccount.RawData = string(rawBytes)
 	}
 	if err := core.DB().Create(&oauthAccount).Error; err != nil {
-		return res.Error("Failed to link OAuth account: "+err.Error(), 500)
+		// Handle race conditions gracefully: another request may have linked it meanwhile.
+		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+			var raceExisting models.OAuthAccount
+			if qErr := core.DB().Unscoped().Where("provider_id = ?", oAuthInfo.ProviderID).First(&raceExisting).Error; qErr == nil {
+				if !raceExisting.DeletedAt.Valid && raceExisting.UserID != userID {
+					return res.Error("This OAuth account is already linked to another user", 409)
+				}
+
+				updates := map[string]interface{}{
+					"provider":      oAuthInfo.Provider,
+					"email":         oAuthInfo.Email,
+					"name":          oAuthInfo.Name,
+					"avatar_url":    oAuthInfo.AvatarURL,
+					"access_token":  oAuthInfo.AccessToken,
+					"token_expiry":  oAuthInfo.TokenExpiry,
+					"raw_data":      "",
+					"refresh_token": "",
+					"updated_at":    now,
+					"deleted_at":    nil,
+				}
+				if oAuthInfo.RawData != nil {
+					rawBytes, _ := json.Marshal(oAuthInfo.RawData)
+					updates["raw_data"] = string(rawBytes)
+				}
+				if uErr := core.DB().Unscoped().Model(&raceExisting).Updates(updates).Error; uErr != nil {
+					return res.Error("Failed to link OAuth account: "+uErr.Error(), 500)
+				}
+			} else {
+				return res.Error("Failed to link OAuth account: "+err.Error(), 500)
+			}
+		} else {
+			return res.Error("Failed to link OAuth account: "+err.Error(), 500)
+		}
 	}
 
 	// Update user's avatar if not set
@@ -720,4 +808,14 @@ func deriveBotUsernameFromToken(token string) string {
 	// For now return empty; the frontend can use the widget without it
 	// as the Telegram widget script can auto-detect from data-* attributes.
 	return ""
+}
+
+// deriveBotIDFromToken extracts the numeric bot ID prefix from a Telegram bot token.
+// Telegram bot tokens follow the format: "<BOT_ID>:<SECRET>".
+func deriveBotIDFromToken(token string) string {
+	parts := strings.SplitN(strings.TrimSpace(token), ":", 2)
+	if len(parts) < 2 {
+		return ""
+	}
+	return strings.TrimSpace(parts[0])
 }

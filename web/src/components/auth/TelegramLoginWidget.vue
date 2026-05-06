@@ -1,6 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-import { IconBrandTelegram } from '@tabler/icons-vue'
+import { ref, onMounted, nextTick } from 'vue'
 
 const props = defineProps({
   botUsername: { type: String, required: true },
@@ -8,21 +7,20 @@ const props = defineProps({
   state: { type: String, required: true },
   size: { type: String, default: 'large' },
   borderRadius: { type: Number, default: 12 },
+  autoTrigger: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['callback'])
 const scriptLoaded = ref(false)
 const widgetContainer = ref(null)
 
 // Inject the Telegram widget script
 function loadTelegramScript() {
-  if (document.getElementById('telegram-widget-script')) {
-    scriptLoaded.value = true
-    initWidget()
+  if (!widgetContainer.value) {
     return
   }
+
+  widgetContainer.value.innerHTML = ''
   const script = document.createElement('script')
-  script.id = 'telegram-widget-script'
   script.src = 'https://telegram.org/js/telegram-widget.js?22'
   script.async = true
   script.setAttribute('data-telegram-login', props.botUsername)
@@ -32,18 +30,11 @@ function loadTelegramScript() {
   script.setAttribute('data-request-access', 'write')
   script.onload = () => {
     scriptLoaded.value = true
+    if (props.autoTrigger) {
+      triggerTelegramAuth()
+    }
   }
-  if (widgetContainer.value) {
-    widgetContainer.value.appendChild(script)
-  }
-}
-
-// The Telegram widget will render itself inside the container
-// and handle the auth flow automatically.
-
-function initWidget() {
-  // Telegram widget callback is handled via window.TelegramLoginWidget.onAuth
-  // but we rely on the redirect flow (data-auth-url) for server-side verification.
+  widgetContainer.value.appendChild(script)
 }
 
 onMounted(() => {
@@ -52,13 +43,23 @@ onMounted(() => {
   }
 })
 
-onUnmounted(() => {
-  // Clean up widget if needed
-  const existing = document.getElementById('telegram-widget-script')
-  if (scriptLoaded.value && !existing) {
-    // Don't remove the script as it may be used by other instances
-  }
-})
+async function triggerTelegramAuth() {
+  await nextTick()
+  setTimeout(() => {
+    if (!widgetContainer.value) return
+    const clickable = widgetContainer.value.querySelector('iframe, a, button')
+    if (clickable && typeof clickable.click === 'function') {
+      clickable.click()
+    }
+  }, 50)
+  setTimeout(() => {
+    if (!widgetContainer.value) return
+    const clickable = widgetContainer.value.querySelector('iframe, a, button')
+    if (clickable && typeof clickable.click === 'function') {
+      clickable.click()
+    }
+  }, 250)
+}
 </script>
 
 <template>

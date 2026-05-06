@@ -161,8 +161,10 @@ func (p *TelegramProvider) verifyTelegramAuth(params map[string]string, botToken
 	}
 	dataCheckString := strings.Join(parts, "\n")
 
-	// 3. Compute HMAC-SHA256 of the bot token to get the secret key
-	secretKey := sha256Hmac([]byte("WebAppData"), []byte(botToken))
+	// 3. Telegram Login Widget algorithm requires:
+	//    secret_key = SHA256(bot_token)
+	secretKeySum := sha256.Sum256([]byte(botToken))
+	secretKey := secretKeySum[:]
 
 	// 4. Compute HMAC-SHA256 of the data-check-string with the secret key
 	computedHash := sha256Hmac(secretKey, []byte(dataCheckString))

@@ -80,20 +80,28 @@ func (c *OAuthLinkController) LinkRegister(req *core.Request, res *core.Response
 		return res.Error(core.GetLang().Trans("admin.create_failed")+": "+err.Error(), 500)
 	}
 
-	// Check if OAuth provider_id already exists (upsert)
+	// Check if OAuth provider_id already exists (upsert, including soft-deleted rows).
 	now := time.Now()
 	var existingOAuth models.OAuthAccount
-	if err := core.DB().Where("provider = ? AND provider_id = ?", oAuthInfo.Provider, oAuthInfo.ProviderID).First(&existingOAuth).Error; err == nil {
-		// Record exists — update it to point to the new user
-		core.DB().Model(&existingOAuth).Updates(map[string]interface{}{
-			"user_id":      user.ID,
-			"email":        user.Email,
-			"name":         user.Name,
-			"avatar_url":   oAuthInfo.AvatarURL,
-			"access_token": oAuthInfo.AccessToken,
-			"token_expiry": oAuthInfo.TokenExpiry,
-			"raw_data":     rawDataJSON(oAuthInfo),
-			"updated_at":   now,
+	if err := core.DB().Unscoped().Where("provider_id = ?", oAuthInfo.ProviderID).First(&existingOAuth).Error; err == nil {
+		// Active link to another user cannot be taken over.
+		if !existingOAuth.DeletedAt.Valid && existingOAuth.UserID != 0 && existingOAuth.UserID != user.ID {
+			core.DB().Unscoped().Delete(&user)
+			return res.Error("This OAuth account is already linked to another user", 409)
+		}
+		// Existing record belongs to this user, or is a reclaimable soft-deleted/placeholder row.
+		core.DB().Unscoped().Model(&existingOAuth).Updates(map[string]interface{}{
+			"user_id":       user.ID,
+			"provider":      oAuthInfo.Provider,
+			"email":         user.Email,
+			"name":          user.Name,
+			"avatar_url":    oAuthInfo.AvatarURL,
+			"access_token":  oAuthInfo.AccessToken,
+			"token_expiry":  oAuthInfo.TokenExpiry,
+			"raw_data":      rawDataJSON(oAuthInfo),
+			"refresh_token": "",
+			"updated_at":    now,
+			"deleted_at":    nil,
 		})
 	} else {
 		// No existing record — create new one
@@ -112,8 +120,37 @@ func (c *OAuthLinkController) LinkRegister(req *core.Request, res *core.Response
 			oauthAccount.RawData = string(rawBytes)
 		}
 		if err := core.DB().Create(&oauthAccount).Error; err != nil {
-			core.DB().Unscoped().Delete(&user)
-			return res.Error("Failed to link OAuth account: "+err.Error(), 500)
+			if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
+				var raceExisting models.OAuthAccount
+				if qErr := core.DB().Unscoped().Where("provider_id = ?", oAuthInfo.ProviderID).First(&raceExisting).Error; qErr == nil {
+					if !raceExisting.DeletedAt.Valid && raceExisting.UserID != 0 && raceExisting.UserID != user.ID {
+						core.DB().Unscoped().Delete(&user)
+						return res.Error("This OAuth account is already linked to another user", 409)
+					}
+					if uErr := core.DB().Unscoped().Model(&raceExisting).Updates(map[string]interface{}{
+						"user_id":       user.ID,
+						"provider":      oAuthInfo.Provider,
+						"email":         user.Email,
+						"name":          user.Name,
+						"avatar_url":    oAuthInfo.AvatarURL,
+						"access_token":  oAuthInfo.AccessToken,
+						"token_expiry":  oAuthInfo.TokenExpiry,
+						"raw_data":      rawDataJSON(oAuthInfo),
+						"refresh_token": "",
+						"updated_at":    now,
+						"deleted_at":    nil,
+					}).Error; uErr != nil {
+						core.DB().Unscoped().Delete(&user)
+						return res.Error("Failed to link OAuth account: "+uErr.Error(), 500)
+					}
+				} else {
+					core.DB().Unscoped().Delete(&user)
+					return res.Error("Failed to link OAuth account: "+err.Error(), 500)
+				}
+			} else {
+				core.DB().Unscoped().Delete(&user)
+				return res.Error("Failed to link OAuth account: "+err.Error(), 500)
+			}
 		}
 	}
 
@@ -155,28 +192,29 @@ func (c *OAuthLinkController) LinkLogin(req *core.Request, res *core.Response) e
 		return res.Error(core.GetLang().Trans("admin.invalid_credentials"), 401)
 	}
 
-	// Check if this OAuth provider_id is already linked to another user
+	// Check if this OAuth provider_id is already linked (including soft-deleted rows).
 	var existingOAuth models.OAuthAccount
-	if err := core.DB().Where("provider = ? AND provider_id = ?", oAuthInfo.Provider, oAuthInfo.ProviderID).First(&existingOAuth).Error; err == nil {
-		if existingOAuth.UserID != 0 {
-			if existingOAuth.UserID != user.ID {
-				return res.Error("This OAuth account is already linked to another user", 409)
-			}
-			// Already linked to this user — just login
-			return c.loginUser(req, res, &user)
+	now := time.Now()
+	if err := core.DB().Unscoped().Where("provider_id = ?", oAuthInfo.ProviderID).First(&existingOAuth).Error; err == nil {
+		// Soft-deleted historical links can be rebound after successful OAuth auth.
+		if !existingOAuth.DeletedAt.Valid && existingOAuth.UserID != 0 && existingOAuth.UserID != user.ID {
+			return res.Error("This OAuth account is already linked to another user", 409)
 		}
-		// UserID == 0: dirty placeholder record from previous flow — update it
-		now := time.Now()
-		core.DB().Model(&existingOAuth).Updates(map[string]interface{}{
-			"user_id":      user.ID,
-			"email":        user.Email,
-			"name":         user.Name,
-			"avatar_url":   oAuthInfo.AvatarURL,
-			"access_token": oAuthInfo.AccessToken,
-			"token_expiry": oAuthInfo.TokenExpiry,
-			"raw_data":     rawDataJSON(oAuthInfo),
-			"updated_at":   now,
-		})
+		// Existing record belongs to this user (or is a dirty placeholder): update & restore.
+		updates := map[string]interface{}{
+			"user_id":       user.ID,
+			"provider":      oAuthInfo.Provider,
+			"email":         user.Email,
+			"name":          user.Name,
+			"avatar_url":    oAuthInfo.AvatarURL,
+			"access_token":  oAuthInfo.AccessToken,
+			"token_expiry":  oAuthInfo.TokenExpiry,
+			"raw_data":      rawDataJSON(oAuthInfo),
+			"refresh_token": "",
+			"updated_at":    now,
+			"deleted_at":    nil,
+		}
+		core.DB().Unscoped().Model(&existingOAuth).Updates(updates)
 		// Update user's avatar if not set
 		if user.Avatar == "" && oAuthInfo.AvatarURL != "" {
 			core.DB().Model(&user).Update("avatar", oAuthInfo.AvatarURL)
@@ -186,7 +224,6 @@ func (c *OAuthLinkController) LinkLogin(req *core.Request, res *core.Response) e
 	}
 
 	// Create the OAuth account link
-	now := time.Now()
 	oauthAccount := models.OAuthAccount{
 		UserID:      user.ID,
 		Provider:    oAuthInfo.Provider,
@@ -203,19 +240,28 @@ func (c *OAuthLinkController) LinkLogin(req *core.Request, res *core.Response) e
 	}
 	if err := core.DB().Create(&oauthAccount).Error; err != nil {
 		if strings.Contains(err.Error(), "duplicate") || strings.Contains(err.Error(), "unique") {
-			// Race condition: another request already linked it — update instead
-			core.DB().Model(&models.OAuthAccount{}).
-				Where("provider = ? AND provider_id = ?", oAuthInfo.Provider, oAuthInfo.ProviderID).
-				Updates(map[string]interface{}{
-					"user_id":      user.ID,
-					"email":        user.Email,
-					"name":         user.Name,
-					"avatar_url":   oAuthInfo.AvatarURL,
-					"access_token": oAuthInfo.AccessToken,
-					"token_expiry": oAuthInfo.TokenExpiry,
-					"raw_data":     rawDataJSON(oAuthInfo),
-					"updated_at":   now,
+			// Race condition: another request already linked it — fetch and resolve safely.
+			var raceExisting models.OAuthAccount
+			if qErr := core.DB().Unscoped().Where("provider_id = ?", oAuthInfo.ProviderID).First(&raceExisting).Error; qErr == nil {
+				if !raceExisting.DeletedAt.Valid && raceExisting.UserID != 0 && raceExisting.UserID != user.ID {
+					return res.Error("This OAuth account is already linked to another user", 409)
+				}
+				core.DB().Unscoped().Model(&raceExisting).Updates(map[string]interface{}{
+					"user_id":       user.ID,
+					"provider":      oAuthInfo.Provider,
+					"email":         user.Email,
+					"name":          user.Name,
+					"avatar_url":    oAuthInfo.AvatarURL,
+					"access_token":  oAuthInfo.AccessToken,
+					"token_expiry":  oAuthInfo.TokenExpiry,
+					"raw_data":      rawDataJSON(oAuthInfo),
+					"refresh_token": "",
+					"updated_at":    now,
+					"deleted_at":    nil,
 				})
+			} else {
+				return res.Error("Failed to link OAuth account: "+err.Error(), 500)
+			}
 		} else {
 			return res.Error("Failed to link OAuth account: "+err.Error(), 500)
 		}

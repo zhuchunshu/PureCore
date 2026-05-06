@@ -33,7 +33,51 @@ const providerIcon = computed(() => {
   return map[providerId.value] || IconWorld
 })
 
-const emit = defineEmits(['widgetAuth'])
+function ensureTelegramScriptLoaded() {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined') {
+      reject(new Error('Telegram login unavailable in SSR'))
+      return
+    }
+    if (window.Telegram?.Login?.auth) {
+      resolve()
+      return
+    }
+    const existing = document.getElementById('telegram-login-sdk')
+    if (existing) {
+      existing.addEventListener('load', () => resolve(), { once: true })
+      existing.addEventListener('error', () => reject(new Error('Failed to load Telegram SDK')), { once: true })
+      return
+    }
+    const script = document.createElement('script')
+    script.id = 'telegram-login-sdk'
+    script.src = 'https://telegram.org/js/telegram-widget.js?22'
+    script.async = true
+    script.onload = () => resolve()
+    script.onerror = () => reject(new Error('Failed to load Telegram SDK'))
+    document.head.appendChild(script)
+  })
+}
+
+async function triggerTelegramAuth(widgetData) {
+  const botId = String(widgetData?.bot_id || '').trim()
+  const callbackBase = String(widgetData?.redirect_url || '').trim()
+  const state = String(widgetData?.state || '').trim()
+  if (!botId || !callbackBase || !state) {
+    throw new Error('Telegram widget config incomplete')
+  }
+
+  await ensureTelegramScriptLoaded()
+  window.Telegram.Login.auth({ bot_id: botId, request_access: true }, (data) => {
+    if (!data) return
+    const callbackURL = new URL(callbackBase, window.location.origin)
+    callbackURL.searchParams.set('state', state)
+    Object.entries(data).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) callbackURL.searchParams.set(k, String(v))
+    })
+    window.location.href = callbackURL.toString()
+  })
+}
 
 async function handleClick() {
   if (isLoading.value || !providerId.value) return
@@ -43,7 +87,7 @@ async function handleClick() {
     if (providerId.value === 'telegram') {
       const widgetData = await initiateLogin(providerId.value, props.redirect)
       if (widgetData && widgetData.type === 'widget') {
-        emit('widgetAuth', widgetData)
+        await triggerTelegramAuth(widgetData)
         isLoading.value = false
         return
       }

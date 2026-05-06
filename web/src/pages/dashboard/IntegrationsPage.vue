@@ -56,7 +56,7 @@
               {{ account.email || account.name || account.provider_id }}
             </p>
             <p class="text-xs text-base-content/40">
-              {{ t('integrations.linked_at') }}: {{ formatDate(account.created_at) }}
+              {{ t('integrations.linked_at') }}: {{ formatDate(account.updated_at || account.created_at) }}
             </p>
           </div>
 

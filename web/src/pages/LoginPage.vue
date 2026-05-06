@@ -6,7 +6,6 @@ import { useSEO } from '../composables/useSEO'
 import { setTokens, accessToken } from '../composables/useUserAuth'
 import TurnstileWidget from '../components/TurnstileWidget.vue'
 import OAuthButton from '../components/auth/OAuthButton.vue'
-import TelegramLoginWidget from '../components/auth/TelegramLoginWidget.vue'
 import { useOAuth } from '../composables/useOAuth'
 
 const { t } = useI18n()
@@ -25,24 +24,17 @@ const turnstileRef = ref(null)
 const eyeClosed = ref(false)
 
 // OAuth providers for social login buttons
-const { providers, fetchProviders } = useOAuth()
-
-// Telegram widget state
-const telegramWidgetData = ref(null)
+const { providers, fetchProviders, bindOAuth } = useOAuth()
 
 // Only show providers that are both enabled and allow login (exclude telegram for widget rendering)
 const loginProviders = computed(() =>
   providers.value.filter(p => p.enabled && p.login_enabled && p.name !== 'telegram')
 )
 
-// Telegram provider for widget rendering
+// Telegram provider rendered with the same OAuthButton style
 const telegramProvider = computed(() =>
   providers.value.find(p => p.name === 'telegram' && p.enabled && p.login_enabled)
 )
-
-function onTelegramWidgetAuth(data) {
-  telegramWidgetData.value = data
-}
 
 onMounted(async () => {
   if (accessToken.value) {
@@ -83,6 +75,14 @@ async function login() {
     const json = await resp.json()
     if (json.code === 0) {
       setTokens(json.data.token, json.data.refresh_token)
+      const linkToken = typeof route.query.link_token === 'string' ? route.query.link_token : ''
+      if (linkToken) {
+        try {
+          await bindOAuth(linkToken)
+        } catch (_) {
+          // Do not block normal login if automatic OAuth binding fails.
+        }
+      }
       localStorage.setItem('user_profile', JSON.stringify({ name: json.data.name, email: json.data.email }))
       router.push(route.query.redirect || '/')
     } else {
@@ -198,26 +198,17 @@ async function login() {
                   <span class="px-3 bg-base-200/40 text-base-content/40">{{ t('oauth.or_continue_with') }}</span>
                 </div>
               </div>
-              <div class="flex justify-center gap-2">
+              <div class="relative flex justify-center gap-2">
                 <OAuthButton
                   v-for="provider in loginProviders"
                   :key="provider.name"
                   :provider="provider"
                   :redirect="route.query.redirect || '/'"
                 />
-                <!-- Telegram Login Widget -->
-                <TelegramLoginWidget
-                  v-if="telegramProvider && telegramWidgetData"
-                  :bot-username="telegramWidgetData.bot_username"
-                  :redirect-url="telegramWidgetData.redirect_url"
-                  :state="telegramWidgetData.state"
-                />
-                <!-- Telegram placeholder button (click to load widget) -->
                 <OAuthButton
-                  v-if="telegramProvider && !telegramWidgetData"
+                  v-if="telegramProvider"
                   :provider="telegramProvider"
                   :redirect="route.query.redirect || '/'"
-                  @widget-auth="onTelegramWidgetAuth"
                 />
               </div>
             </div>
