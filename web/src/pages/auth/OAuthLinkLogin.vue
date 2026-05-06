@@ -41,7 +41,7 @@ const eyeClosed = ref(false)
 
 // Link token from sessionStorage (required for the API call)
 const linkToken = ref(oauthData.link_token || route.query.link_token || '')
-const redirectTo = ref(oauthData.redirect || route.query.redirect || '/')
+const redirectTo = ref(oauthData.redirect || route.query.redirect || '/dashboard')
 
 onMounted(async () => {
   if (accessToken.value) {

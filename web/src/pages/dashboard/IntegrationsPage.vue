@@ -1,11 +1,14 @@
 <template>
-  <div class="flex-1 bg-base-200">
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- ===== COL 1-2: Main ===== -->
+    <div class="lg:col-span-2 space-y-4">
     <!-- Header skeleton -->
     <template v-if="loading">
-      <div class="skeleton h-28 rounded-2xl"></div>
-      <div class="mt-6 space-y-4">
-        <div v-for="i in 4" :key="i" class="flex items-center gap-4 rounded-xl bg-base-100/80 p-4">
-          <div class="skeleton w-12 h-12 rounded-xl shrink-0"></div>
+      <div class="skeleton h-8 w-48 rounded-lg"></div>
+      <div class="skeleton h-24 rounded-2xl"></div>
+      <div class="space-y-3">
+        <div v-for="i in 4" :key="i" class="flex items-center gap-4 rounded-xl bg-base-100 p-4">
+          <div class="skeleton w-10 h-10 rounded-xl shrink-0"></div>
           <div class="flex-1 space-y-2">
             <div class="skeleton h-5 w-1/3 rounded"></div>
             <div class="skeleton h-3 w-1/4 rounded"></div>
@@ -17,101 +20,91 @@
 
     <!-- Content -->
     <template v-else>
-      <!-- Page header -->
-      <div class="flex items-center justify-between rounded-2xl bg-base-100/80 p-6 shadow-sm border border-base-300/20">
-        <div>
-          <h1 class="text-2xl font-bold">{{ t('integrations.title') }}</h1>
-          <p class="mt-1 text-sm text-base-content/60">{{ t('integrations.description') }}</p>
-        </div>
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-base-content/50">{{ accounts.length }} {{ t('integrations.account') }}</span>
-        </div>
+      <div class="flex items-center justify-between mb-4">
+        <p class="text-sm text-base-content/40">{{ t('integrations.description') }}</p>
+        <span class="text-sm text-base-content/40">{{ accounts.length }} {{ t('integrations.account') }}</span>
       </div>
 
       <!-- Current login provider -->
-      <div v-if="currentLoginProvider" class="mt-6">
-        <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-          <LogIn class="w-5 h-5 text-success" />
-          {{ t('integrations.current_login') }}
-        </h2>
-        <div class="flex items-center gap-4 rounded-xl bg-success/5 p-4 border border-success/20 shadow-sm">
-          <div class="w-12 h-12 shrink-0 rounded-xl bg-success/10 flex items-center justify-center">
-            <component :is="providerIcon(currentLoginProvider)" class="w-6 h-6 text-success" />
+      <div v-if="currentLoginProvider" class="bg-base-100 border border-emerald-500/10 rounded-2xl p-5 shadow-sm">
+        <h3 class="text-sm font-semibold text-base-content/60 mb-3">{{ t('integrations.current_login') }}</h3>
+        <div class="flex items-center gap-4">
+          <div class="w-10 h-10 shrink-0 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <component :is="providerIcon(currentLoginProvider)" class="w-5 h-5 text-emerald-500" />
           </div>
           <div class="flex-1 min-w-0">
-            <p class="font-semibold truncate">{{ providerDisplay(currentLoginProvider) }}</p>
-            <p class="text-sm text-base-content/60 truncate">{{ t('integrations.current_login_desc') }}</p>
+            <p class="font-semibold text-base-content">{{ providerDisplay(currentLoginProvider) }}</p>
+            <p class="text-sm text-base-content/50">{{ t('integrations.current_login_desc') }}</p>
           </div>
-          <span class="badge badge-success badge-sm shrink-0">{{ t('integrations.current_login') }}</span>
+          <span class="inline-flex items-center text-xs font-medium text-emerald-500 bg-emerald-500/10 px-2.5 py-1 rounded-full">
+            {{ t('integrations.current_login') }}
+          </span>
         </div>
       </div>
 
       <!-- Bound accounts -->
-      <div v-if="accounts.length > 0" class="mt-6">
-        <h2 class="text-lg font-semibold mb-4">{{ t('integrations.linked_at') }}</h2>
-        <div class="space-y-4">
+      <div v-if="accounts.length > 0">
+        <h3 class="text-sm font-semibold text-base-content/60 mb-3">{{ t('integrations.linked_at') }}</h3>
+        <div class="space-y-2">
           <div
             v-for="account in accounts"
             :key="account.id"
-            class="flex items-center gap-4 rounded-xl bg-base-100/80 p-4 border border-base-300/20 shadow-sm hover:shadow-md transition-shadow"
+            class="flex items-center gap-4 bg-base-100 border border-base-300/20 rounded-2xl p-4 shadow-sm hover:shadow transition-shadow"
           >
-            <!-- Provider icon -->
-            <div class="w-12 h-12 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
-              <component :is="providerIcon(account.provider)" class="w-6 h-6 text-primary" />
+            <div class="w-10 h-10 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center">
+              <component :is="providerIcon(account.provider)" class="w-5 h-5 text-primary" />
             </div>
-
-            <!-- Account info -->
             <div class="flex-1 min-w-0">
-              <p class="font-semibold truncate">{{ providerDisplay(account.provider) }}</p>
-              <p class="text-sm text-base-content/60 truncate">
+              <p class="font-semibold text-base-content text-sm">{{ providerDisplay(account.provider) }}</p>
+              <p class="text-sm text-base-content/50 truncate">
                 {{ account.email || account.name || account.provider_id }}
               </p>
-              <p class="text-xs text-base-content/40">
+              <p class="text-xs text-base-content/30">
                 {{ t('integrations.linked_at') }}: {{ formatDate(account.updated_at || account.created_at) }}
               </p>
             </div>
-
-            <!-- Unbind button -->
             <button
-              class="btn btn-ghost btn-sm text-error shrink-0"
+              class="text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200 cursor-pointer disabled:opacity-40"
               :disabled="unlinkingId === account.id"
               @click="unlinkAccount(account)"
             >
               <span v-if="unlinkingId === account.id" class="loading loading-spinner loading-xs"></span>
               <Unlink v-else class="w-4 h-4" />
-              <span class="hidden sm:inline ml-1">{{ t('integrations.unbind') }}</span>
+              <span class="hidden sm:inline ml-1.5">{{ t('integrations.unbind') }}</span>
             </button>
           </div>
         </div>
       </div>
 
       <!-- No accounts -->
-      <div v-if="accounts.length === 0" class="mt-6 text-center py-12 rounded-2xl bg-base-100/50 border border-base-300/20">
-        <div class="mx-auto w-16 h-16 rounded-2xl bg-base-200/80 flex items-center justify-center mb-4">
-          <Link2 class="w-8 h-8 text-base-content/30" />
+      <div v-if="accounts.length === 0 && !currentLoginProvider" class="bg-base-100 border border-base-300/20 rounded-2xl shadow-sm">
+        <div class="text-center py-16 px-6">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-base-200 flex items-center justify-center">
+            <Link2 class="w-8 h-8 text-base-content/20" />
+          </div>
+          <p class="text-sm font-medium text-base-content/40">{{ t('integrations.no_accounts') }}</p>
+          <p class="mt-1 text-sm text-base-content/30 max-w-md mx-auto">{{ t('integrations.no_accounts_desc') }}</p>
         </div>
-        <p class="font-semibold text-base-content/60">{{ t('integrations.no_accounts') }}</p>
-        <p class="mt-1 text-sm text-base-content/40 max-w-md mx-auto">{{ t('integrations.no_accounts_desc') }}</p>
       </div>
 
       <!-- Available providers to connect -->
-      <div v-if="availableProviders.length > 0" class="mt-8">
-        <h2 class="text-lg font-semibold mb-4">{{ t('integrations.connect_more') }}</h2>
-        <div class="space-y-4">
+      <div v-if="availableProviders.length > 0">
+        <h3 class="text-sm font-semibold text-base-content/60 mb-3">{{ t('integrations.connect_more') }}</h3>
+        <div class="space-y-2">
           <div
             v-for="provider in availableProviders"
             :key="provider.name"
-            class="flex items-center gap-4 rounded-xl bg-base-100/80 p-4 border border-base-300/20 shadow-sm hover:shadow-md transition-shadow"
+            class="flex items-center gap-4 bg-base-100 border border-base-300/20 rounded-2xl p-4 shadow-sm hover:shadow transition-shadow"
           >
-            <div class="w-12 h-12 shrink-0 rounded-xl bg-base-200/80 flex items-center justify-center">
-              <component :is="providerIcon(provider.name)" class="w-6 h-6 text-base-content/50" />
+            <div class="w-10 h-10 shrink-0 rounded-xl bg-base-200 flex items-center justify-center">
+              <component :is="providerIcon(provider.name)" class="w-5 h-5 text-base-content/40" />
             </div>
             <div class="flex-1 min-w-0">
-              <p class="font-semibold truncate">{{ provider.display_name }}</p>
-              <p class="text-sm text-base-content/60 truncate">{{ t('integrations.connect_desc', { provider: provider.display_name }) }}</p>
+              <p class="font-semibold text-base-content text-sm">{{ provider.display_name }}</p>
+              <p class="text-sm text-base-content/50 truncate">{{ t('integrations.connect_desc', { provider: provider.display_name }) }}</p>
             </div>
             <button
-              class="btn btn-outline btn-sm shrink-0 gap-2"
+              class="inline-flex items-center gap-1.5 border border-base-300/30 hover:border-primary/30 hover:bg-primary/5 rounded-xl px-4 py-2 text-sm font-medium transition-all duration-200 cursor-pointer disabled:opacity-40"
               :disabled="connectingProvider === provider.name"
               @click="connectProvider(provider)"
             >
@@ -123,6 +116,31 @@
         </div>
       </div>
     </template>
+    </div>
+
+    <!-- ===== COL 3: Sidebar ===== -->
+    <div class="space-y-4">
+      <div class="bg-base-100 border border-base-300/20 rounded-2xl p-5 shadow-sm">
+        <h3 class="text-sm font-bold text-base-content flex items-center gap-2 mb-3">
+          <Link2 :size="16" class="text-primary/60" />
+          {{ t('user.oauth_info_title') }}
+        </h3>
+        <ul class="space-y-2 text-xs text-base-content/50">
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.oauth_info_link') }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.oauth_info_unlink') }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.oauth_info_highlight') }}
+          </li>
+        </ul>
+      </div>
+    </div>
 
     <!-- Confirm dialog -->
     <dialog ref="confirmDialog" class="modal">
@@ -147,7 +165,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from '../../i18n'
 import { useRouter } from 'vue-router'
-import { Link2, Unlink, LogIn } from 'lucide-vue-next'
+import { Link2, Unlink } from 'lucide-vue-next'
 import { IconBrandGithub, IconBrandGoogle, IconBrandApple, IconBrandTelegram, IconBrandDiscord } from '@tabler/icons-vue'
 import { userAPI } from '../../services/api'
 import { useUserAuth } from '../../composables/useUserAuth'
@@ -174,7 +192,6 @@ useSEO({
   description: t('integrations.description')
 })
 
-// Provider icon mapping
 const providerIconMap = {
   github: IconBrandGithub,
   google: IconBrandGoogle,
@@ -186,7 +203,6 @@ function providerIcon(provider) {
   return providerIconMap[provider] || Link2
 }
 
-// Provider display name mapping
 const providerDisplayMap = {
   github: 'GitHub',
   google: 'Google',
@@ -198,7 +214,6 @@ function providerDisplay(provider) {
   return providerDisplayMap[provider] || provider.charAt(0).toUpperCase() + provider.slice(1)
 }
 
-// Providers that are enabled and not yet linked to this user
 const availableProviders = computed(() => {
   const linkedNames = new Set(accounts.value.map(a => a.provider))
   return providers.value.filter(p => p.enabled && !linkedNames.has(p.name))
@@ -227,7 +242,6 @@ async function connectProvider(provider) {
   if (connectingProvider.value) return
   connectingProvider.value = provider.name
   try {
-    // Special handling for Telegram (non-OAuth2 widget-based login)
     if (provider.name === 'telegram') {
       const widgetData = await initiateLogin(provider.name, '/dashboard/integrations')
       if (widgetData && widgetData.type === 'widget') {
@@ -235,7 +249,6 @@ async function connectProvider(provider) {
         return
       }
     }
-    // OAuth2 providers: initiateLogin handles the redirect
     await initiateLogin(provider.name, '/dashboard/integrations')
   } catch (err) {
     console.error('Failed to initiate OAuth for', provider.name, err)
@@ -244,7 +257,6 @@ async function connectProvider(provider) {
   }
 }
 
-// Ensure Telegram SDK script is loaded before opening the widget
 function ensureTelegramScriptLoaded() {
   return new Promise((resolve, reject) => {
     if (typeof window === 'undefined') {
@@ -271,7 +283,6 @@ function ensureTelegramScriptLoaded() {
   })
 }
 
-// Trigger Telegram login widget popup
 function triggerTelegramAuth(widgetData) {
   const botId = String(widgetData?.bot_id || '').trim()
   const callbackBase = String(widgetData?.redirect_url || '').trim()
@@ -315,7 +326,6 @@ async function doUnlink() {
     const json = await resp.json()
     if (json.code === 0) {
       accounts.value = accounts.value.filter(a => a.id !== account.id)
-      // Also clear current login provider if the unbound account matches
       if (currentLoginProvider.value === account.provider) {
         currentLoginProvider.value = ''
       }

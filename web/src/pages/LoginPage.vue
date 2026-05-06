@@ -38,7 +38,7 @@ const telegramProvider = computed(() =>
 
 onMounted(async () => {
   if (accessToken.value) {
-    router.push(route.query.redirect || '/')
+    router.push(route.query.redirect || '/dashboard')
     return
   }
   // Show session expired message if redirected from a 401
@@ -88,7 +88,7 @@ async function login() {
         }
       }
       localStorage.setItem('user_profile', JSON.stringify({ name: json.data.name, email: json.data.email }))
-      router.push(route.query.redirect || '/')
+      router.push(route.query.redirect || '/dashboard')
     } else {
       errMsg.value = json.message || t('user.login_failed')
     }
@@ -207,12 +207,12 @@ async function login() {
                   v-for="provider in loginProviders"
                   :key="provider.name"
                   :provider="provider"
-                  :redirect="route.query.redirect || '/'"
+                  :redirect="route.query.redirect || '/dashboard'"
                 />
                 <OAuthButton
                   v-if="telegramProvider"
                   :provider="telegramProvider"
-                  :redirect="route.query.redirect || '/'"
+                  :redirect="route.query.redirect || '/dashboard'"
                 />
               </div>
             </div>

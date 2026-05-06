@@ -16,6 +16,8 @@ const adminPrefix = import.meta.env.VITE_ADMIN_ROUTE_PREFIX || 'control-panel'
 const isHomePage = computed(() => route.path === '/')
 const isAdminDashboard = computed(() => route.path === `/${adminPrefix}`)
 const isAdminPage = computed(() => route.path.startsWith(`/${adminPrefix}`) && !route.path.endsWith('/login') && !route.path.endsWith('/register'))
+const isDashboardPage = computed(() => route.path.startsWith('/dashboard'))
+const showFooter = computed(() => !isHomePage.value && !isDashboardPage.value)
 const showSpinner = computed(() => !isHomePage.value && !hasChecked.value)
 const showBackendError = computed(() => !isHomePage.value && hasChecked.value && !isBackendReachable.value)
 </script>
@@ -64,7 +66,7 @@ const showBackendError = computed(() => !isHomePage.value && hasChecked.value &&
       <main class="flex-1">
         <router-view :key="$route.fullPath" />
       </main>
-      <Footer />
+      <Footer v-if="showFooter" />
     </template>
 
     <!-- Global toast notifications -->

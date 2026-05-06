@@ -2,8 +2,8 @@
 import { ref } from 'vue'
 import { useI18n } from '../../i18n'
 import { accessToken } from '../../composables/useUserAuth'
-import TechCard from '../TechCard.vue'
-import { User, Save } from 'lucide-vue-next'
+import AvatarInitials from '../AvatarInitials.vue'
+import { User, Save, CircleCheck, CircleAlert, Shield, Globe, MapPin } from 'lucide-vue-next'
 
 const props = defineProps({
   profile: { type: Object, default: null }
@@ -67,49 +67,128 @@ defineExpose({ initProfileForm })
 </script>
 
 <template>
-  <TechCard variant="blue" padded>
-    <h2 class="text-lg font-bold text-base-content/80 mb-5 flex items-center gap-2">
-      <User :size="20" />
-      {{ t('user.profile') }}
-    </h2>
-    <div v-if="profileMsg" :class="['p-3 rounded-xl mb-4 text-sm font-medium', profileMsgType === 'success' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20']">
-      {{ profileMsg }}
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- ===== COL 1-2: Form ===== -->
+    <div class="lg:col-span-2">
+      <div class="bg-base-100 border border-base-300/20 rounded-2xl shadow-sm overflow-hidden">
+        <div class="p-6">
+          <div v-if="profileMsg" :class="[
+            'flex items-center gap-2 px-4 py-3 rounded-xl mb-5 text-sm font-medium',
+            profileMsgType === 'success'
+              ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+              : 'bg-red-500/10 text-red-400 border border-red-500/20'
+          ]">
+            <CircleCheck v-if="profileMsgType === 'success'" :size="16" />
+            <CircleAlert v-else :size="16" />
+            <span>{{ profileMsg }}</span>
+          </div>
+
+          <form @submit.prevent="saveProfile" class="space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-1.5">{{ t('user.name') }}</label>
+                <input
+                  v-model="profileForm.name"
+                  type="text"
+                  :placeholder="t('user.name_placeholder')"
+                  class="w-full px-4 py-3 bg-base-200 border border-base-300/20 rounded-xl text-sm text-base-content placeholder:text-base-content/25 focus:bg-base-100 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:outline-none transition-all duration-200"
+                  autocomplete="name"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-1.5">{{ t('user.email') }}</label>
+                <input
+                  v-model="profileForm.email"
+                  type="email"
+                  :placeholder="t('user.email_placeholder')"
+                  class="w-full px-4 py-3 bg-base-200 border border-base-300/20 rounded-xl text-sm text-base-content placeholder:text-base-content/25 focus:bg-base-100 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:outline-none transition-all duration-200"
+                  autocomplete="email"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-1.5">{{ t('user.website') }}</label>
+                <input
+                  v-model="profileForm.website"
+                  type="url"
+                  :placeholder="t('user.website_placeholder')"
+                  class="w-full px-4 py-3 bg-base-200 border border-base-300/20 rounded-xl text-sm text-base-content placeholder:text-base-content/25 focus:bg-base-100 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:outline-none transition-all duration-200"
+                  autocomplete="url"
+                />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-1.5">{{ t('user.location') }}</label>
+                <input
+                  v-model="profileForm.location"
+                  type="text"
+                  :placeholder="t('user.location_placeholder')"
+                  class="w-full px-4 py-3 bg-base-200 border border-base-300/20 rounded-xl text-sm text-base-content placeholder:text-base-content/25 focus:bg-base-100 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:outline-none transition-all duration-200"
+                  autocomplete="address-level2"
+                />
+              </div>
+              <div class="sm:col-span-2">
+                <label class="block text-xs font-semibold text-base-content/50 uppercase tracking-wider mb-1.5">{{ t('user.bio') }}</label>
+                <textarea
+                  v-model="profileForm.bio"
+                  :placeholder="t('user.bio_placeholder')"
+                  rows="3"
+                  class="w-full px-4 py-3 bg-base-200 border border-base-300/20 rounded-xl text-sm text-base-content placeholder:text-base-content/25 focus:bg-base-100 focus:border-primary/40 focus:ring-2 focus:ring-primary/10 focus:outline-none transition-all duration-200 resize-none"
+                ></textarea>
+              </div>
+            </div>
+            <div class="flex pt-2">
+              <button
+                type="submit"
+                :disabled="profileSaving"
+                class="inline-flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-content rounded-xl px-6 py-3 font-semibold text-sm shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:hover:shadow-primary/20"
+              >
+                <span v-if="profileSaving" class="loading loading-spinner loading-xs"></span>
+                <Save v-else :size="16" />
+                {{ profileSaving ? t('admin.settings_saving') : t('user.save_changes') }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
-    <form @submit.prevent="saveProfile" class="space-y-4">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.name') }}</label>
-          <input v-model="profileForm.name" type="text" :placeholder="t('user.name_placeholder')"
-            class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
+
+    <!-- ===== COL 3: Sidebar ===== -->
+    <div class="space-y-4">
+      <!-- Avatar preview -->
+      <div class="bg-base-100 border border-base-300/20 rounded-2xl p-5 shadow-sm text-center">
+        <div class="flex justify-center mb-3">
+          <AvatarInitials :name="profileForm.name || 'You'" size="lg" />
         </div>
-        <div>
-          <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.email') }}</label>
-          <input v-model="profileForm.email" type="email" :placeholder="t('user.email_placeholder')"
-            class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
-        </div>
-        <div class="sm:col-span-2">
-          <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.bio') }}</label>
-          <textarea v-model="profileForm.bio" :placeholder="t('user.bio_placeholder')" rows="3"
-            class="textarea textarea-bordered w-full bg-base-100 border-base-300/30 rounded-xl resize-none"></textarea>
-        </div>
-        <div>
-          <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.website') }}</label>
-          <input v-model="profileForm.website" type="url" :placeholder="t('user.website_placeholder')"
-            class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
-        </div>
-        <div>
-          <label class="label text-sm font-medium text-base-content/70 pb-1">{{ t('user.location') }}</label>
-          <input v-model="profileForm.location" type="text" :placeholder="t('user.location_placeholder')"
-            class="input input-bordered w-full bg-base-100 border-base-300/30 rounded-xl" />
-        </div>
+        <p class="text-sm font-semibold text-base-content">{{ profileForm.name || '—' }}</p>
+        <p class="text-xs text-base-content/40 truncate">{{ profileForm.email || '—' }}</p>
+        <p v-if="profileForm.location" class="text-xs text-base-content/30 mt-1 flex items-center justify-center gap-1">
+          <MapPin :size="11" /> {{ profileForm.location }}
+        </p>
+        <p v-if="profileForm.website" class="text-xs text-primary mt-1 flex items-center justify-center gap-1 truncate">
+          <Globe :size="11" /> {{ profileForm.website }}
+        </p>
       </div>
-      <div class="pt-2">
-        <button type="submit" :disabled="profileSaving" class="btn btn-primary rounded-xl">
-          <span v-if="profileSaving" class="loading loading-spinner loading-xs"></span>
-          <Save v-else :size="16" />
-          {{ profileSaving ? t('admin.settings_saving') : t('user.save_changes') }}
-        </button>
+
+      <!-- Tips card -->
+      <div class="bg-base-100 border border-base-300/20 rounded-2xl p-5 shadow-sm">
+        <h3 class="text-sm font-bold text-base-content flex items-center gap-2 mb-3">
+          <Shield :size="16" class="text-primary/60" />
+          {{ t('user.profile_tips') || 'Profile Tips' }}
+        </h3>
+        <ul class="space-y-2 text-xs text-base-content/50">
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.tip_name') || 'Use your real name to help others recognize you.' }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.tip_bio') || 'A good bio helps people know what you do.' }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.tip_link') || 'Add your website to showcase your work.' }}
+          </li>
+        </ul>
       </div>
-    </form>
-  </TechCard>
+    </div>
+  </div>
 </template>

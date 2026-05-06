@@ -39,23 +39,12 @@ onMounted(async () => {
 <template>
   <!-- Loading skeleton -->
   <div v-if="loading" class="space-y-6">
-    <!-- Avatar + name skeleton -->
-    <div class="flex items-center gap-4 mb-4">
-      <div class="skeleton w-16 h-16 rounded-full"></div>
-      <div class="space-y-2">
-        <div class="skeleton h-5 w-32 rounded"></div>
-        <div class="skeleton h-4 w-48 rounded"></div>
-      </div>
-    </div>
-    <!-- Form fields skeleton -->
-    <div class="space-y-4">
-      <div class="skeleton h-12 rounded-xl"></div>
-      <div class="skeleton h-12 rounded-xl"></div>
-      <div class="skeleton h-24 rounded-xl"></div>
-      <div class="skeleton h-12 rounded-xl"></div>
-    </div>
-    <!-- Save button skeleton -->
-    <div class="skeleton h-10 w-28 rounded-xl mt-6"></div>
+    <div class="skeleton h-8 w-40 rounded-lg"></div>
+    <div class="skeleton h-12 rounded-xl"></div>
+    <div class="skeleton h-12 rounded-xl"></div>
+    <div class="skeleton h-24 rounded-xl"></div>
+    <div class="skeleton h-12 rounded-xl"></div>
+    <div class="skeleton h-10 w-32 rounded-xl"></div>
   </div>
   <div v-else-if="error" class="text-center py-20 text-red-400">{{ error }}</div>
   <UserProfile

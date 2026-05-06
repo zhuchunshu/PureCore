@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from '../i18n'
 import { useSEO } from '../composables/useSEO'
 import { setTokens, accessToken } from '../composables/useUserAuth'
@@ -14,6 +14,8 @@ useSEO({
   description: t('user.register_title'),
 })
 const router = useRouter()
+const route = useRoute()
+const redirectTo = typeof route.query.redirect === 'string' ? route.query.redirect : '/dashboard'
 const name = ref('')
 const email = ref('')
 const password = ref('')
@@ -39,7 +41,7 @@ const telegramProvider = computed(() =>
 
 onMounted(async () => {
   if (accessToken.value) {
-    router.push('/')
+    router.push(redirectTo)
     return
   }
   // Fetch available OAuth providers for register buttons
@@ -81,7 +83,7 @@ async function register() {
     if (json.code === 0) {
       setTokens(json.data.token, json.data.refresh_token)
       localStorage.setItem('user_profile', JSON.stringify({ name: json.data.name, email: json.data.email }))
-      router.push('/')
+      router.push(redirectTo)
     } else {
       errMsg.value = json.message || t('user.register_failed')
     }
@@ -238,12 +240,12 @@ async function register() {
                   v-for="provider in registerProviders"
                   :key="provider.name"
                   :provider="provider"
-                  :redirect="'/'"
+                  :redirect="redirectTo"
                 />
                 <OAuthButton
                   v-if="telegramProvider"
                   :provider="telegramProvider"
-                  :redirect="'/'"
+                  :redirect="redirectTo"
                 />
               </div>
             </div>

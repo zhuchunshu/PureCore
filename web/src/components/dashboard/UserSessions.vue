@@ -3,13 +3,12 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from '../../i18n'
 import { userAPI } from '../../services/api'
 import { useToast } from '../../composables/useToast'
-import TechCard from '../TechCard.vue'
 import { IconBrandGithub, IconBrandGoogle, IconBrandApple, IconBrandTelegram, IconBrandDiscord } from '@tabler/icons-vue'
 import {
   Smartphone, Tablet, Monitor,
   Globe, Compass,
   Apple, Terminal,
-  Trash2, ShieldX, Key
+  Trash2, ShieldX, Key, ShieldCheck
 } from 'lucide-vue-next'
 
 const { t } = useI18n()
@@ -20,7 +19,6 @@ const loading = ref(true)
 const revokingId = ref(null)
 const revokingAll = ref(false)
 
-// Icons for device type
 const deviceIcon = (type) => {
   switch (type) {
     case 'mobile': return Smartphone
@@ -29,7 +27,6 @@ const deviceIcon = (type) => {
   }
 }
 
-// Icons for browser — most browsers map to Globe, Safari to Compass
 const browserIcon = (browser) => {
   switch (browser?.toLowerCase()) {
     case 'safari': return Compass
@@ -37,7 +34,6 @@ const browserIcon = (browser) => {
   }
 }
 
-// Icons for OS
 const osIcon = (os) => {
   switch (os?.toLowerCase()) {
     case 'macos':
@@ -48,7 +44,6 @@ const osIcon = (os) => {
   }
 }
 
-// Build device model display string
 const deviceModelDisplay = (session) => {
   const parts = []
   if (session.device_brand) parts.push(session.device_brand)
@@ -56,17 +51,14 @@ const deviceModelDisplay = (session) => {
   return parts.length > 0 ? parts.join(' ') : t('user.session_unknown_device')
 }
 
-// Browser name or fallback
 const browserDisplay = (session) => {
   return session.browser || t('user.session_unknown_browser')
 }
 
-// OS name or fallback
 const osDisplay = (session) => {
   return session.os || t('user.session_unknown_os')
 }
 
-// OAuth provider icon mapping
 const providerIconMap = {
   github: IconBrandGithub,
   google: IconBrandGoogle,
@@ -90,7 +82,6 @@ const loginProviderDisplay = (provider) => {
   return providerDisplayMap[provider] || provider
 }
 
-// Simple template replacement for {n} (i18n does not support parameter interpolation)
 const tp = (key, replacements) => {
   let text = t(key)
   for (const [k, v] of Object.entries(replacements)) {
@@ -99,31 +90,27 @@ const tp = (key, replacements) => {
   return text
 }
 
-// Format relative time (past: "3m ago", future: "6天后")
 const formatRelativeTime = (dateStr) => {
   if (!dateStr) return ''
   const date = new Date(dateStr)
   const now = new Date()
-  const diff = date - now                     // positive = future, negative = past
+  const diff = date - now
   const absDiff = Math.abs(diff)
 
   if (absDiff < 60000) return t('user.just_now')
 
   if (diff > 0) {
-    // Future
     const hours = Math.ceil(absDiff / 3600000)
     if (hours < 48) return tp('user.in_hours', { n: hours })
     const days = Math.ceil(absDiff / 86400000)
     return tp('user.in_days', { n: days })
   }
 
-  // Past
   if (absDiff < 3600000) return Math.floor(absDiff / 60000) + 'm ago'
   if (absDiff < 86400000) return Math.floor(absDiff / 3600000) + 'h ago'
   return date.toLocaleDateString()
 }
 
-// Fetch sessions from API
 const fetchSessions = async () => {
   loading.value = true
   try {
@@ -143,7 +130,6 @@ const fetchSessions = async () => {
   }
 }
 
-// Revoke a single session
 const revokeSession = async (id) => {
   if (revokingId.value) return
   if (!window.confirm(t('user.session_revoke_confirm'))) return
@@ -167,7 +153,6 @@ const revokeSession = async (id) => {
   }
 }
 
-// Revoke all sessions except current
 const revokeAll = async () => {
   if (revokingAll.value) return
   if (!window.confirm(t('user.session_revoke_all_confirm'))) return
@@ -195,137 +180,159 @@ onMounted(fetchSessions)
 </script>
 
 <template>
-  <TechCard variant="blue" padded>
-    <!-- Header -->
-    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
-      <div>
-        <h2 class="text-lg font-bold text-base-content/80 flex items-center gap-2">
-          <Smartphone :size="20" />
-          {{ t('user.sessions') }}
-        </h2>
-        <p class="text-sm text-base-content/50 mt-0.5">{{ t('user.sessions_description') }}</p>
-      </div>
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- ===== COL 1-2: Main ===== -->
+    <div class="lg:col-span-2 space-y-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <p class="text-sm text-base-content/40">{{ t('user.sessions_description') }}</p>
       <button
-        class="btn btn-ghost btn-sm rounded-xl text-red-400 hover:bg-red-500/10"
+        class="inline-flex items-center gap-2 text-red-400 hover:text-red-500 hover:bg-red-500/10 rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 cursor-pointer disabled:opacity-40"
         :disabled="revokingAll || sessions.filter(s => !s.is_current).length === 0"
         @click="revokeAll"
       >
         <span v-if="revokingAll" class="loading loading-spinner loading-xs"></span>
-        <ShieldX v-else :size="14" class="mr-1" />
+        <ShieldX v-else :size="15" />
         {{ t('user.revoke_all') }}
       </button>
     </div>
 
-    <!-- Loading skeleton -->
-    <div v-if="loading" class="space-y-3 py-2">
-      <div v-for="i in 4" :key="i" class="flex items-center gap-3 p-3 rounded-xl bg-base-200/50">
-        <div class="skeleton w-10 h-10 rounded-lg shrink-0"></div>
-        <div class="flex-1 space-y-2">
-          <div class="skeleton h-4 w-3/5 rounded"></div>
-          <div class="flex gap-3">
-            <div class="skeleton h-3 w-20 rounded"></div>
-            <div class="skeleton h-3 w-24 rounded"></div>
-            <div class="skeleton h-3 w-16 rounded"></div>
-          </div>
-          <div class="flex gap-2">
-            <div class="skeleton h-3 w-16 rounded"></div>
-            <div class="skeleton h-3 w-24 rounded"></div>
+    <!-- Card -->
+    <div class="bg-base-100 border border-base-300/20 rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-6">
+        <!-- Loading skeleton -->
+        <div v-if="loading" class="space-y-3">
+          <div v-for="i in 4" :key="i" class="flex items-center gap-3 p-3 rounded-xl bg-base-200/40">
+            <div class="skeleton w-10 h-10 rounded-lg shrink-0"></div>
+            <div class="flex-1 space-y-2">
+              <div class="skeleton h-4 w-3/5 rounded"></div>
+              <div class="flex gap-2">
+                <div class="skeleton h-3 w-20 rounded"></div>
+                <div class="skeleton h-3 w-24 rounded"></div>
+              </div>
+              <div class="skeleton h-3 w-16 rounded"></div>
+            </div>
+            <div class="skeleton h-8 w-8 rounded-lg shrink-0"></div>
           </div>
         </div>
-        <div class="skeleton h-8 w-8 rounded-lg shrink-0"></div>
+
+        <!-- Empty state -->
+        <div v-else-if="sessions.length === 0" class="text-center py-16">
+          <div class="w-16 h-16 mx-auto mb-4 rounded-2xl bg-base-200 flex items-center justify-center">
+            <Smartphone :size="32" class="text-base-content/20" />
+          </div>
+          <p class="text-sm font-medium text-base-content/30">{{ t('user.no_sessions') }}</p>
+        </div>
+
+        <!-- Session list -->
+        <div v-else class="space-y-2">
+          <div
+            v-for="session in sessions"
+            :key="session.id"
+            class="flex items-center gap-3 p-3 rounded-xl bg-base-200/40 hover:bg-base-200 transition-colors group"
+            :class="{ 'ring-1 ring-primary/20 bg-primary/5': session.is_current }"
+          >
+            <!-- Device type icon -->
+            <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-base-300/40 flex items-center justify-center">
+              <component :is="deviceIcon(session.device_type)" :size="20" class="text-base-content/40" />
+            </div>
+
+            <!-- Session details -->
+            <div class="flex-1 min-w-0">
+              <!-- Top row: browser · OS + provider + current badge -->
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-medium text-base-content/80">
+                  {{ browserDisplay(session) }}
+                  <span class="text-base-content/30 mx-1">·</span>
+                  {{ osDisplay(session) }}
+                </span>
+                <span
+                  v-if="session.login_provider"
+                  class="inline-flex items-center gap-1 text-xs text-base-content/40 bg-base-200 px-2 py-0.5 rounded-md"
+                >
+                  <component :is="loginProviderIcon(session.login_provider)" :size="10" />
+                  {{ loginProviderDisplay(session.login_provider) }}
+                </span>
+                <span
+                  v-else
+                  class="inline-flex items-center gap-1 text-xs text-base-content/40 bg-base-200 px-2 py-0.5 rounded-md"
+                >
+                  <Key :size="10" />
+                  {{ t('user.login_method_password') }}
+                </span>
+                <span
+                  v-if="session.is_current"
+                  class="inline-flex items-center text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md"
+                >
+                  {{ t('user.current_session') }}
+                </span>
+              </div>
+
+              <!-- Second row: IP, device model -->
+              <div class="flex items-center gap-3 mt-1 text-xs text-base-content/40 flex-wrap">
+                <span class="inline-flex items-center gap-1">
+                  <Globe :size="11" />
+                  <code class="font-mono bg-base-200 px-1.5 py-0.5 rounded text-xs">{{ session.ip_address }}</code>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <component :is="deviceIcon(session.device_type)" :size="11" />
+                  <span>{{ deviceModelDisplay(session) }}</span>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <component :is="browserIcon(session.browser)" :size="11" />
+                  <span>{{ browserDisplay(session) }}</span>
+                </span>
+                <span class="inline-flex items-center gap-1">
+                  <component :is="osIcon(session.os)" :size="11" />
+                  <span>{{ osDisplay(session) }}</span>
+                </span>
+              </div>
+
+              <!-- Third row: timestamps -->
+              <div class="flex items-center gap-2 mt-1 text-xs text-base-content/25">
+                <span>{{ formatRelativeTime(session.last_activity) }}</span>
+                <span>·</span>
+                <span>{{ t('user.session_expires') }}: {{ formatRelativeTime(session.expires_at) }}</span>
+              </div>
+            </div>
+
+            <!-- Revoke button -->
+            <button
+              v-if="!session.is_current"
+              class="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-500 hover:bg-red-500/10 p-2 rounded-lg cursor-pointer disabled:opacity-40"
+              :disabled="revokingId === session.id"
+              @click="revokeSession(session.id)"
+            >
+              <span v-if="revokingId === session.id" class="loading loading-spinner loading-xs"></span>
+              <Trash2 v-else :size="15" />
+            </button>
+          </div>
+        </div>
       </div>
     </div>
-
-    <!-- Empty state -->
-    <div v-else-if="sessions.length === 0" class="text-center py-10 text-base-content/40">
-      <Smartphone :size="48" class="mx-auto mb-2 opacity-30" />
-      <span class="text-sm">{{ t('user.no_sessions') }}</span>
     </div>
 
-    <!-- Session list -->
-    <div v-else class="space-y-3">
-      <div
-        v-for="session in sessions"
-        :key="session.id"
-        class="flex items-center gap-3 p-3 rounded-xl bg-base-200/50 hover:bg-base-200 transition-colors group"
-        :class="{ 'ring-1 ring-primary/20': session.is_current }"
-      >
-        <!-- Device type icon -->
-        <div class="flex-shrink-0 w-10 h-10 rounded-lg bg-base-300/50 flex items-center justify-center">
-          <component :is="deviceIcon(session.device_type)" :size="20" class="text-base-content/50" />
-        </div>
-
-        <!-- Session details -->
-        <div class="flex-1 min-w-0">
-          <!-- Top row: browser · OS + login provider + current badge -->
-          <div class="flex items-center gap-2 flex-wrap">
-            <span class="text-sm font-medium text-base-content/80 truncate">
-              {{ browserDisplay(session) }}
-              <span class="text-base-content/40 mx-1">·</span>
-              {{ osDisplay(session) }}
-            </span>
-            <span
-              v-if="session.login_provider"
-              class="badge badge-xs badge-outline !rounded-md gap-1"
-            >
-              <component :is="loginProviderIcon(session.login_provider)" :size="10" />
-              {{ loginProviderDisplay(session.login_provider) }}
-            </span>
-            <span
-              v-else
-              class="badge badge-xs badge-ghost !rounded-md gap-1"
-            >
-              <Key :size="10" />
-              {{ t('user.login_method_password') }}
-            </span>
-            <span
-              v-if="session.is_current"
-              class="badge badge-xs badge-primary !rounded-md"
-            >
-              {{ t('user.current_session') }}
-            </span>
-          </div>
-
-          <!-- Second row: IP, device model, browser, OS icons -->
-          <div class="flex items-center gap-3 mt-1 text-xs text-base-content/40 flex-wrap">
-            <span class="inline-flex items-center gap-1">
-              <Globe :size="12" />
-              <code class="font-mono bg-base-300/50 px-1.5 py-0.5 rounded">{{ session.ip_address }}</code>
-            </span>
-            <span class="inline-flex items-center gap-1">
-              <component :is="deviceIcon(session.device_type)" :size="12" />
-              <span>{{ deviceModelDisplay(session) }}</span>
-            </span>
-            <span class="inline-flex items-center gap-1">
-              <component :is="browserIcon(session.browser)" :size="12" />
-              <span>{{ browserDisplay(session) }}</span>
-            </span>
-            <span class="inline-flex items-center gap-1">
-              <component :is="osIcon(session.os)" :size="12" />
-              <span>{{ osDisplay(session) }}</span>
-            </span>
-          </div>
-
-          <!-- Third row: timestamps -->
-          <div class="flex items-center gap-2 mt-1 text-xs text-base-content/30">
-            <span>{{ formatRelativeTime(session.last_activity) }}</span>
-            <span>·</span>
-            <span>{{ t('user.session_expires') }}: {{ formatRelativeTime(session.expires_at) }}</span>
-          </div>
-        </div>
-
-        <!-- Revoke button (hidden for current session) -->
-        <button
-          v-if="!session.is_current"
-          class="btn btn-ghost btn-xs rounded-lg text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
-          :disabled="revokingId === session.id"
-          @click="revokeSession(session.id)"
-        >
-          <span v-if="revokingId === session.id" class="loading loading-spinner loading-xs"></span>
-          <Trash2 v-else :size="14" />
-          <span class="ml-1">{{ t('user.revoke') }}</span>
-        </button>
+    <!-- ===== COL 3: Sidebar ===== -->
+    <div class="space-y-4">
+      <div class="bg-base-100 border border-base-300/20 rounded-2xl p-5 shadow-sm">
+        <h3 class="text-sm font-bold text-base-content flex items-center gap-2 mb-3">
+          <ShieldCheck :size="16" class="text-primary/60" />
+          {{ t('user.session_info') }}
+        </h3>
+        <ul class="space-y-2 text-xs text-base-content/50">
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.session_info_current') }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.session_info_revoke') }}
+          </li>
+          <li class="flex items-start gap-2">
+            <span class="w-1 h-1 rounded-full bg-primary/40 mt-1.5 shrink-0"></span>
+            {{ t('user.session_info_revoke_all') }}
+          </li>
+        </ul>
       </div>
     </div>
-  </TechCard>
+  </div>
 </template>

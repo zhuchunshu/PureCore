@@ -22,7 +22,7 @@ const provider = ref(route.query.provider || route.params.provider || '')
 const oauthName = ref(route.query.name || '')
 const oauthEmail = ref(route.query.email || '')
 const oauthAvatar = ref(route.query.avatar_url || '')
-const redirectTo = ref(route.query.redirect || '/')
+const redirectTo = ref(route.query.redirect || '/dashboard')
 const currentUserName = ref(route.query.current_user_name || '')
 const currentUserEmail = ref(route.query.current_user_email || '')
 
@@ -103,7 +103,7 @@ function processExchangeResult(data) {
         if (data.name && data.email) {
           localStorage.setItem('user_profile', JSON.stringify({ name: data.name, email: data.email }))
         }
-        router.replace(data.redirect || redirectTo.value || '/')
+        router.replace(data.redirect || redirectTo.value || '/dashboard')
       } else {
         error.value = t('oauth.callback_failed')
         loading.value = false
@@ -111,7 +111,7 @@ function processExchangeResult(data) {
       break
     case 'bound':
       // Bound to existing logged-in session (legacy, kept for backward compat)
-      router.replace(data.redirect || redirectTo.value || '/')
+      router.replace(data.redirect || redirectTo.value || '/dashboard')
       break
     case 'logged_in':
       // User is already logged in — show bind confirmation
@@ -120,7 +120,7 @@ function processExchangeResult(data) {
       oauthName.value = data.name || ''
       oauthEmail.value = data.email || ''
       oauthAvatar.value = data.avatar_url || ''
-      redirectTo.value = data.redirect || redirectTo.value || '/'
+      redirectTo.value = data.redirect || redirectTo.value || '/dashboard'
       if (data.current_user) {
         currentUserName.value = data.current_user.name || ''
         currentUserEmail.value = data.current_user.email || ''
@@ -135,7 +135,7 @@ function processExchangeResult(data) {
       oauthName.value = data.name || ''
       oauthEmail.value = data.email || ''
       oauthAvatar.value = data.avatar_url || ''
-      redirectTo.value = data.redirect || redirectTo.value || '/'
+      redirectTo.value = data.redirect || redirectTo.value || '/dashboard'
       loading.value = false
       mode.value = 'choose'
       break
@@ -169,7 +169,7 @@ async function bindAccount() {
   bindError.value = ''
   try {
     await bindOAuth(linkToken.value)
-    router.replace(redirectTo.value || '/')
+    router.replace(redirectTo.value || '/dashboard')
   } catch (err) {
     bindError.value = err.message || t('oauth.bind_failed')
     bindLoading.value = false
@@ -177,7 +177,7 @@ async function bindAccount() {
 }
 
 function cancelBind() {
-  router.replace(redirectTo.value || '/')
+  router.replace(redirectTo.value || '/dashboard')
 }
 
 // --- Unlinked account options ---
