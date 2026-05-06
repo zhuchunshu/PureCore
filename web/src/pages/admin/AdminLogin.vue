@@ -31,6 +31,11 @@ onMounted(async () => {
     return
   }
 
+  // Show session expired message if redirected from a 401
+  if (route.query.reason === 'session_expired') {
+    errMsg.value = t('auth.session_expired')
+  }
+
   try {
     const resp = await fetch(`/api/v1/${adminPrefix}/auth/check`)
     const json = await resp.json()

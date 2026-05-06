@@ -15,6 +15,7 @@
     "logout_success": "登出成功",
     "token_invalid": "令牌无效",
     "token_expired": "令牌已过期",
+    "session_expired": "登录会话已过期，请重新登录",
     "token_required": "需要提供认证令牌"
   },
   "user": {

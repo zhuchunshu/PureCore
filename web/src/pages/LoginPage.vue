@@ -41,6 +41,10 @@ onMounted(async () => {
     router.push(route.query.redirect || '/')
     return
   }
+  // Show session expired message if redirected from a 401
+  if (route.query.reason === 'session_expired') {
+    errMsg.value = t('auth.session_expired')
+  }
   // Fetch available OAuth providers for login buttons
   try {
     await fetchProviders()

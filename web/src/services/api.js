@@ -141,7 +141,7 @@ export function createApiService({ type = 'admin' } = {}) {
       } catch (err) {
         console.error(`[api:${type}] Token refresh failed:`, err)
       }
-      // Refresh failed — clear everything and redirect with return URL
+      // Refresh failed — clear everything and redirect with return URL + reason
       if (!isRedirecting) {
         isRedirecting = true
         clearTokens()
@@ -149,7 +149,10 @@ export function createApiService({ type = 'admin' } = {}) {
         const currentPath = router.currentRoute.value.fullPath
         router.push({
           path: loginPath,
-          query: currentPath !== loginPath ? { redirect: currentPath } : {}
+          query: {
+            reason: 'session_expired',
+            ...(currentPath !== loginPath ? { redirect: currentPath } : {}),
+          },
         })
       }
       return null
@@ -231,6 +234,13 @@ export function createApiService({ type = 'admin' } = {}) {
       const resp = await fetch(profileUrl, {
         headers: { Authorization: `Bearer ${accessToken.value}` },
       })
+      if (resp.status === 401) {
+        clearTokens()
+        const router = useRouter()
+        const currentPath = router.currentRoute.value.fullPath
+        router.push({ path: loginPath, query: { reason: 'session_expired', redirect: currentPath } })
+        return null
+      }
       const json = await resp.json()
       if (json.code === 0) {
         currentUser.value = json.data

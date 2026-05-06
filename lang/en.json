@@ -15,6 +15,7 @@
     "logout_success": "Logout successful",
     "token_invalid": "Invalid token",
     "token_expired": "Token expired",
+    "session_expired": "Your session has expired. Please log in again.",
     "token_required": "Authentication token required"
   },
   "user": {
