@@ -5,6 +5,7 @@ import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { useOAuth } from '../../composables/useOAuth'
 import { setTokens as setUserTokens } from '../../composables/useUserAuth'
+import PureCoreLoading from '../../components/PureCoreLoading.vue'
 import { IconExclamationCircle, IconCircleCheck, IconUserPlus, IconLogin2, IconLink, IconX } from '@tabler/icons-vue'
 
 const { t } = useI18n()
@@ -235,13 +236,8 @@ const providerDisplay = computed(() => {
     <div class="absolute bottom-1/4 -right-20 w-96 h-96 bg-secondary/15 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
 
     <div class="relative z-10 w-full max-w-lg mx-auto px-4 py-8">
-      <!-- Loading skeleton -->
-      <template v-if="loading">
-        <div class="skeleton h-28 rounded-2xl mb-8"></div>
-        <div class="skeleton h-12 w-2/3 rounded-xl mb-4"></div>
-        <div class="skeleton h-12 w-1/2 rounded-xl mb-4"></div>
-        <div class="skeleton h-48 rounded-2xl"></div>
-      </template>
+      <!-- Branded loading state -->
+      <PureCoreLoading v-if="loading" :text="t('oauth.callback_processing')" />
 
       <!-- Error state -->
       <div v-else-if="error" class="card bg-base-100/80 border border-base-300/20 shadow-xl p-8 text-center">
