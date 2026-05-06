@@ -2,6 +2,7 @@ package models
 
 import (
 	"purecore/core"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -13,8 +14,9 @@ type AdminUser struct {
 	Password     string `gorm:"type:varchar(255);not null" json:"-"`
 	Name         string `gorm:"type:varchar(100);not null" json:"name"`
 	Role         string `gorm:"type:varchar(50);default:'admin'" json:"role"`
-	RefreshToken string `gorm:"type:varchar(255);default:''" json:"-"`
-	TokenVersion int    `gorm:"default:0" json:"-"`
+	RefreshToken       string     `gorm:"type:varchar(255);default:''" json:"-"`
+	RefreshTokenExpiry *time.Time `gorm:"index" json:"-"`
+	TokenVersion       int        `gorm:"default:0" json:"-"`
 }
 
 // SetPassword hashes the password using bcrypt and stores it

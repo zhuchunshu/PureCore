@@ -4,6 +4,7 @@ import (
 	middleware "purecore/app/Http/Middleware"
 	models "purecore/app/Models"
 	"purecore/core"
+	"time"
 )
 
 type AdminAuthController struct{}
@@ -20,13 +21,6 @@ func (ac *AdminAuthController) Login(req *core.Request, res *core.Response) erro
 	if err := req.Validate(&body); err != nil {
 		return res.Error("Invalid credentials", 422)
 	}
-
-	// Verify Turnstile if enabled for admin login (temporarily disabled for testing)
-	// if core.IsTurnstileEnabled("turnstile_admin_login") {
-	// 	if err := core.VerifyTurnstile(body.TurnstileToken); err != nil {
-	// 		return res.Error("Captcha verification failed: "+err.Error(), 422)
-	// 	}
-	// }
 
 	var admin models.AdminUser
 	if err := core.DB().Where("username = ?", body.Username).First(&admin).Error; err != nil {
@@ -47,8 +41,11 @@ func (ac *AdminAuthController) Login(req *core.Request, res *core.Response) erro
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
 	}
 
-	// Save the refresh token in the database
-	core.DB().Model(&admin).Update("refresh_token", refreshToken)
+	// Save the refresh token in the database with expiry
+	core.DB().Model(&admin).Updates(map[string]interface{}{
+		"refresh_token":        refreshToken,
+		"refresh_token_expiry": time.Now().Add(middleware.RefreshTokenExpiry()),
+	})
 
 	return res.Success(map[string]interface{}{
 		"token":         accessToken,
@@ -85,8 +82,6 @@ func (ac *AdminAuthController) CheckAdminExists(req *core.Request, res *core.Res
 }
 
 // CreateAdmin creates a new admin user.
-// First admin gets "super_admin" role; subsequent creations require authentication
-// and assign the "admin" role.
 func (ac *AdminAuthController) CreateAdmin(req *core.Request, res *core.Response) error {
 	var body struct {
 		Username       string `json:"username" validate:"required,min=3"`
@@ -98,29 +93,6 @@ func (ac *AdminAuthController) CreateAdmin(req *core.Request, res *core.Response
 		return res.Error(err.Error(), 422)
 	}
 
-	// Verify Turnstile if enabled for admin register (temporarily disabled for testing)
-	// if core.IsTurnstileEnabled("turnstile_admin_register") {
-	// 	if err := core.VerifyTurnstile(body.TurnstileToken); err != nil {
-	// 		return res.Error("Captcha verification failed: "+err.Error(), 422)
-	// 	}
-	// }
-
-	// TEMPORARY: Skip admin count check for testing purposes
-	// // Check how many admins exist
-	// var count int64
-	// core.DB().Model(&models.AdminUser{}).Count(&count)
-	//
-	// // First admin gets super_admin, subsequent require existing admin auth
-	// role := "admin"
-	// if count == 0 {
-	// 	role = "super_admin"
-	// } else {
-	// 	// If admins already exist, only allow authenticated admins to create
-	// 	adminID := middleware.GetAdminUserID(req.Ctx())
-	// 	if adminID == 0 {
-	// 		return res.Error(core.GetLang().Trans("admin.registration_disabled"), 403)
-	// 	}
-	// }
 	role := "admin"
 
 	admin := models.AdminUser{
@@ -139,8 +111,11 @@ func (ac *AdminAuthController) CreateAdmin(req *core.Request, res *core.Response
 	accessToken, _ := middleware.GenerateAdminToken(admin.ID, admin.Username, admin.TokenVersion)
 	refreshToken, _ := middleware.GenerateRefreshToken()
 
-	// Save the refresh token in the database
-	core.DB().Model(&admin).Update("refresh_token", refreshToken)
+	// Save the refresh token in the database with expiry
+	core.DB().Model(&admin).Updates(map[string]interface{}{
+		"refresh_token":        refreshToken,
+		"refresh_token_expiry": time.Now().Add(middleware.RefreshTokenExpiry()),
+	})
 
 	return res.Success(map[string]interface{}{
 		"message":       core.GetLang().Trans("admin.register_success"),
@@ -153,7 +128,6 @@ func (ac *AdminAuthController) CreateAdmin(req *core.Request, res *core.Response
 }
 
 // ChangePassword allows authenticated admins to change their password
-// Increments token_version to invalidate all existing tokens across all devices
 func (ac *AdminAuthController) ChangePassword(req *core.Request, res *core.Response) error {
 	var body struct {
 		CurrentPassword string `json:"current_password" validate:"required,min=6"`
@@ -209,6 +183,11 @@ func (ac *AdminAuthController) Refresh(req *core.Request, res *core.Response) er
 		return res.Error(core.GetLang().Trans("admin.invalid_credentials"), 401)
 	}
 
+	// Check if refresh token has expired
+	if admin.RefreshTokenExpiry != nil && time.Now().After(*admin.RefreshTokenExpiry) {
+		return res.Error(core.GetLang().Trans("auth.token_expired"), 401)
+	}
+
 	// Generate new access token
 	accessToken, err := middleware.GenerateAdminToken(admin.ID, admin.Username, admin.TokenVersion)
 	if err != nil {
@@ -220,7 +199,11 @@ func (ac *AdminAuthController) Refresh(req *core.Request, res *core.Response) er
 	if err != nil {
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
 	}
-	core.DB().Model(&admin).Update("refresh_token", newRefreshToken)
+	newExpiry := time.Now().Add(middleware.RefreshTokenExpiry())
+	core.DB().Model(&admin).Updates(map[string]interface{}{
+		"refresh_token":        newRefreshToken,
+		"refresh_token_expiry": newExpiry,
+	})
 
 	return res.Success(map[string]interface{}{
 		"token":         accessToken,
@@ -229,7 +212,6 @@ func (ac *AdminAuthController) Refresh(req *core.Request, res *core.Response) er
 }
 
 // GetAdminRoutePrefix returns the admin route prefix from the config system.
-// This function is kept for backward compatibility.
 func GetAdminRoutePrefix() string {
 	prefix := core.GetConfig().AdminRoutePrefix()
 	if prefix == "" {

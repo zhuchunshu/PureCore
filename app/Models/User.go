@@ -13,8 +13,9 @@ type User struct {
 	Name            string     `gorm:"type:varchar(100);not null" json:"name" validate:"required,min=2"`
 	Email           string     `gorm:"type:varchar(100);uniqueIndex;not null" json:"email" validate:"required,email"`
 	Password        string     `gorm:"type:varchar(255);not null;default:''" json:"-"`
-	RefreshToken    string     `gorm:"type:varchar(255);default:''" json:"-"`
-	TokenVersion    int        `gorm:"default:0" json:"-"`
+	RefreshToken       string     `gorm:"type:varchar(255);default:''" json:"-"`
+	RefreshTokenExpiry *time.Time `gorm:"index" json:"-"`
+	TokenVersion       int        `gorm:"default:0" json:"-"`
 	Avatar          string     `gorm:"type:varchar(500);default:''" json:"avatar"`
 	Bio             string     `gorm:"type:text;default:''" json:"bio"`
 	Status          string     `gorm:"type:varchar(20);default:'active';index" json:"status"`

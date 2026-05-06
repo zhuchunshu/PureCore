@@ -27,14 +27,26 @@ func jwtSecret() string {
 	return secret
 }
 
-// accessTokenExpiry returns the access token expiration duration
+// accessTokenExpiry returns the access token expiration duration.
+// Defaults to 1 hour; can be overridden via JWT_ACCESS_TOKEN_EXPIRY env var (e.g. "2h", "30m").
 func accessTokenExpiry() time.Duration {
-	return 15 * time.Minute
+	if s := core.GetConfig().String("JWT_ACCESS_TOKEN_EXPIRY"); s != "" {
+		if d, err := time.ParseDuration(s); err == nil {
+			return d
+		}
+	}
+	return 1 * time.Hour
 }
 
-// refreshTokenExpiry returns the refresh token expiration duration
-func refreshTokenExpiry() time.Duration {
-	return 7 * 24 * time.Hour
+// RefreshTokenExpiry returns the refresh token expiration duration.
+// Defaults to 30 days; can be overridden via JWT_REFRESH_TOKEN_EXPIRY env var (e.g. "720h", "1440h").
+func RefreshTokenExpiry() time.Duration {
+	if s := core.GetConfig().String("JWT_REFRESH_TOKEN_EXPIRY"); s != "" {
+		if d, err := time.ParseDuration(s); err == nil {
+			return d
+		}
+	}
+	return 30 * 24 * time.Hour
 }
 
 // GenerateRefreshToken creates a cryptographically random refresh token

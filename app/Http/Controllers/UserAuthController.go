@@ -68,8 +68,12 @@ func (uc *UserAuthController) Register(req *core.Request, res *core.Response) er
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
 	}
 
-	// Save the refresh token in the database
-	core.DB().Model(&user).Update("refresh_token", refreshToken)
+	// Save the refresh token in the database with expiry
+	refreshTokenExpiry := time.Now().Add(middleware.RefreshTokenExpiry())
+	core.DB().Model(&user).Updates(map[string]interface{}{
+		"refresh_token":        refreshToken,
+		"refresh_token_expiry": refreshTokenExpiry,
+	})
 
 	// Mark all previous sessions as not current
 	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
@@ -120,8 +124,9 @@ func (uc *UserAuthController) Login(req *core.Request, res *core.Response) error
 	// Save the refresh token and update last login time
 	now := time.Now()
 	core.DB().Model(&user).Updates(map[string]interface{}{
-		"refresh_token": refreshToken,
-		"last_login_at": now,
+		"refresh_token":        refreshToken,
+		"refresh_token_expiry": now.Add(middleware.RefreshTokenExpiry()),
+		"last_login_at":        now,
 	})
 
 	// Mark all previous sessions as not current
@@ -178,6 +183,11 @@ func (uc *UserAuthController) Refresh(req *core.Request, res *core.Response) err
 		return res.Error(core.GetLang().Trans("admin.invalid_credentials"), 401)
 	}
 
+	// Check if refresh token has expired
+	if user.RefreshTokenExpiry != nil && time.Now().After(*user.RefreshTokenExpiry) {
+		return res.Error(core.GetLang().Trans("auth.token_expired"), 401)
+	}
+
 	// Generate new access token
 	accessToken, err := middleware.GenerateUserToken(user.ID, user.Name)
 	if err != nil {
@@ -189,7 +199,11 @@ func (uc *UserAuthController) Refresh(req *core.Request, res *core.Response) err
 	if err != nil {
 		return res.Error(core.GetLang().Trans("admin.token_generate_failed"), 500)
 	}
-	core.DB().Model(&user).Update("refresh_token", newRefreshToken)
+	newExpiry := time.Now().Add(middleware.RefreshTokenExpiry())
+	core.DB().Model(&user).Updates(map[string]interface{}{
+		"refresh_token":        newRefreshToken,
+		"refresh_token_expiry": newExpiry,
+	})
 
 	return res.Success(map[string]interface{}{
 		"token":         accessToken,

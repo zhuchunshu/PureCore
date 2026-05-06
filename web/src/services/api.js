@@ -20,10 +20,10 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { config } from './config'
 
-// Token TTL constants (mirrors backend: 15 min access, 7 day refresh)
-const ACCESS_TOKEN_TTL = 15 * 60 * 1000    // 15 minutes
-const REFRESH_INTERVAL = 5 * 60 * 1000     // Try to refresh every 5 minutes
-const SAFE_REFRESH_MARGIN = 3 * 60 * 1000  // Refresh proactively if token expires within 3 minutes
+// Token TTL constants (mirrors backend: 1h access, 30 day refresh)
+const ACCESS_TOKEN_TTL = 60 * 60 * 1000    // 1 hour
+const REFRESH_INTERVAL = 10 * 60 * 1000    // Try to refresh every 10 minutes
+const SAFE_REFRESH_MARGIN = 10 * 60 * 1000 // Refresh proactively if token expires within 10 minutes
 
 /**
  * Creates an API service instance for the given auth type.

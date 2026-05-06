@@ -732,8 +732,9 @@ func (c *OAuthController) loginUser(req *core.Request, res *core.Response, user 
 
 	now := time.Now()
 	core.DB().Model(user).Updates(map[string]interface{}{
-		"refresh_token": refreshToken,
-		"last_login_at": now,
+		"refresh_token":        refreshToken,
+		"refresh_token_expiry": now.Add(middleware.RefreshTokenExpiry()),
+		"last_login_at":        now,
 	})
 
 	// Mark all previous sessions as not current
@@ -768,8 +769,9 @@ func (c *OAuthController) loginWithRedirect(req *core.Request, res *core.Respons
 
 	now := time.Now()
 	core.DB().Model(user).Updates(map[string]interface{}{
-		"refresh_token": refreshToken,
-		"last_login_at": now,
+		"refresh_token":        refreshToken,
+		"refresh_token_expiry": now.Add(middleware.RefreshTokenExpiry()),
+		"last_login_at":        now,
 	})
 
 	core.DB().Model(&models.UserSession{}).Where("user_id = ?", user.ID).Updates(map[string]interface{}{"is_current": false})
