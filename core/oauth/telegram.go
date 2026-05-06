@@ -41,15 +41,10 @@ func (p *TelegramProvider) IsOAuth2() bool {
 	return false
 }
 
-// BotUsername returns the bot username derived from the bot_token.
-// Telegram bot tokens are in the format "123456:ABC...", the part before ":"
-// is the bot's numeric ID, but we need the bot's @username for the widget.
-// The username cannot be derived from the token alone, so this returns
-// the configured redirect_url's bot username if available, or empty string.
+// BotUsername returns the bot username as configured in the admin panel.
+// This is required for the Telegram login widget to work correctly.
 func (p *TelegramProvider) BotUsername() string {
-	// The bot username cannot be derived from the token alone.
-	// Returns empty — the controller derives it from bot_token.
-	return ""
+	return GetProviderOption(p, "bot_username")
 }
 
 // ConfigFields returns the fields needed for Telegram (no client_id/client_secret, uses bot_token).
@@ -59,6 +54,7 @@ func (p *TelegramProvider) ConfigFields() []ConfigField {
 		{Key: "login_enabled", Label: "admin.oauth_login_enabled", Type: "toggle", Required: false},
 		{Key: "register_enabled", Label: "admin.oauth_register_enabled", Type: "toggle", Required: false},
 		{Key: "bot_token", Label: "admin.oauth_telegram_bot_token", Type: "password", Required: true, Placeholder: "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11", Help: "admin.oauth_telegram_bot_token_help"},
+		{Key: "bot_username", Label: "admin.oauth_telegram_bot_username", Type: "text", Required: true, Placeholder: "@YourBot", Help: "admin.oauth_telegram_bot_username_help"},
 		{Key: "redirect_url", Label: "admin.oauth_redirect_url", Type: "text", Required: true, Help: "admin.oauth_redirect_url_help"},
 	}
 }

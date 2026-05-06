@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { setTokens, accessToken } from '../../composables/useUserAuth'
+import { useOAuth } from '../../composables/useOAuth'
 import TurnstileWidget from '../../components/TurnstileWidget.vue'
 
 const { t } = useI18n()
@@ -13,6 +14,7 @@ useSEO({
 })
 const router = useRouter()
 const route = useRoute()
+const { bindOAuth } = useOAuth()
 
 // Provider from route params
 const provider = computed(() => route.params.provider || '')
@@ -85,6 +87,10 @@ async function login() {
     const json = await resp.json()
     if (json.code === 0) {
       setTokens(json.data.token, json.data.refresh_token)
+      // Explicitly bind after login as a fallback, ensuring link flow always completes.
+      if (linkToken.value) {
+        await bindOAuth(linkToken.value)
+      }
       localStorage.setItem('user_profile', JSON.stringify({ name: json.data.name, email: json.data.email }))
       router.push(redirectTo.value)
     } else {

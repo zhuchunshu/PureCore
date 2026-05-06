@@ -38,15 +38,20 @@ func (p *AppleProvider) GetApplyURL() string {
 	return "https://developer.apple.com/account/resources/identifiers/list/serviceId"
 }
 
-// ConfigFields returns extended fields for Apple (adds private_key, team_id, key_id).
+// ConfigFields returns the configuration fields for Apple.
+// Apple does NOT use a user-provided client_secret — the client secret is generated
+// as a JWT using the private_key, team_id, and key_id.
 func (p *AppleProvider) ConfigFields() []ConfigField {
-	fields := BaseOAuth2ConfigFields()
-	fields = append(fields,
-		ConfigField{Key: "team_id", Label: "admin.oauth_apple_team_id", Type: "text", Required: true},
-		ConfigField{Key: "key_id", Label: "admin.oauth_apple_key_id", Type: "text", Required: true},
-		ConfigField{Key: "private_key", Label: "admin.oauth_apple_private_key", Type: "password", Required: true, Help: "admin.oauth_apple_private_key_help"},
-	)
-	return fields
+	return []ConfigField{
+		{Key: "enabled", Label: "admin.oauth_enabled", Type: "toggle", Required: false},
+		{Key: "login_enabled", Label: "admin.oauth_login_enabled", Type: "toggle", Required: false},
+		{Key: "register_enabled", Label: "admin.oauth_register_enabled", Type: "toggle", Required: false},
+		{Key: "client_id", Label: "admin.oauth_client_id", Type: "text", Required: true},
+		{Key: "redirect_url", Label: "admin.oauth_redirect_url", Type: "text", Required: true},
+		{Key: "team_id", Label: "admin.oauth_apple_team_id", Type: "text", Required: true},
+		{Key: "key_id", Label: "admin.oauth_apple_key_id", Type: "text", Required: true},
+		{Key: "private_key", Label: "admin.oauth_apple_private_key", Type: "password", Required: true, Help: "admin.oauth_apple_private_key_help"},
+	}
 }
 
 // GetAuthURL builds the Apple Sign In authorize URL.
