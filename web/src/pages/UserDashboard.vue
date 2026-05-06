@@ -33,6 +33,8 @@ onMounted(async () => {
     const data = await fetchProfile()
     if (data) {
       profile.value = data
+    } else {
+      error.value = t('user.network_error')
     }
   } catch {
     error.value = t('user.network_error')
