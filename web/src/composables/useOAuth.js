@@ -57,12 +57,19 @@ async function initiateLogin(providerName, redirect = '/') {
 
 // Exchange the authorization code returned by the OAuth provider with the backend.
 // This is called by the frontend OAuth callback page after receiving code + state.
+// Includes the auth token if user is already logged in, so the backend can detect
+// a logged-in user and return logged_in status for bind confirmation.
 async function exchangeCode(providerName, code, state, callbackData = null) {
   const payload = callbackData
     ? { state, data: callbackData }
     : { code, state }
+  const headers = { 'Content-Type': 'application/json' }
+  if (userAPI.accessToken && userAPI.accessToken.value) {
+    headers['Authorization'] = `Bearer ${userAPI.accessToken.value}`
+  }
   const json = await publicApi(`/api/v1/oauth/${providerName}/exchange`, {
     method: 'POST',
+    headers,
     body: JSON.stringify(payload),
   })
   return json.data || {}

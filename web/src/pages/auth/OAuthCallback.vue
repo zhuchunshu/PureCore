@@ -5,14 +5,14 @@ import { useI18n } from '../../i18n'
 import { useSEO } from '../../composables/useSEO'
 import { useOAuth } from '../../composables/useOAuth'
 import { setTokens as setUserTokens } from '../../composables/useUserAuth'
-import { IconExclamationCircle, IconCircleCheck, IconUserPlus, IconLogin2 } from '@tabler/icons-vue'
+import { IconExclamationCircle, IconCircleCheck, IconUserPlus, IconLogin2, IconLink, IconX } from '@tabler/icons-vue'
 
 const { t } = useI18n()
 useSEO({ title: t('oauth.callback_title'), description: t('oauth.callback_title') })
 
 const route = useRoute()
 const router = useRouter()
-const { exchangeCode } = useOAuth()
+const { exchangeCode, bindOAuth } = useOAuth()
 
 // Query parameters from backend redirect (old flow)
 const status = ref(route.query.status || '')
@@ -22,13 +22,17 @@ const oauthName = ref(route.query.name || '')
 const oauthEmail = ref(route.query.email || '')
 const oauthAvatar = ref(route.query.avatar_url || '')
 const redirectTo = ref(route.query.redirect || '/')
+const currentUserName = ref(route.query.current_user_name || '')
+const currentUserEmail = ref(route.query.current_user_email || '')
 
 // New exchange flow parameters
 const code = ref(route.query.code || '')
 const state = ref(route.query.state || '')
 
 const loading = ref(true)
+const bindLoading = ref(false)
 const error = ref('')
+const bindError = ref('')
 const mode = ref('choose')
 
 onMounted(async () => {
@@ -44,8 +48,17 @@ onMounted(async () => {
     // Backend already set tokens via cookies and redirected here
     readCookiesAndLogin()
   } else if (status.value === 'bound') {
-    // OAuth was bound to an existing logged-in session
+    // OAuth was bound to an existing logged-in session (legacy, kept for backward compat)
     router.replace(redirectTo.value)
+  } else if (status.value === 'logged_in' && linkToken.value) {
+    // User is already logged in — show bind confirmation
+    oauthName.value = route.query.name || ''
+    oauthEmail.value = route.query.email || ''
+    oauthAvatar.value = route.query.avatar_url || ''
+    currentUserName.value = route.query.current_user_name || ''
+    currentUserEmail.value = route.query.current_user_email || ''
+    loading.value = false
+    mode.value = 'bind_confirm'
   } else if (status.value === 'unlinked' && linkToken.value) {
     // New OAuth account — show registration/bind options
     loading.value = false
@@ -96,8 +109,23 @@ function processExchangeResult(data) {
       }
       break
     case 'bound':
-      // Bound to existing logged-in session
+      // Bound to existing logged-in session (legacy, kept for backward compat)
       router.replace(data.redirect || redirectTo.value || '/')
+      break
+    case 'logged_in':
+      // User is already logged in — show bind confirmation
+      linkToken.value = data.link_token || ''
+      provider.value = data.provider || provider.value
+      oauthName.value = data.name || ''
+      oauthEmail.value = data.email || ''
+      oauthAvatar.value = data.avatar_url || ''
+      redirectTo.value = data.redirect || redirectTo.value || '/'
+      if (data.current_user) {
+        currentUserName.value = data.current_user.name || ''
+        currentUserEmail.value = data.current_user.email || ''
+      }
+      loading.value = false
+      mode.value = 'bind_confirm'
       break
     case 'unlinked':
       // New OAuth account: show registration/bind options
@@ -132,6 +160,26 @@ function readCookiesAndLogin() {
   error.value = t('oauth.callback_failed')
   loading.value = false
 }
+
+// --- Bind confirmation (logged-in user) ---
+
+async function bindAccount() {
+  bindLoading.value = true
+  bindError.value = ''
+  try {
+    await bindOAuth(linkToken.value)
+    router.replace(redirectTo.value || '/')
+  } catch (err) {
+    bindError.value = err.message || t('oauth.bind_failed')
+    bindLoading.value = false
+  }
+}
+
+function cancelBind() {
+  router.replace(redirectTo.value || '/')
+}
+
+// --- Unlinked account options ---
 
 function chooseRegister() {
   // Store OAuth data in sessionStorage to avoid URL length limits with JWT tokens
@@ -205,7 +253,56 @@ const providerDisplay = computed(() => {
         <a href="/login" class="btn btn-primary">{{ t('user.login_title') }}</a>
       </div>
 
-      <!-- Choose action mode -->
+      <!-- Bind confirmation mode (user is logged in, ask whether to bind) -->
+      <div v-else-if="mode === 'bind_confirm'" class="card bg-base-100/80 border border-base-300/20 shadow-xl p-8">
+        <div class="text-center mb-8">
+          <div v-if="oauthAvatar" class="avatar mb-4">
+            <div class="w-20 h-20 rounded-full ring ring-primary/20 ring-offset-base-100 ring-offset-2">
+              <img :src="oauthAvatar" :alt="oauthName" />
+            </div>
+          </div>
+          <div v-else class="mb-4">
+            <IconCircleCheck :size="64" class="mx-auto text-success" />
+          </div>
+          <h2 class="text-xl font-bold text-base-content">{{ t('oauth.bind_confirm_title') }}</h2>
+          <p class="text-base-content/60 mt-2">
+            {{ t('oauth.bind_confirm_desc', { provider: providerDisplay, name: oauthName, email: oauthEmail }) }}
+          </p>
+          <p v-if="currentUserName" class="text-base-content/60 mt-1 text-sm">
+            {{ t('oauth.bind_confirm_current_account') }}: {{ currentUserName }}
+            <template v-if="currentUserEmail">({{ currentUserEmail }})</template>
+          </p>
+        </div>
+
+        <div v-if="bindError" class="alert alert-error mb-4 text-sm">
+          <IconExclamationCircle :size="18" />
+          <span>{{ bindError }}</span>
+        </div>
+
+        <div class="space-y-3">
+          <button
+            class="btn btn-primary w-full gap-3"
+            :disabled="bindLoading"
+            @click="bindAccount"
+          >
+            <template v-if="bindLoading">
+              <span class="loading loading-spinner-xs"></span>
+            </template>
+            <IconLink v-else :size="20" />
+            {{ t('oauth.bind_confirm_yes') }}
+          </button>
+          <button
+            class="btn btn-outline w-full gap-3"
+            :disabled="bindLoading"
+            @click="cancelBind"
+          >
+            <IconX :size="20" />
+            {{ t('oauth.bind_confirm_no') }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Choose action mode (unlinked OAuth account) -->
       <div v-else-if="mode === 'choose'" class="card bg-base-100/80 border border-base-300/20 shadow-xl p-8">
         <div class="text-center mb-8">
           <div v-if="oauthAvatar" class="avatar mb-4">
